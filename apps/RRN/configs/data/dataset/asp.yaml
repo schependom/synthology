@@ -1,0 +1,4 @@
+name: "ASP Family Tree"
+train_path: "datasets/asp/family/train"
+val_path: "datasets/asp/family/val"
+test_path: "datasets/asp/family/test"

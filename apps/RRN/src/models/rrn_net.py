@@ -32,19 +32,42 @@ NOTATION
     Br              batch size in RRN relation updates (number of triples for a specific predicate, either positive or negative)
 """
 
-# PyTorch
 from collections import defaultdict
-
-# Typing
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from device import get_device
 
-# Own data structures
-from data_structures import Class, Relation, Triple
+# ---------------------------------------------------------------------------- #
+#                                TYPE DEFINITIONS                              #
+# ---------------------------------------------------------------------------- #
+
+
+class ClassProtocol(Protocol):
+    index: int
+    name: str
+
+
+class RelationProtocol(Protocol):
+    index: int
+    name: str
+
+
+class IndividualProtocol(Protocol):
+    index: int
+
+
+class TripleProtocol(Protocol):
+    subject: IndividualProtocol
+    predicate: RelationProtocol
+    object: IndividualProtocol
+    positive: bool
+
+
+# ---------------------------------------------------------------------------- #
+#                                 RRN COMPONENTS                               #
+# ---------------------------------------------------------------------------- #
 
 
 class RelationUpdateSubject(nn.Module):
@@ -273,7 +296,12 @@ class ClassUpdate(nn.Module):
         return updated_individuals
 
 
-class RRN(nn.Module):
+# ---------------------------------------------------------------------------- #
+#                                 MAIN NETWORK                                 #
+# ---------------------------------------------------------------------------- #
+
+
+class RRNNetwork(nn.Module):
     """
     Recursive Reasoning Network.
 
@@ -281,31 +309,44 @@ class RRN(nn.Module):
     both class memberships and relational triples.
 
     Args:
-        embedding_size:     Dimensionality of entity embeddings     -> d in RRN paper
-        iterations:         Number of update iterations             -> N in RRN paper
-        classes:            List of Class objects (index, name)     -> K = |classes(KB)|
-        relations:          List of Relation objects (index, name)  -> R = |relations(KB)|
+        config: Configuration object containing:
+            - embedding_size:     Dimensionality of entity embeddings (d)
+            - iterations:         Number of update iterations (N)
+            - classes:            List of objects with 'index' attribute (or count)
+            - relations:          List of objects with 'index' attribute (or count)
     """
 
-    def __init__(
-        self,
-        embedding_size: int,
-        iterations: int,
-        classes: List[Class],  # distinct classes in the KB
-        relations: List[Relation],  # distinct relations in the KB
-    ):
-        super(RRN, self).__init__()
+    def __init__(self, config: Any):
+        super(RRNNetwork, self).__init__()
 
-        # Set embedding size, nb relations, and iterations
-        self._embedding_size = embedding_size  # d
-        self._relation_count = len(relations)  # R = |relations(KB)|
-        self._iterations = iterations  # N
+        # Check if config is dict or object
+        self.config = config
+
+        # Extract parameters
+        # Support both .attribute and ['key'] access
+        if isinstance(config, dict):
+            embedding_size = config["embedding_size"]
+            iterations = config["iterations"]
+            classes = config.get("classes", [])
+            relations = config.get("relations", [])
+        else:
+            embedding_size = config.embedding_size
+            iterations = config.iterations
+            # Try to get classes/relations, assuming they might not be present in all config types
+            classes = getattr(config, "classes", [])
+            relations = getattr(config, "relations", [])
+
+        self._embedding_size = embedding_size
+        self._iterations = iterations
+
+        classes_count = len(classes)
+        self._relation_count = len(relations)
 
         # Create update layers
         self.layers = nn.ModuleList()
 
         # Layer 0: Class update
-        self.layers.append(ClassUpdate(embedding_size, len(classes)))
+        self.layers.append(ClassUpdate(embedding_size, classes_count))
 
         # Layers [1 -> relation_count]: POSITIVE relation updates
         # We create one RelationUpdate layer per distinct predicate p.
@@ -317,22 +358,27 @@ class RRN(nn.Module):
         for _ in relations:
             self.layers.append(RelationUpdate(embedding_size))
 
-    def forward(
-        self,
-        triples: List[Triple],
-        # memberships -> for each individual (first list): -1,0,1 for each class (second list)
-        memberships: List[List[int]],
-        embedding_m: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
+    def forward(self, inputs: Dict[str, Any]) -> torch.Tensor:
         """
         Performs iterative updating using a batched sum-of-updates approach.
+
+        Args:
+            inputs: Dictionary containing:
+                - triples: List of Triple objects
+                - memberships: List[List[int]] for each individual
+                - embedding_m: (Optional) Initial embeddings tensor
+
+        Returns:
+            Final embedding matrix of shape (M x d)
         """
 
-        device = get_device()
+        # Unpack inputs
+        triples: List[TripleProtocol] = inputs["triples"]
+        memberships: List[List[int]] = inputs["memberships"]
+        embedding_m: Optional[torch.Tensor] = inputs.get("embedding_m", None)
 
-        print(
-            f"RRN forward pass on device {device} with {len(triples)} triples and {len(memberships)} class memberships. "
-        )
+        # Get device from model parameters
+        device = next(self.parameters()).device
 
         # M individuals: i_1, i_2, ..., i_M
         num_individuals = len(memberships)
@@ -389,14 +435,9 @@ class RRN(nn.Module):
             # We have three update layer types: (classes, positive relations, negative relations)
             # But classes are already handled above.
             grouped_triples = defaultdict(lambda: {"s_idx": [], "o_idx": []})
-            # This is a dict of dicts:
-            #   key: layer index
-            #   value: dict with    keys:   "s_idx" and "o_idx"
-            #                       values: lists of subject and object indices respectively
-            # Because of the lambda,
-            # keys that do not exist yet will be initialized with empty lists.
 
             # Iterate over all triples and add them to the group dict
+            # Access attributes via Protocol or duck typing
             for triple in triples:
                 p_idx = triple.predicate.index
 
@@ -414,15 +455,6 @@ class RRN(nn.Module):
             # ---------------------- LOOP OVER (NEGATED) PREDICATES ---------------------- #
 
             # Iterate over each update layer and perform batched updates.
-            #
-            #   ->  This means that for every distinct relation type (and its negation),
-            #       we gather all embedding deltas and apply them in a single operation.
-            #
-            #   ->  Denote the batch size for the layer as Br
-            #       (number of triples with that relation type).
-            #
-            #   ->  1 BATCH = 1 PREDICATE TYPE (either positive or negated)
-            #
             for layer_idx, data in grouped_triples.items():
                 # Lists of subject and object indices for this layer (i.e. relation type)
                 s_idx_batch = data["s_idx"]
@@ -446,15 +478,6 @@ class RRN(nn.Module):
                 update_accumulator.scatter_add_(0, s_idx_tensor.expand_as(update_term_s_batch), update_term_s_batch)
                 update_accumulator.scatter_add_(0, o_idx_tensor.expand_as(update_term_o_batch), update_term_o_batch)
 
-                # scatter_add_:
-                #   - dim=0: along the rows (entity dimension)
-                #   - index: indices where to add the updates
-                #   - src: the update terms to add
-
-                # expand_as:
-                #   - because index needs to have the same shape as src,
-                #     we expand the (Br x 1) index tensor to (Br x d)
-
             # Apply the final aggregated update
             #   (this is the replacement of the for-loop in the original RRN)
             # and normalize along the embedding dimension
@@ -467,14 +490,14 @@ class RRN(nn.Module):
         return embedding_m
 
 
+# ---------------------------------------------------------------------------- #
+#                                CLASSIFIERS                                   #
+# ---------------------------------------------------------------------------- #
+
+
 class ClassesMLP(nn.Module):
     """
     MLP for predicting class memberships based on individual embeddings.
-
-    Args:
-        embedding_size:     Dimensionality of input embeddings
-        classes_count:      Number of classes to predict
-        num_hidden_layers:  Number of hidden layers
 
     Paper:
         MLP^{C_i} = P(<s, member_of, C_i> | KB)
@@ -523,21 +546,16 @@ class ClassesMLP(nn.Module):
         for layer in self.hidden_layers:
             x = F.relu(layer(x))
 
-        # Final output layer with sigmoid activation for probabilities
+        # Final output layer
+        # Note: We return raw logits because BCEWithLogitsLoss includes sigmoid
         x = self.output_layer(x)
 
-        # Return logits (no sigmoid; use BCEWithLogitsLoss)
         return x
 
 
 class RelationMLP(nn.Module):
     """
     MLP for predicting relation existence between entity pairs.
-
-    Args:
-        embedding_size:     Dimensionality of input embeddings
-        hidden_size:        Size of hidden layers
-        num_hidden_layers:  Number of hidden layers
 
     Paper:
         MLP^{R_i} = P(<s, R_i, o> | KB)
@@ -587,9 +605,9 @@ class RelationMLP(nn.Module):
         for layer in self.hidden_layers:
             x = F.relu(layer(x))
 
-        # Final output layer with sigmoid activation for probability
+        # Final output layer
+        # Note: We return raw logits because BCEWithLogitsLoss includes sigmoid
+        # for calculating P(<s, R_i, o> | KB) with sigmoid
         x = self.output_layer(x)
 
-        # Return logits (no sigmoid; use BCEWithLogitsLoss)
-        # for calculating P(<s, R_i, o> | KB) with sigmoid
         return x

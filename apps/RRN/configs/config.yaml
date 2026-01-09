@@ -1,0 +1,42 @@
+# RRN Configuration File
+
+
+defaults:
+  - data/default
+  - model/default
+  - trainer/default
+  - _self_
+
+
+# Data settings
+data:
+  # Override data settings here if needed
+
+# Model settings
+model:
+  # Override data settings here if needed
+
+# Trainer settings
+trainer:
+  # Override data settings here if needed
+
+
+use_amp: true
+verbose: true
+log_dir: "./logs"
+loss_function:
+  _target_: torch.nn.BCEWithLogitsLoss
+metrics:
+  - accuracy
+  - f1_score
+
+callbacks:
+  early_stopping:
+    monitor: "val_loss"
+    patience: 10
+  model_checkpoint:
+    dirpath: "./checkpoints"
+    filename: "best-checkpoint"
+    monitor: "val_loss"
+    save_top_k: 1
+    mode: "min"

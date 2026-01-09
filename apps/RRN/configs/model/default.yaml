@@ -1,0 +1,7 @@
+embedding_size: 128
+iterations: 10
+hidden_layers:
+  - 256
+  - 128
+activation: relu
+
