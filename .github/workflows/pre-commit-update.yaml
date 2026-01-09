@@ -38,7 +38,7 @@ jobs:
       # A pull request will only be created if there are changes
       # in the pre-commit configuration files.
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GH_SECRET }}
           branch: update/pre-commit-autoupdate
