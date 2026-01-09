@@ -1,0 +1,28 @@
+[project]
+name = "asp-generator"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Vincent Van Schependom", email = "vincent.van.schependom@gmail.com" }
+]
+dependencies = [
+    "argmagic",
+    "aspwrapper",
+    "insanity>=2017.1",
+    "networkx>=3.2.1",
+    "reldata",
+    "streamtologger>=2017.1",
+]
+
+[project.scripts]
+asp-generator = "asp_generator:main"
+
+[build-system]
+requires = ["uv_build>=0.9.21,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.uv.sources]
+argmagic = { git = "https://github.com/phohenecker/arg-magic" }
+aspwrapper = { git = "https://github.com/phohenecker/asp-wrapper" }
+reldata = { git = "https://github.com/phohenecker/rel-data" }

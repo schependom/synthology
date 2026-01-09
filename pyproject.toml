@@ -22,11 +22,7 @@ dependencies = [
 ]
 
 # UV workspace configuration
-[tool.uv.workspace]
-members = [
-    "apps/RRN",
-    "apps/asp-generator",
-]
+
 
 # Optional dependency groups, which can be installed using:
 #    uv sync --group dev
@@ -42,3 +38,9 @@ line-length = 120
 
 [tool.coverage.run]
 omit = ["tests/*"]
+
+[tool.uv.workspace]
+members = [
+    "apps/asp-generator",
+    "apps/RRN",
+]

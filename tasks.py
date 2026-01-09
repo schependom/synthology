@@ -13,7 +13,7 @@ def gen_ft_asp(ctx: Context):
     """Generates family tree datasets with ASP solver."""
 
     # Run __main__.py in uv environment
-    ctx.run("uv run --python 3.9 -m ftdatagen")
+    ctx.run("uv run --package asp-generator python apps/asp-generator/family-tree.py")
 
 
 # Data version control with DVC+SSH

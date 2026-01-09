@@ -1,0 +1,13 @@
+# Required: path to the dlv executable
+dlv: "~/Users/vincent/Documents/Dev/dlv/"
+
+# override other configs here
+max_branching_factor: 3
+max_tree_depth: 4
+max_tree_size: 10
+negative_facts: 5
+num_samples: 1000
+output_dir: "./data/family-tree"
+quiet: false
+seed: 42
+stop_prob: 0.3
