@@ -42,6 +42,7 @@ omit = ["tests/*"]
 
 [tool.uv.workspace]
 members = [
-    "apps/asp-generator",
+    "apps/asp_generator",
     "apps/RRN",
+    "apps/ont_generator",
 ]

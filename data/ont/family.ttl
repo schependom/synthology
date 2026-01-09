@@ -1,0 +1,165 @@
+@prefix : <http://example.org/family#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xml: <http://www.w3.org/XML/1998/namespace> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@base <http://example.org/family> .
+
+<http://example.org/family> rdf:type owl:Ontology .
+
+#################################################################
+#    Classes
+#################################################################
+
+:Person rdf:type owl:Class .
+
+:Man rdf:type owl:Class ;
+    rdfs:subClassOf :Person ;
+    owl:disjointWith :Woman .
+
+:Woman rdf:type owl:Class ;
+    rdfs:subClassOf :Person .
+
+#################################################################
+#    Base Properties (Primitive)
+#################################################################
+
+:parentOf rdf:type owl:ObjectProperty ;
+    rdfs:domain :Person ;
+    rdfs:range :Person ;
+    rdf:type owl:AsymmetricProperty . # From constraint :- parentOf(X,Y), parentOf(Y,X) 
+
+:childOf rdf:type owl:ObjectProperty ;
+    owl:inverseOf :parentOf .
+
+#################################################################
+#    Inferred Relationships (Property Chains)
+#################################################################
+
+# --- Sibling Logic  ---
+# siblingOf(X, Y) :- parentOf(Z, X), parentOf(Z, Y).
+:siblingOf rdf:type owl:ObjectProperty, owl:SymmetricProperty, owl:IrreflexiveProperty ;
+    owl:propertyChainAxiom ( :childOf :parentOf ) .
+
+# --- Grandparents  ---
+:grandparentOf rdf:type owl:ObjectProperty ;
+    owl:propertyChainAxiom ( :parentOf :parentOf ) .
+
+:grandchildOf rdf:type owl:ObjectProperty ;
+    owl:inverseOf :grandparentOf .
+
+# --- Great Grandparents ---
+:greatGrandparentOf rdf:type owl:ObjectProperty ;
+    owl:propertyChainAxiom ( :parentOf :grandparentOf ) .
+
+:greatGrandchildOf rdf:type owl:ObjectProperty ;
+    owl:inverseOf :greatGrandparentOf .
+
+# --- Aunt/Uncle ---
+# auntUncleOf(X, Y) :- siblingOf(X, Z), parentOf(Z, Y).
+:auntUncleOf rdf:type owl:ObjectProperty ;
+    owl:propertyChainAxiom ( :siblingOf :parentOf ) .
+
+:nieceNephewOf rdf:type owl:ObjectProperty ;
+    owl:inverseOf :auntUncleOf .
+
+# --- Great Aunt/Uncle ---
+# greatAuntUncleOf(X, Y) :- siblingOf(X, Z), grandparentOf(Z, Y).
+:greatAuntUncleOf rdf:type owl:ObjectProperty ;
+    owl:propertyChainAxiom ( :siblingOf :grandparentOf ) .
+
+# --- Second Aunt/Uncle  ---
+# secondAuntUncleOf(X, Y) :- parentOf(Z, X), greatAuntUncleOf(Z, Y).
+:secondAuntUncleOf rdf:type owl:ObjectProperty ;
+    owl:propertyChainAxiom ( :childOf :greatAuntUncleOf ) .
+
+# --- Cousins ---
+# cousinOf(X, Y) :- parentOf(Z, X), auntUncleOf(Z, Y).
+:cousinOf rdf:type owl:ObjectProperty, owl:SymmetricProperty ;
+    owl:propertyChainAxiom ( :childOf :auntUncleOf ) .
+
+# --- Second Cousins ---
+# secondCousinOf(X, Y) :- parentOf(Z, X), secondAuntUncleOf(Z, Y).
+:secondCousinOf rdf:type owl:ObjectProperty, owl:SymmetricProperty ;
+    owl:propertyChainAxiom ( :childOf :secondAuntUncleOf ) .
+
+# --- First Cousin Once Removed ---
+# firstCousinOnceRemovedOf(X, Y) :- cousinOf(Y, Z), parentOf(Z, X).
+:firstCousinOnceRemovedOf rdf:type owl:ObjectProperty ;
+    owl:propertyChainAxiom ( :childOf :cousinOf ) .
+
+#################################################################
+#    Gendered Sub-Properties
+#################################################################
+
+# --- Parents ---
+:fatherOf rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf :parentOf ;
+    rdfs:domain :Man .
+
+:motherOf rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf :parentOf ;
+    rdfs:domain :Woman .
+
+# --- Siblings ---
+:brotherOf rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf :siblingOf ;
+    rdfs:domain :Man .
+
+:sisterOf rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf :siblingOf ;
+    rdfs:domain :Woman .
+
+# --- Grandparents ---
+:grandfatherOf rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf :grandparentOf ;
+    rdfs:domain :Man .
+
+:grandmotherOf rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf :grandparentOf ;
+    rdfs:domain :Woman .
+
+# --- Children ---
+:sonOf rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf :childOf ;
+    rdfs:domain :Man .
+
+:daughterOf rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf :childOf ;
+    rdfs:domain :Woman .
+
+# --- Aunts/Uncles ---
+:uncleOf rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf :auntUncleOf ;
+    rdfs:domain :Man .
+
+:auntOf rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf :auntUncleOf ;
+    rdfs:domain :Woman .
+
+# --- Cousins (Gendered) ---
+:boyCousinOf rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf :cousinOf ;
+    rdfs:domain :Man .
+
+:girlCousinOf rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf :cousinOf ;
+    rdfs:domain :Woman .
+
+# --- Deep Logic Specifics ---
+:greatGrandfatherOf rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf :greatGrandparentOf ;
+    rdfs:domain :Man .
+
+:greatGrandmotherOf rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf :greatGrandparentOf ;
+    rdfs:domain :Woman .
+
+:greatUncleOf rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf :greatAuntUncleOf ;
+    rdfs:domain :Man .
+
+:greatAuntOf rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf :greatAuntUncleOf ;
+    rdfs:domain :Woman .

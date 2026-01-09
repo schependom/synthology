@@ -16,7 +16,7 @@ from synthology.data_structures import (
 )
 
 # Add project root to sys.path to allow importing synthology
-# Assuming script is in apps/asp-generator/
+# Assuming script is in apps/asp_generator/
 project_root = Path(__file__).resolve().parents[2]
 if str(project_root / "src") not in sys.path:
     sys.path.append(str(project_root / "src"))

@@ -7,18 +7,27 @@ PROJECT_NAME = "synthology"
 PYTHON_VERSION = "3.12"
 
 
-# Project commands
 @task
 def gen_ft_asp(ctx: Context):
     """Generates family tree datasets with ASP solver."""
 
     # Run ASP generator
-    ctx.run("uv run --package asp-generator python apps/asp-generator/family-tree.py")
+    print("\nRunning family tree ASP generator.")
+    ctx.run("uv run --package asp_generator python apps/asp_generator/family-tree.py")
 
     # Convert reldata outputs to CSV
+    print("\nConverting reldata outputs to CSV format.")
     ctx.run(
-        "uv run --package asp-generator python apps/asp-generator/convert_to_csv.py --input_dir data/asp/out-reldata/ --output_dir data/asp/out-csv/"
+        "uv run --package asp_generator python apps/asp_generator/src/convert_to_csv.py --input_dir data/asp/out-reldata/ --output_dir data/asp/out-csv/"
     )
+
+
+@task
+def gen_ft_ont(ctx: Context):
+    """Generates family tree datasets with Ontology-based generator."""
+
+    print("\nRunning family tree Ontology-based generator.")
+    ctx.run("uv run --package ont_generator python apps/ont_generator/src/create_data.py")
 
 
 # Data version control with DVC+SSH

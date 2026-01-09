@@ -1,5 +1,5 @@
 [project]
-name = "asp-generator"
+name = "asp_generator"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-asp-generator = "asp_generator:main"
+asp_generator = "asp_generator:main"
 
 [build-system]
 requires = ["uv_build>=0.9.21,<0.10.0"]

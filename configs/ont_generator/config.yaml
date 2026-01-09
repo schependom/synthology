@@ -1,0 +1,34 @@
+defaults:
+  - _self_
+
+ontology:
+  path: "data/ont/family.ttl"
+
+dataset:
+  n_train: 5
+  n_test: 2
+  min_individuals: 1
+  max_individuals: 1000
+  min_rules: 1
+  max_rules: 5
+  min_proofs_per_rule: 5
+  output_dir: "data/ont/out-csv/"
+  seed: null
+  export_proofs: false
+  export_graphs: false
+
+generator:
+  max_recursion: 3
+  global_max_depth: 10
+  max_proofs_per_atom: 5
+  individual_pool_size: 50
+  individual_reuse_prob: 0.7
+  use_signature_sampling: true
+
+negative_sampling:
+  strategy: "mixed"
+  ratio: 1.0
+  corrupt_base_facts: false
+
+logging:
+  level: INFO

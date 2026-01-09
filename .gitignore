@@ -183,5 +183,8 @@ cython_debug/
 data/asp/out-csv/
 data/asp/out-reldata/
 
+# ont data
+data/ont/out-csv/
+
 # Hydra
 outputs/
