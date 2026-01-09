@@ -1,0 +1,19 @@
+version: 2
+
+updates:
+
+  # Group all UV Python dependencies together
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    groups:
+      python-dependencies:
+        patterns:
+          - "*"
+
+  # Keep GitHub Actions updates separate (or group if preferred)
+  - package-ecosystem:  "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"

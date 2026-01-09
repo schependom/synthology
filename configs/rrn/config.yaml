@@ -1,0 +1,17 @@
+model:
+  architecture: batched
+  setup:
+    hidden_size: 100
+    num_hidden_layers: 2
+  
+train:
+  verbose: true
+  hparams:
+    learning_rate: 0.001
+    batch_size: 32
+    num_epochs: 1000
+    eval_every: 50
+    early_stopping_patience: 20
+
+test:
+  include_base_facts: false # Whether to test on base (training) facts as well, next to inferred facts

@@ -1,0 +1,41 @@
+[build-system]
+requires = ["uv_build>=0.9.22,<0.10.0"]
+build-backend = "uv_build"
+
+[project]
+name = "synthology"
+version = "0.0.1" # major.minor.patch
+description = ""
+authors = [
+  { name = "Vincent Van Schependom", email = "vincent.van.schependom@gmail.com" },
+]
+license = { file = "LICENSE" }
+keywords = ["machine learning", "MLOps"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Programming Language :: Python :: 3",
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+
+]
+
+# UV workspace configuration
+[tool.uv.workspace]
+members = ["apps/RRN"]
+
+# Optional dependency groups, which can be installed using:
+#    uv sync --group dev
+# To install all groups, use:
+#    uv sync --all-groups
+[dependency-groups]
+dev = [
+
+]
+
+[tool.ruff]
+line-length = 120
+
+[tool.coverage.run]
+omit = ["tests/*"]
