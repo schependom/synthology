@@ -10,7 +10,7 @@ authors = [
   { name = "Vincent Van Schependom", email = "vincent.van.schependom@gmail.com" },
 ]
 license = { file = "LICENSE" }
-keywords = ["machine learning", "MLOps"]
+keywords = []
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Programming Language :: Python :: 3",
