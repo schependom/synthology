@@ -38,6 +38,7 @@ from typing import Any, Dict, List, Optional, Protocol, Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from omegaconf import DictConfig
 
 # ---------------------------------------------------------------------------- #
 #                                TYPE DEFINITIONS                              #
@@ -316,7 +317,7 @@ class RRNNetwork(nn.Module):
             - relations:          List of objects with 'index' attribute (or count)
     """
 
-    def __init__(self, config: Any):
+    def __init__(self, config: DictConfig):
         super(RRNNetwork, self).__init__()
 
         # Check if config is dict or object

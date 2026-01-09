@@ -5,8 +5,11 @@ This script initializes the Hydra configuration, sets up the data module and mod
 and starts the training process using PyTorch Lightning.
 """
 
+from typing import List
+
 import hydra
 import pytorch_lightning as pl
+from hydra.utils import instantiate
 from omegaconf import DictConfig
 from src.dataloading.datamodule import RRNDataModule
 from src.models.rrn_module import RRNModule
@@ -26,11 +29,18 @@ def train(cfg: DictConfig) -> None:
     # Set up the model
     model = RRNModule(cfg)
 
+    # Instantiate callbacks
+    callbacks: List[pl.Callback] = []
+    if "callbacks" in cfg:
+        for _, cb_conf in cfg.callbacks.items():
+            if "_target_" in cb_conf:
+                callbacks.append(instantiate(cb_conf))
+
     # Set up the trainer
     trainer = pl.Trainer(
         max_epochs=cfg.hyperparameters.num_epochs,
         num_nodes=cfg.num_nodes,
-        callbacks=cfg.callbacks,
+        callbacks=callbacks,
     )
 
     # Start training

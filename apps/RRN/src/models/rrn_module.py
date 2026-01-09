@@ -19,8 +19,8 @@ class RRNModule(pl.LightningModule):
     def __init__(self, config: DictConfig):
         super(RRNModule, self).__init__()
         self.config = config
-        self.model = RRNNetwork(config)  # Initialize the RRN network with model config
-        self.criterion = config.loss_function  # Loss function from config
+        self.model = RRNNetwork(config.model)  # Initialize the RRN network with model config
+        self.criterion = instantiate(config.loss_function)  # Loss function from config
 
     def forward(self, x):
         return self.model(x)  # Forward pass through the RRN network
@@ -38,7 +38,16 @@ class RRNModule(pl.LightningModule):
         return optimizer
 
     def validation_step(self, batch, batch_idx):
-        inputs, targets = batch["inputs"], batch["targets"]
+        if hasattr(batch, "get"):  # Check if batch is a dict
+            inputs = batch.get("inputs")
+            targets = batch.get("targets")
+        else:  # Fallback or if batch is already unpacked
+            inputs, targets = batch
+
+        # If inputs is None, we skip (or handle properly)
+        if inputs is None:
+            return
+
         outputs = self(inputs)
         loss = self.criterion(outputs, targets)
         self.log("val_loss", loss)  # Log the validation loss

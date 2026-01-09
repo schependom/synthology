@@ -1,0 +1,10 @@
+learning_rate: 0.001
+optimizer:
+  _target_: torch.optim.Adam
+  lr: ${hyperparams.learning_rate}
+  weight_decay: ${hyperparams.weight_decay}
+batch_size: 32
+weight_decay: 0.0001
+num_epochs: 1000
+eval_every: 50
+early_stopping_patience: 20

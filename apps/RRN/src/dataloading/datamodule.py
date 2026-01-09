@@ -1,12 +1,12 @@
-from typing import Any, Dict
-
 import pytorch_lightning as pl
+from omegaconf import DictConfig
 from torch.utils.data import DataLoader, Dataset
 
 
 class RRNDataModule(pl.LightningDataModule):
-    def __init__(self, cfg: Dict[str, Any]):
+    def __init__(self, cfg: DictConfig):
         super().__init__()
+
         self.cfg = cfg
         self.train_dataset: Dataset = None
         self.val_dataset: Dataset = None
@@ -19,11 +19,11 @@ class RRNDataModule(pl.LightningDataModule):
     def setup(self, stage: str) -> None:
         # Load datasets based on the stage
         if stage == "fit" or stage is None:
-            self.train_dataset = self.load_dataset(self.cfg.data.train_data_path)
-            self.val_dataset = self.load_dataset(self.cfg.data.val_data_path)
+            self.train_dataset = self.load_dataset(self.cfg.data.train_path)
+            self.val_dataset = self.load_dataset(self.cfg.data.val_path)
 
         if stage == "test" or stage is None:
-            self.test_dataset = self.load_dataset(self.cfg.data.test_data_path)
+            self.test_dataset = self.load_dataset(self.cfg.data.test_path)
 
     def load_dataset(self, data_path: str) -> Dataset:
         # Placeholder for dataset loading logic
