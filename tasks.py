@@ -12,8 +12,13 @@ PYTHON_VERSION = "3.12"
 def gen_ft_asp(ctx: Context):
     """Generates family tree datasets with ASP solver."""
 
-    # Run __main__.py in uv environment
+    # Run ASP generator
     ctx.run("uv run --package asp-generator python apps/asp-generator/family-tree.py")
+
+    # Convert reldata outputs to CSV
+    ctx.run(
+        "uv run --package asp-generator python apps/asp-generator/convert_to_csv.py --input_dir data/asp/out-reldata/ --output_dir data/asp/out-csv/"
+    )
 
 
 # Data version control with DVC+SSH

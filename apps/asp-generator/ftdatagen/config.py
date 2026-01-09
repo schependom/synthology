@@ -4,7 +4,6 @@
 import numbers
 import os
 import random
-import typing
 
 import insanity
 from argmagic import decorators
@@ -69,6 +68,8 @@ class Config(object):
     DEFAULT_STOP_PROB = 0.0
     """float: Default value of :attr:`stop_prob`."""
 
+    DEFAULT_ONTOLOGY_PATH = "../../../data/asp/family-tree.asp"
+
     #  CONSTRUCTOR  ####################################################################################################
 
     def __init__(self):
@@ -83,6 +84,7 @@ class Config(object):
         self._quiet = self.DEFAULT_QUIET
         self._seed = random.randrange(100000)  # -> we randomly generate a default seed to ensure reproducibility
         self._stop_prob = self.DEFAULT_STOP_PROB
+        self._ontology_path = self.DEFAULT_ONTOLOGY_PATH
 
     #  PROPERTIES  #####################################################################################################
 
@@ -93,7 +95,7 @@ class Config(object):
         DLV is an answer-set reasoner that is used for generating some of the datasets
         (`http://www.dlvsystem.com/dlv/`_).
         """
-        return self._dlv
+        return self._dlv  # type: ignore
 
     @dlv.setter
     def dlv(self, dlv: str) -> None:
@@ -110,7 +112,7 @@ class Config(object):
     @max_branching_factor.setter
     def max_branching_factor(self, max_branching_factor: int) -> None:
         insanity.sanitize_type("max_branching_factor", max_branching_factor, int)
-        insanity.sanitize_range("max_branching_factor", max_branching_factor, minimum=1)
+        insanity.sanitize_range("max_branching_factor", max_branching_factor, minimum=1)  # type: ignore
         self._max_branching_factor = max_branching_factor
 
     @property
@@ -121,7 +123,7 @@ class Config(object):
     @max_tree_depth.setter
     def max_tree_depth(self, max_tree_depth: int) -> None:
         insanity.sanitize_type("max_tree_depth", max_tree_depth, int)
-        insanity.sanitize_range("max_tree_depth", max_tree_depth, minimum=1)
+        insanity.sanitize_range("max_tree_depth", max_tree_depth, minimum=1)  # type: ignore
         self._max_tree_depth = max_tree_depth
 
     @property
@@ -132,7 +134,7 @@ class Config(object):
     @max_tree_size.setter
     def max_tree_size(self, max_tree_size: int) -> None:
         insanity.sanitize_type("max_tree_size", max_tree_size, int)
-        insanity.sanitize_range("max_tree_size", max_tree_size, minimum=1)
+        insanity.sanitize_range("max_tree_size", max_tree_size, minimum=1)  # type: ignore
         self._max_tree_size = max_tree_size
 
     @property
@@ -145,14 +147,14 @@ class Config(object):
         self._negative_facts = bool(negative_facts)
 
     @property
-    def num_samples(self) -> typing.Union[int, None]:
+    def num_samples(self) -> int:
         """int: The size of the dataset to generate."""
         return self._num_samples
 
     @num_samples.setter
     def num_samples(self, num_samples: int) -> None:
         insanity.sanitize_type("num_samples", num_samples, int)
-        insanity.sanitize_range("num_samples", num_samples, minimum=1)
+        insanity.sanitize_range("num_samples", num_samples, minimum=1)  # type: ignore
         self._num_samples = num_samples
 
     @property
@@ -190,7 +192,19 @@ class Config(object):
         return self._stop_prob
 
     @stop_prob.setter
-    def stop_prob(self, stop_prob: numbers.Real) -> None:
+    def stop_prob(self, stop_prob: float) -> None:
         insanity.sanitize_type("stop_prob", stop_prob, numbers.Real)
-        insanity.sanitize_range("stop_prob", stop_prob, minimum=0, maximum=1, max_inclusive=False)
+        insanity.sanitize_range("stop_prob", stop_prob, minimum=0, maximum=1, max_inclusive=False)  # type: ignore
         self._stop_prob = float(stop_prob)
+
+    @property
+    def ontology_path(self) -> str:
+        """str: The path to the ASP ontology file used for generating the datasets."""
+        return self._ontology_path
+
+    @ontology_path.setter
+    def ontology_path(self, ontology_path: str) -> None:
+        ontology_path = str(ontology_path)
+        if not os.path.isfile(ontology_path):
+            raise ValueError("The provided path <ontology_path> does not exist: '{}'!".format(ontology_path))
+        self._ontology_path = ontology_path

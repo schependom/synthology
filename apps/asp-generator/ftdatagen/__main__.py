@@ -7,7 +7,6 @@ import os
 import random
 
 import argmagic
-import streamtologger
 
 from ftdatagen import config, generator
 
@@ -93,12 +92,12 @@ def main(conf: config.Config):
         os.mkdir(conf.output_dir)
 
     # set up logging
-    streamtologger.redirect(
-        os.path.join(conf.output_dir, LOG_FILE_NAME),
-        print_to_screen=not conf.quiet,
-        append=False,
-        header_format=LOG_FILE_HEADER,
-    )
+    # streamtologger.redirect(
+    #     os.path.join(conf.output_dir, LOG_FILE_NAME),
+    #     print_to_screen=not conf.quiet,
+    #     append=False,
+    #     header_format=LOG_FILE_HEADER,
+    # )
 
     # seed RNG
     random.seed(conf.seed)
@@ -110,4 +109,5 @@ def main(conf: config.Config):
     generator.Generator.generate(conf)
 
 
-main(argmagic.parse_args(config.Config, app_name=APP_NAME, app_description=APP_DESCRIPTION, positional_args=True))
+if __name__ == "__main__":
+    main(argmagic.parse_args(config.Config, app_name=APP_NAME, app_description=APP_DESCRIPTION, positional_args=True))

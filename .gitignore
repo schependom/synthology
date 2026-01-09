@@ -178,3 +178,10 @@ cython_debug/
 # Added by post_gen_project.py script
 .env
 .vscode/
+
+# reldata
+data/asp/out-csv/
+data/asp/out-reldata/
+
+# Hydra
+outputs/

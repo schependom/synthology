@@ -1,12 +1,17 @@
-# Run ftdatagen.__main__.py
+# Run Patrick Hohenecker's family tree generator
+# with configuration from
+# configs/asp-generator/family-tree.yaml
+
 import hydra
 from ftdatagen.__main__ import main
 from ftdatagen.config import Config
 
 # Read config from configs/asp-generator/family-tree.yaml and run
 
+REPO_ROOT = "../.."
 
-@hydra.main(version_base=None, config_path="configs/asp-generator/", config_name="family-tree")
+
+@hydra.main(version_base=None, config_path=f"{REPO_ROOT}/configs/asp-generator/", config_name="family-tree")
 def run_family_tree_generator(cfg: Config):
     conf = Config()
     conf.dlv = cfg.dlv
@@ -19,6 +24,7 @@ def run_family_tree_generator(cfg: Config):
     conf.quiet = cfg.quiet
     conf.seed = cfg.seed
     conf.stop_prob = cfg.stop_prob
+    conf.ontology_path = cfg.ontology_path
 
     main(conf)
 

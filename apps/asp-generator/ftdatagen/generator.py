@@ -8,13 +8,14 @@ import typing
 
 import aspwrapper
 import networkx as nx
-from ftdatagen import config, person
-from ftdatagen import person_factory as pf
 from reldata import data_context as dc
 from reldata.data import class_membership, knowledge_graph, triple
 from reldata.io import kg_writer
 from reldata.vocab import class_type_factory as ctf
 from reldata.vocab import relation_type_factory as rtf
+
+from ftdatagen import config, person
+from ftdatagen import person_factory as pf
 
 __author__ = "Patrick Hohenecker"
 __copyright__ = (
@@ -108,6 +109,10 @@ class Generator(object):
         # fetch all names from the data
         all_names = sorted(counts.keys())
 
+        if not all_names:
+            print("  (no data)")
+            return
+
         # get maximum count
         max_count = max(counts.values())
 
@@ -137,6 +142,10 @@ class Generator(object):
         """Prints statistics for the given counts to the screen."""
         # fetch all names from the data
         all_names = sorted(pos_counts.keys())
+
+        if not all_names:
+            print("  (no data)")
+            return
 
         # get maximum counts
         max_pos = max(pos_counts.values())
@@ -207,7 +216,7 @@ class Generator(object):
                 facts.append(aspwrapper.Literal("parentOf", [p.name, c.name]))
 
         # run the ASP solver to compute all inferences
-        return aspwrapper.DlvSolver(conf.dlv).run(cls.ONTOLOGY_PATH, facts)[0]
+        return aspwrapper.DlvSolver(conf.dlv).run(conf.ontology_path, facts)[0]
 
     @classmethod
     def _sample_family_tree(cls, conf: config.Config) -> typing.List[person.Person]:
@@ -367,7 +376,7 @@ class Generator(object):
                     )
             elif f.predicate in cls.RELATIONS:
                 kg.triples.add(
-                    triple.Triple(individuals[f.terms[0]], relations[f.predicate], individuals[f.terms[1]], f.positive)
+                    triple.Triple(individuals[f.terms[0]], relations[f.predicate], individuals[f.terms[1]], f.positive)  # type: ignore
                 )
 
         # add all inferences to the knowledge graph
@@ -399,7 +408,7 @@ class Generator(object):
             conf (:class:`config.Config`): The configuration that specifies how to create the dataset.
         """
         # a pattern that describes the base names of the created samples
-        sample_name_pattern = "{:0" + str(len(str(conf.num_samples - 1))) + "d}"
+        sample_name_pattern = "{:0" + str(len(str(conf.num_samples - 1))) + "d}"  # type: ignore
 
         # numerous counters for computing data statistics
         tree_size_counts = [0] * (conf.max_tree_size + 2)  # +2 rather than +1 -> adding of spouses
@@ -410,7 +419,7 @@ class Generator(object):
         # create list for storing graph representations of all created samples (for checking isomorphism)
         sample_graphs = []
 
-        for sample_idx in range(conf.num_samples):
+        for sample_idx in range(conf.num_samples):  # type: ignore
             print("creating sample #{}: ".format(sample_idx), end="")
 
             # use a fresh data context
@@ -481,7 +490,8 @@ class Generator(object):
         }
 
         # prepare total-number-of-relations-statistics for printing
-        max_relations = max((size for size, counts in enumerate(total_relations_counts) if counts > 0))
+        nonzero_counts = [size for size, counts in enumerate(total_relations_counts) if counts > 0]
+        max_relations = max(nonzero_counts) if nonzero_counts else 0
         title_format = "#relations={{:0{}d}}".format(len(str(max_relations)))
         total_relations_counts = {
             title_format.format(size): counts
