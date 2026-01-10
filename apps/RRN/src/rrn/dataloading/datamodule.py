@@ -1,3 +1,7 @@
+"""
+Module defining a PyTorch Lightning DataModule for loading KG datasets.
+"""
+
 import pytorch_lightning as pl
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf

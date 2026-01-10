@@ -1,4 +1,5 @@
 name: "Ontology Based Family Dataset"
+
 train_path: "data/ont/family_tree/train"
 val_path: "data/ont/family_tree/val"
 test_path: "data/ont/family_tree/test"

@@ -1,3 +1,7 @@
+"""
+Module defining a PyTorch Dataset for loading and preprocessing knowledge graph samples.
+"""
+
 from pathlib import Path
 
 from loguru import logger

@@ -12,11 +12,12 @@ import hydra
 import pytorch_lightning as pl
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
+from pytorch_lightning.callbacks import RichModelSummary, RichProgressBar
 
 from .dataloading.datamodule import RRNDataModule
 from .models.rrn_module import RRNSystem
 
-REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../../..")
+REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../..")
 
 
 @hydra.main(version_base=None, config_path=f"{REPO_ROOT}/configs/rrn", config_name="config")
@@ -53,10 +54,10 @@ def train(cfg: DictConfig) -> None:
 
     # Initialize Callbacks
     callbacks = [
-        # # Use Rich for the nice colorful progress bar
-        # # RichProgressBar(),
-        # # Use Rich for the nice colorful model summary table
-        # RichModelSummary(max_depth=2),
+        # Use Rich for the nice colorful progress bar
+        RichProgressBar(),
+        # Use Rich for the nice colorful model summary table
+        RichModelSummary(max_depth=2),
     ]
 
     if "callbacks" in cfg:
@@ -96,6 +97,7 @@ def train(cfg: DictConfig) -> None:
 
 if __name__ == "__main__":
     # Add this near the top of train.py
-    warnings.filterwarnings("ignore", message="Precision 16-mixed is not supported by the model summary")
+    warnings.filterwarnings("ignore", ".*Precision 16-mixed is not supported by the model summary.*")
+    warnings.filterwarnings("ignore", ".*You have overridden `transfer_batch_to_device` in `LightningModule`.*")
 
     train()

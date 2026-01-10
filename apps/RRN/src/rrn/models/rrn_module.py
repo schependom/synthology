@@ -13,7 +13,7 @@ from omegaconf import DictConfig
 from synthology.data_structures import Class, Relation, Triple
 
 from .rrn_batched import RRN as RRNBatched
-from .rrn_common import ClassesMLP, RelationMLP
+from .rrn_batched import ClassesMLP, RelationMLP
 from .rrn_exact import RRN as RRNExact
 
 
@@ -70,12 +70,25 @@ class RRNSystem(pl.LightningModule):
         self.mlps = nn.ModuleList()
 
         # MLP^{C_i} = P(<s, member_of, o> | KB)
-        self.mlps.append(ClassesMLP(embedding_size, len(classes)))
+        self.mlps.append(
+            ClassesMLP(
+                embedding_size=embedding_size,
+                classes_count=len(classes),
+                hidden_size=cfg.model.hidden_size,
+                num_hidden_layers=cfg.model.num_hidden_layers,
+            )
+        )
 
         # One MLP per relation type (positive or negative predicate)
         for _ in relations:
             # MLP^{R_i} = P(<s, R_i, o> | KB)
-            self.mlps.append(RelationMLP(embedding_size))
+            self.mlps.append(
+                RelationMLP(
+                    embedding_size=embedding_size,
+                    hidden_size=cfg.model.hidden_size,
+                    num_hidden_layers=cfg.model.num_hidden_layers,
+                )
+            )
 
     def forward(self, triples: List[Triple], memberships: List[List[int]]):
         """
@@ -143,7 +156,8 @@ class RRNSystem(pl.LightningModule):
         base_memberships = batch["base_memberships"]
 
         # In validation, we typically want to measure performance on ALL known facts
-        if self.cfg.test_base_facts:
+        # Default to True to avoid NaNs if validation set has no inferred facts
+        if self.cfg.get("test_base_facts", True):
             target_triples = batch["all_triples"]
             target_memberships = batch["all_memberships"]
         else:
@@ -168,16 +182,13 @@ class RRNSystem(pl.LightningModule):
         self.log("val/class_loss", val_class_loss, on_step=False, on_epoch=True, batch_size=1)
         self.log("val/relation_loss", val_rel_loss, on_step=False, on_epoch=True, batch_size=1)
 
-        # Compute accuracies with PyTorch
-        val_acc = class_metrics.get("acc_all", float("nan"))
-        if not torch.isnan(torch.tensor(val_acc)):
-            self.log("val/class_acc", val_acc, on_step=False, on_epoch=True, prog_bar=True, batch_size=1)
-
         for key, value in class_metrics.items():
-            self.log(f"val/class_{key}", value, on_step=False, on_epoch=True, batch_size=1)
+            self.log(f"val/class_{key}", value, on_step=False, on_epoch=True, prog_bar=(key == "acc_all"), batch_size=1)
 
         for key, value in triple_metrics.items():
-            self.log(f"val/triple_{key}", value, on_step=False, on_epoch=True, batch_size=1)
+            self.log(
+                f"val/triple_{key}", value, on_step=False, on_epoch=True, prog_bar=(key == "acc_all"), batch_size=1
+            )
 
         return val_loss
 
@@ -190,7 +201,7 @@ class RRNSystem(pl.LightningModule):
         base_triples = batch["base_triples"]
         base_memberships = batch["base_memberships"]
 
-        if self.cfg.test_base_facts:
+        if self.cfg.get("test_base_facts", True):
             target_triples = batch["all_triples"]
             target_memberships = batch["all_memberships"]
         else:
@@ -209,10 +220,10 @@ class RRNSystem(pl.LightningModule):
         # 6. Logging
         # Lightning automatically accumulates these over the epoch
         for key, value in class_metrics.items():
-            self.log(f"test/class_{key}", value, on_step=False, on_epoch=True)
+            self.log(f"test/class_{key}", value, on_step=False, on_epoch=True, batch_size=1)
 
         for key, value in triple_metrics.items():
-            self.log(f"test/triple_{key}", value, on_step=False, on_epoch=True)
+            self.log(f"test/triple_{key}", value, on_step=False, on_epoch=True, batch_size=1)
 
     def _evaluate_classes(
         self,

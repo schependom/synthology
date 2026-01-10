@@ -1,16 +1,15 @@
 """
-Module for scanning and representing the schema of a relational dataset and
-translating it into internal data structures.
+Module for scanning and representing the schema of a relational dataset.
+It keeps track of all unique classes and relations found in the dataset.
 """
 
 import csv
-import logging
 from pathlib import Path
 from typing import Dict, List
 
-from synthology.data_structures import Class, Relation
+from loguru import logger
 
-logger = logging.getLogger(__name__)
+from synthology.data_structures import Class, Relation
 
 
 class Schema:

@@ -460,6 +460,7 @@ class KnowledgeGraph:
                         proofs=list(proofs),
                     )
                     memberships.append(membership)
+                    individual.classes.append(membership)
 
                 elif fact_type == "triple":
                     # Relational triple: (Individual, Relation, Individual)
