@@ -34,6 +34,9 @@ def train(cfg: DictConfig) -> None:
     # Set up the data module
     data_module = RRNDataModule(cfg)
 
+    # Pre-scan schema to populate config.model.classes/relations
+    data_module.prepare_schema()
+
     # Set up the model
     model = RRNModule(cfg)
 

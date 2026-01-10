@@ -1,0 +1,11 @@
+defaults:
+  - dataset: family_tree
+  - _self_
+
+# Required: path to the dlv executable
+dlv: "/Users/vincent/Documents/Dev/dlv/dl"
+
+# Train/test split
+train_val_pct: 0.8
+# this means test size is 1 - train_val_pct
+

@@ -68,7 +68,7 @@ class Config(object):
     DEFAULT_STOP_PROB = 0.0
     """float: Default value of :attr:`stop_prob`."""
 
-    DEFAULT_ONTOLOGY_PATH = "../../../data/asp/family-tree.asp"
+    DEFAULT_ONTOLOGY_PATH = "../../../data/asp/family_tree.asp"
 
     #  CONSTRUCTOR  ####################################################################################################
 

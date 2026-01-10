@@ -1,14 +1,12 @@
-# Required: path to the dlv executable
-dlv: "/Users/vincent/Documents/Dev/dlv/dl"
-
 # override other configs here
+name: "family_tree"
 max_branching_factor: 3
 max_tree_depth: 4
 max_tree_size: 10
 negative_facts: 5
-num_samples: 2
+num_samples: 50
 output_dir: "./data/asp/out-reldata"
 quiet: false
 seed: 42
 stop_prob: 0.3
-ontology_path: "./data/asp/family-tree.asp"
+ontology_path: "./data/asp/family_tree.asp"

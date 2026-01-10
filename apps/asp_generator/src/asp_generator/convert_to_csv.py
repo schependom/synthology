@@ -1,8 +1,13 @@
-import argparse
 import logging
+import os
+import random
+import shutil
 import sys
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
+
+import hydra
+from omegaconf import DictConfig
 
 from synthology.data_structures import (
     Class,
@@ -120,12 +125,6 @@ def convert_reldata_kg(rd_kg) -> KnowledgeGraph:
     # reldata KG typically exposes 'triples' as a set/list
     if hasattr(rd_kg, "triples"):
         for i, rd_triple in enumerate(rd_kg.triples):
-            if i == 0:
-                logger.info(f"First triple attributes: {dir(rd_triple)}")
-
-            # Triple(subject, predicate, object, positive)
-            # Re-map fields
-
             # Subject
             subj_raw = getattr(rd_triple, "subject", None)
             if not subj_raw:
@@ -172,20 +171,56 @@ def convert_reldata_kg(rd_kg) -> KnowledgeGraph:
     )
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Convert reldata Knowledge Graphs to CSV triples")
-    parser.add_argument("--input_dir", type=str, required=True, help="Directory containing reldata files (pickled)")
-    parser.add_argument("--output_dir", type=str, required=True, help="Directory to save CSV files")
-    args = parser.parse_args()
+REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../../..")
 
-    input_path = Path(args.input_dir)
-    output_path = Path(args.output_dir)
+
+@hydra.main(version_base=None, config_path=f"{REPO_ROOT}/configs/asp_generator", config_name="config")
+def main(cfg: DictConfig):
+    # args are now handled by hydra
+    # We still need input_dir, but we can get it from cfg or infer from standard locations?
+    # The prompt implies we should base locations on config.
+
+    # Original args: input_dir, output_dir.
+    # New logic:
+    #   input_dir = cfg.dataset.output_dir (where reldata was saved)
+    #   output_dir structure = data/asp/{dataset.name}/{train/test}
+
+    input_dir = cfg.dataset.output_dir
+    # Resolve relative path if needed? cfg.dataset.output_dir is usually relative to running location
+    # But hydra changes working directory.
+    # We should use `hydra.utils.get_original_cwd()` to resolve paths if they are relative to invocation.
+
+    import hydra.utils
+
+    original_cwd = Path(hydra.utils.get_original_cwd())
+
+    # If input_dir starts with ./, it's relative to original_cwd
+    input_path = Path(input_dir)
+    if not input_path.is_absolute():
+        input_path = original_cwd / input_path
 
     if not input_path.exists():
         logger.error(f"Input directory does not exist: {input_path}")
         return
 
-    output_path.mkdir(parents=True, exist_ok=True)
+    dataset_name = cfg.dataset.name
+
+    base_output_dir = original_cwd / "data" / "asp" / dataset_name
+    # /data/asp/{dataset.name}/train_val
+    # /data/asp/{dataset.name}/test
+    train_val_dir = base_output_dir / "train_val"
+    test_dir = base_output_dir / "test"
+    # Final structure:
+    #   {base}/train_val/
+    #   {base}/test/
+
+    if train_val_dir.exists():
+        shutil.rmtree(train_val_dir)
+    if test_dir.exists():
+        shutil.rmtree(test_dir)
+
+    train_val_dir.mkdir(parents=True, exist_ok=True)
+    test_dir.mkdir(parents=True, exist_ok=True)
 
     try:
         from reldata.io import kg_reader
@@ -194,7 +229,6 @@ def main():
         return
 
     # Identify samples by scanning for unique basenames (e.g. "0", "1")
-    # Filenames format: <basename>.<extension>...
     unique_basenames = set()
     for f in input_path.iterdir():
         if f.is_file() and not f.name.startswith("."):
@@ -202,36 +236,60 @@ def main():
             if parts and parts[0].isdigit():
                 unique_basenames.add(parts[0])
 
-    samples = []
+    samples: List[KnowledgeGraph] = []
 
-    for basename in sorted(unique_basenames, key=lambda x: int(x)):
-        logger.info(f"Reading sample '{basename}' from {input_path}...")
+    # Sort to ensure reproducibility if reading order matters (it shouldn't for list, but nice for logs)
+    sorted_basenames = sorted(unique_basenames, key=lambda x: int(x))
+
+    for basename in sorted_basenames:
         try:
-            # reldata.io.kg_reader.KgReader.read(directory, basename)
             rd_kg = kg_reader.KgReader.read(str(input_path), basename)
             if rd_kg:
-                logger.info(f"Converting sample '{basename}'...")
+                # logger.info(f"Converting sample '{basename}'...")
                 s_kg = convert_reldata_kg(rd_kg)
                 samples.append(s_kg)
         except Exception as e:
             logger.warning(f"Skipping sample '{basename}': {e}")
 
-    if samples:
-        logger.info(f"Saving {len(samples)} samples to {output_path}")
-        print(f"Saving {len(samples)} CSV samples to {output_path}")
-        # Assuming KnowledgeGraph.to_csv_batch is a static method as implied by its signature
-        try:
-            KnowledgeGraph.to_csv_batch(samples, str(output_path))
-        except TypeError as e:
-            # Fallback if it's not static and I can't modify it easily here
-            # But the user asked to base it on available methods.
-            logger.error(f"Error calling to_csv_batch: {e}")
-            # Manual fallback
-            for idx, kg in enumerate(samples):
-                fname = output_path / f"sample_{idx}.csv"
-                kg.to_csv(str(fname))
-    else:
-        logger.info("No valid samples found or converted.")
+    if not samples:
+        logger.warning("No valid samples found or converted.")
+        return
+
+    logger.info(f"Total samples converted: {len(samples)}")
+
+    # Shuffle and split
+    # Use cfg.dataset.seed if available, else cfg.seed?
+    seed = getattr(cfg.dataset, "seed", 42)
+    random.seed(seed)
+    random.shuffle(samples)
+
+    train_val_pct = cfg.train_val_pct
+    split_idx = int(len(samples) * train_val_pct)
+
+    train_val_samples = samples[:split_idx]
+    test_samples = samples[split_idx:]
+
+    logger.info(f"Splitting data (train_val_pct={train_val_pct}):")
+    logger.info(f"  Train/Val: {len(train_val_samples)} samples -> {train_val_dir}")
+    logger.info(f"  Test:      {len(test_samples)} samples -> {test_dir}")
+
+    # Save Train/Val
+    if train_val_samples:
+        save_samples(train_val_samples, train_val_dir)
+
+    # Save Test
+    if test_samples:
+        save_samples(test_samples, test_dir)
+
+
+def save_samples(samples: List[KnowledgeGraph], output_path: Path):
+    try:
+        KnowledgeGraph.to_csv_batch(samples, str(output_path))
+    except TypeError as e:
+        logger.error(f"Error calling to_csv_batch: {e}")
+        for idx, kg in enumerate(samples):
+            fname = output_path / f"sample_{idx:05d}.csv"
+            kg.to_csv(str(fname))
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 import os
 
 from invoke import Context, task
+from loguru import logger
 
 WINDOWS = os.name == "nt"
 PROJECT_NAME = "synthology"
@@ -13,15 +14,26 @@ os.environ["SYNTHOLOGY_ROOT"] = os.path.dirname(os.path.abspath(__file__))
 def gen_ft_asp(ctx: Context):
     """Generates family tree datasets with ASP solver."""
 
-    # Run ASP generator
-    print("\nRunning family tree ASP generator.")
+    # Clean up ./data/asp/out-reldata first
+    logger.info("Cleaning up previous ASP generator outputs.")
+    ctx.run("rm -rf ./data/asp/out-reldata")
+    logger.success("Cleanup done.")
+
+    # Run ASP generator using
+    # config from configs/asp_generator/config.yaml
+    print("-------------------------------------------------------")
+    print("Running family tree ASP generator by Patrick Hohenecker")
+    print("-------------------------------------------------------\n")
     ctx.run("uv run --package asp_generator asp_generator")
 
     # Convert reldata outputs to CSV
-    print("\nConverting reldata outputs to CSV format.")
-    ctx.run(
-        "uv run --package asp_generator python -m asp_generator.convert_to_csv --input_dir data/asp/out-reldata/ --output_dir data/asp/out-csv/"
-    )
+    # using config from configs/asp_generator/config.yaml
+    print("\n-------------------------------------------")
+    print("Converting generated ASP data to CSV format")
+    print("--------------------------------------------\n")
+    ctx.run("uv run --package asp_generator python -m asp_generator.convert_to_csv")
+
+    logger.success("Family tree dataset generation with ASP completed.")
 
 
 @task
