@@ -9,7 +9,7 @@ from omegaconf import DictConfig
 
 # Import your existing models and structures
 # Assuming these are in the python path or relative imports work
-from synthology.data_structures import KnowledgeGraph, Triple
+from synthology.data_structures import Class, Relation, Triple
 
 from .rrn_batched import RRN as RRNBatched
 from .rrn_common import ClassesMLP, RelationMLP
@@ -26,7 +26,7 @@ class RRNSystem(pl.LightningModule):
     - Loss computation (Class + Relation with dynamic weighting)
     """
 
-    def __init__(self, cfg: DictConfig, reference_kg: KnowledgeGraph):
+    def __init__(self, cfg: DictConfig, classes: List[Class], relations: List[Relation]):
         """
         Args:
             cfg: Hydra configuration dictionary.
@@ -50,15 +50,15 @@ class RRNSystem(pl.LightningModule):
             self.rrn = RRNBatched(
                 embedding_size=embedding_size,
                 iterations=iterations,
-                classes=reference_kg.classes,
-                relations=reference_kg.relations,
+                classes=classes,
+                relations=relations,
             )
         elif model_type == "exact":
             self.rrn = RRNExact(
                 embedding_size=embedding_size,
                 iterations=iterations,
-                classes=reference_kg.classes,
-                relations=reference_kg.relations,
+                classes=classes,
+                relations=relations,
             )
         else:
             raise ValueError(f"Unknown model type: {model_type}. Choose 'batched' or 'exact'.")
@@ -69,10 +69,10 @@ class RRNSystem(pl.LightningModule):
         self.mlps = nn.ModuleList()
 
         # MLP^{C_i} = P(<s, member_of, o> | KB)
-        self.mlps.append(ClassesMLP(embedding_size, len(reference_kg.classes)))
+        self.mlps.append(ClassesMLP(embedding_size, len(classes)))
 
         # One MLP per relation type (positive or negative predicate)
-        for _ in reference_kg.relations:
+        for _ in relations:
             # MLP^{R_i} = P(<s, R_i, o> | KB)
             self.mlps.append(RelationMLP(embedding_size))
 

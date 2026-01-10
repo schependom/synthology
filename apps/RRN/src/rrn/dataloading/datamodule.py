@@ -1,5 +1,5 @@
 import pytorch_lightning as pl
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader, Dataset
 
 from .csv_reader import RRNDataset, Schema, scan_schema
@@ -17,7 +17,7 @@ class RRNDataModule(pl.LightningDataModule):
 
     def prepare_data(self) -> None:
         # Scan schema from training data to ensure we know all classes/relations
-        pass
+        # TODO
 
     def prepare_schema(self) -> None:
         """Helper to scan schema and populate config."""
@@ -27,10 +27,6 @@ class RRNDataModule(pl.LightningDataModule):
 
         # Inject schema into config so model can initialize correctly
         if "model" in self.cfg:
-            # OmegaConf specific way to add/update keys if struct mode is on
-            # Assuming DictConfig is open or we can update it
-            from omegaconf import OmegaConf
-
             OmegaConf.set_struct(self.cfg, False)
             self.cfg.model.classes = self.schema.class_names
             self.cfg.model.relations = self.schema.relation_names
