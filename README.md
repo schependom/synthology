@@ -37,7 +37,6 @@ This repository implements this generator and evaluates the quality of the gener
 -   [Installation](#installation)
     -   [macOS/Linux](#macoslinux)
     -   [Windows](#windows)
--   [Project structure](#project-structure)
 -   [Generating datasets](#generating-datasets)
     -   [ASP solver](#asp-solver)
     -   [Ontology-based generator](#ontology-based-generator)
@@ -96,8 +95,6 @@ You probably want to open the devcontainer included with this repository (e.g. u
 This container runs Ubuntu and auto-installs `uv`, after which it sets up the project environment.
 
 After opening the devcontainer, you can run all Unix commands below as-is.
-
-## Project structure
 
 ## Generating datasets
 
