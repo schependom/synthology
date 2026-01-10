@@ -12,9 +12,14 @@ CONFIG_FILE="configs/asp_generator/config.yaml"
 # Check if already installed on linux
 if command -v dlv &> /dev/null
 then
+    echo "====================================================================="
     echo "DLV is already installed at $(command -v dlv). Skipping installation."
+    echo "====================================================================="
 else
+    echo "============================================"
     echo "DLV not found. Proceeding with installation."
+    echo "============================================"
+    echo ""
 
     DLV_URL="https://www.dlvsystem.it/files/dlv.x86-64-linux-elf-unixodbc"
     curl -Lo dlv $DLV_URL
