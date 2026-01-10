@@ -1,10 +1,9 @@
 # Common between batched and exact
-from typing import Tuple
+from typing import Optional, Tuple
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from pyparsing import Optional
 
 
 class RelationUpdateSubject(nn.Module):

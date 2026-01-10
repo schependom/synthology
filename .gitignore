@@ -190,3 +190,7 @@ data/ont/out-csv/
 outputs/
 
 .agent/
+
+logs/
+# lightning_logs/
+checkpoints/

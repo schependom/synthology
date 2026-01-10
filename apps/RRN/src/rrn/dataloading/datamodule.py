@@ -1,8 +1,14 @@
 import pytorch_lightning as pl
+from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 from torch.utils.data import DataLoader, Dataset
 
-from .csv_reader import RRNDataset, Schema, scan_schema
+from .dataset import RRNDataset
+from .schema import Schema, scan_schema
+
+
+def collate_graph_batch(batch):
+    return batch[0]
 
 
 class RRNDataModule(pl.LightningDataModule):
@@ -15,26 +21,26 @@ class RRNDataModule(pl.LightningDataModule):
         self.test_dataset: Dataset = None
         self.schema: Schema = None
 
-    def prepare_data(self) -> None:
-        # Scan schema from training data to ensure we know all classes/relations
-        # TODO
+        self.populate_schema()
 
-    def prepare_schema(self) -> None:
+    def populate_schema(self):
         """Helper to scan schema and populate config."""
+
         # Use train path for scanning schema
         train_path = self.cfg.data.dataset.train_path
         self.schema = scan_schema(train_path)
 
-        # Inject schema into config so model can initialize correctly
+        # If classes and relations are found, populate the config accordingly
         if "model" in self.cfg:
-            OmegaConf.set_struct(self.cfg, False)
+            logger.warning("Populating model classes and relations from scanned schema.")
+            OmegaConf.set_struct(self.cfg, False)  # Allow modifications
             self.cfg.model.classes = self.schema.class_names
             self.cfg.model.relations = self.schema.relation_names
-            OmegaConf.set_struct(self.cfg, True)
+            OmegaConf.set_struct(self.cfg, True)  # Prevent further modifications
 
     def setup(self, stage: str) -> None:
         if self.schema is None:
-            self.prepare_schema()
+            self.populate_schema()
 
         # Load datasets based on the stage
         if stage == "fit" or stage is None:
@@ -49,44 +55,34 @@ class RRNDataModule(pl.LightningDataModule):
         return RRNDataset(data_path, self.schema)
 
     def train_dataloader(self) -> DataLoader:
-        # collate_fn might be needed if inputs are complex objects (dictionaries with lists)
-        # However, PyTorch default collate works for dicts of tensors.
-        # But 'triples' is a List[Triple], which default collate might complain about (can't stack Objects).
-        # We need a custom collate_fn if we want to batch multiple graphs.
-        # But RRN usually processes 1 graph at a time or we force batch_size=1
-
-        # If batch_size > 1, default collate tries to stack everything.
-        # List[Triple] cannot be stacked.
-
-        # For this fix, let's force batch_size=1 or use a custom collate that basically returns a list of graph dicts?
-        # Standard RRN usually takes ONE graph per step if the graph is large.
-        # Here we have small family trees.
-
-        def collate_fn(batch):
-            # batch is a list of results from __getitem__
-            # We want to keep them separate because each is a different graph structure
-            # But Lightning expects a Batch object usually.
-            # If we just return the list, Lightning might not like it passed to 'forward'.
-
-            # Since RRNNetwork forward expects keys "triples", "memberships",
-            # it likely expects ONE graph corresponding to the batch
-            # OR the model handles a LIST of graphs.
-            # Reading RRNNetwork.forward again:
-            # "triples: List[TripleProtocol]"
-            # This implies ONE graph.
-            # So batch_size MUST be 1 for this model implementation.
-            return batch[0]
-
-        return DataLoader(self.train_dataset, batch_size=1, shuffle=True, collate_fn=collate_fn)
+        # One batch = one graph
+        return DataLoader(
+            self.train_dataset,
+            batch_size=1,
+            shuffle=True,
+            collate_fn=collate_graph_batch,
+            num_workers=self.cfg.data.num_workers,
+            persistent_workers=True,
+        )
 
     def val_dataloader(self) -> DataLoader:
-        def collate_fn(batch):
-            return batch[0]
-
-        return DataLoader(self.val_dataset, batch_size=1, collate_fn=collate_fn)
+        # One batch = one graph
+        return DataLoader(
+            self.val_dataset,
+            batch_size=1,
+            collate_fn=collate_graph_batch,
+            num_workers=self.cfg.data.num_workers,
+            persistent_workers=True,
+        )
 
     def test_dataloader(self) -> DataLoader:
-        def collate_fn(batch):
-            return batch[0]
+        # One batch = one graph
+        return DataLoader(
+            self.test_dataset,
+            batch_size=1,
+            collate_fn=collate_graph_batch,
+            num_workers=self.cfg.data.num_workers,
+        )
 
-        return DataLoader(self.test_dataset, batch_size=1, collate_fn=collate_fn)
+    def get_classes_and_relations(self):
+        return self.schema.class_names, self.schema.relation_names

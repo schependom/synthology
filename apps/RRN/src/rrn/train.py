@@ -6,6 +6,7 @@ and starts the training process (full RRN = recursive updates + MLPs) using PyTo
 """
 
 import os
+import warnings
 
 import hydra
 import pytorch_lightning as pl
@@ -32,58 +33,52 @@ def train(cfg: DictConfig) -> None:
     # Set seed
     pl.seed_everything(42, workers=True)
 
-    # 1. Initialize DataModule
+    # Initialize DataModule
+    # and populate schema
     logger.info("Initializing DataModule...")
     dm = RRNDataModule(cfg)
+    classes, relations = dm.get_classes_and_relations()
+    logger.info(f"Found {len(classes)} classes and {len(relations)} relations.")
 
-    # 2. Prepare schema (IMPORTANT: Must be done before initializing model to populate cfg.model.classes/relations)
-    logger.info("Scanning schema from training data...")
-    try:
-        dm.prepare_schema()
-    except Exception as e:
-        logger.error(f"Failed to scan schema: {e}")
-        # Potentially try to load from config if available
-        if not (cfg.model.get("classes") and cfg.model.get("relations")):
-            raise e
+    # Initialize Model
 
-    if not cfg.model.get("classes") or not cfg.model.get("relations"):
-        raise ValueError("Model classes or relations not defined in config or schema.")
-
-    logger.info(f"Found {len(cfg.model.classes)} classes and {len(cfg.model.relations)} relations.")
-
-    # 3. Initialize Model
     logger.info("Initializing RRN System...")
 
-    classes, relations = dm.schema.class_names, dm.schema.relation_names
-    classes_list = list(classes)
-    relations_list = list(relations)
+    # Check if they are actually populated
+    if not classes or not relations:
+        logger.warning("Classes or Relations list is empty. Model might not initialize correctly.")
 
-    model = RRNSystem(cfg.model, classes=classes_list, relations=relations_list)
+    logger.info(f"Passed {len(classes)} classes and {len(relations)} relations to RRNSystem.")
+    model = RRNSystem(cfg, classes=classes, relations=relations)
 
-    # 4. Initialize Callbacks
-    callbacks = []
+    # Initialize Callbacks
+    callbacks = [
+        # # Use Rich for the nice colorful progress bar
+        # # RichProgressBar(),
+        # # Use Rich for the nice colorful model summary table
+        # RichModelSummary(max_depth=2),
+    ]
+
     if "callbacks" in cfg:
         for cb_name, cb_conf in cfg.callbacks.items():
             if "_target_" in cb_conf:
                 logger.info(f"Instantiating callback <{cb_conf._target_}>")
                 callbacks.append(hydra.utils.instantiate(cb_conf))
 
-    # 5. Initialize Trainer
+    # Initialize Trainer
     logger.info("Initializing Trainer...")
     # Determine max_epochs
-    max_epochs = cfg.get("train", {}).get("max_epochs", 100)
-    # Check if hyperparams has iterations, logic might require mapping iteration to epochs?
-    # RRN usually runs for N iterations PER STEP in inference. But training epochs is different.
+    max_epochs = cfg.max_epochs if cfg.max_epochs is not None else 100
 
     trainer = pl.Trainer(
         accelerator="auto",
-        devices=1,
+        devices=1,  # num of GPUs
         max_epochs=max_epochs,
         callbacks=callbacks,
         logger=True,
         default_root_dir=cfg.log_dir,
         precision="16-mixed" if cfg.get("use_amp", False) else 32,
-        num_nodes=cfg.get("num_nodes", 1),
+        # num_nodes=cfg.get("num_nodes", 1), # for multi-node training
         log_every_n_steps=1,
     )
 
@@ -92,6 +87,15 @@ def train(cfg: DictConfig) -> None:
     trainer.fit(model, datamodule=dm)
     logger.info("Training finished.")
 
+    # 7. Test
+    if cfg.get("do_test", True):
+        logger.info("Starting testing...")
+        trainer.test(model, datamodule=dm)
+        logger.info("Testing finished.")
+
 
 if __name__ == "__main__":
+    # Add this near the top of train.py
+    warnings.filterwarnings("ignore", message="Precision 16-mixed is not supported by the model summary")
+
     train()

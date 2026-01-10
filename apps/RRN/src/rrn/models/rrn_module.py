@@ -4,7 +4,8 @@ from typing import Any, Dict, List, Tuple
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-import torch.optim as optim
+from hydra.utils import instantiate
+from loguru import logger
 from omegaconf import DictConfig
 
 # Import your existing models and structures
@@ -40,8 +41,8 @@ class RRNSystem(pl.LightningModule):
         #                               MODEL SELECTION                                #
         # ---------------------------------------------------------------------------- #
 
-        embedding_size = cfg.hyperparams.embedding_size
-        iterations = cfg.hyperparams.iterations
+        embedding_size = cfg.model.embedding_size
+        iterations = cfg.model.iterations
 
         # Choose implementation based on config
         model_type = cfg.model.get("type", "batched")
@@ -86,12 +87,20 @@ class RRNSystem(pl.LightningModule):
         """
         Configure optimizer (Adam) and optional schedulers.
         """
-        optimizer = optim.Adam(
-            self.parameters(),
-            lr=self.cfg.hyperparams.learning_rate,
-            weight_decay=self.cfg.hyperparams.weight_decay,
-        )
+
+        optimizer = instantiate(self.cfg.hyperparams.optimizer, params=self.parameters())
+        logger.info(f"Using optimizer: {self.cfg.hyperparams.optimizer._target_}")
+
         return optimizer
+
+    def transfer_batch_to_device(self, batch, device, dataloader_idx):
+        """
+        Override default behavior.
+        Since our batch contains custom objects (Triples) and the Model
+        handles .to(device) manually in the forward pass, we skip
+        Lightning's automatic device transfer here.
+        """
+        return batch
 
     def training_step(self, batch: Dict[str, Any], batch_idx: int):
         """
@@ -119,26 +128,69 @@ class RRNSystem(pl.LightningModule):
         )
 
         # 3. Logging
-        self.log("train/total_loss", total_loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("train/class_loss", class_loss, on_step=False, on_epoch=True)
-        self.log("train/relation_loss", relation_loss, on_step=False, on_epoch=True)
+        self.log("train/total_loss", total_loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=1)
+        self.log("train/class_loss", class_loss, on_step=False, on_epoch=True, batch_size=1)
+        self.log("train/relation_loss", relation_loss, on_step=False, on_epoch=True, batch_size=1)
 
         return total_loss
+
+    def validation_step(self, batch: Dict[str, Any], batch_idx: int):
+        """
+        Single validation step for a Knowledge Graph.
+        """
+        # Unpack Data
+        base_triples = batch["base_triples"]
+        base_memberships = batch["base_memberships"]
+
+        # In validation, we typically want to measure performance on ALL known facts
+        if self.cfg.test_base_facts:
+            target_triples = batch["all_triples"]
+            target_memberships = batch["all_memberships"]
+        else:
+            target_triples = batch["inferred_triples"]
+            target_memberships = batch["inferred_memberships"]
+
+        # 1. RRN Forward pass (using base facts)
+        embeddings = self(base_triples, base_memberships)
+
+        # 2. Compute Loss (validation loss)
+        val_loss, val_class_loss, val_rel_loss = self._compute_loss(
+            embeddings=embeddings, triples=target_triples, membership_targets=target_memberships
+        )
+
+        # 3. Evaluate Metrics
+        class_metrics = self._evaluate_classes(embeddings, target_memberships)
+        triple_metrics = self._evaluate_triples(embeddings, target_triples)
+
+        # 4. Log everything
+        self.log("val_loss", val_loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=1)
+        self.log("val/total_loss", val_loss, on_step=False, on_epoch=True, batch_size=1)
+        self.log("val/class_loss", val_class_loss, on_step=False, on_epoch=True, batch_size=1)
+        self.log("val/relation_loss", val_rel_loss, on_step=False, on_epoch=True, batch_size=1)
+
+        # Compute accuracies with PyTorch
+        val_acc = class_metrics.get("acc_all", float("nan"))
+        if not torch.isnan(torch.tensor(val_acc)):
+            self.log("val/class_acc", val_acc, on_step=False, on_epoch=True, prog_bar=True, batch_size=1)
+
+        for key, value in class_metrics.items():
+            self.log(f"val/class_{key}", value, on_step=False, on_epoch=True, batch_size=1)
+
+        for key, value in triple_metrics.items():
+            self.log(f"val/triple_{key}", value, on_step=False, on_epoch=True, batch_size=1)
+
+        return val_loss
 
     def test_step(self, batch: Dict[str, Any], batch_idx: int):
         """
         Single test step for a Knowledge Graph.
         Replicates logic from the original test.py.
         """
-        # 1. Unpack Data
+        # Unpack Data
         base_triples = batch["base_triples"]
         base_memberships = batch["base_memberships"]
 
-        # 2. Determine Targets (Base + Inferred OR Inferred Only)
-        # Check config for the flag, default to True (test on everything)
-        test_base_facts = self.cfg.get("test_base_facts", True)
-
-        if test_base_facts:
+        if self.cfg.test_base_facts:
             target_triples = batch["all_triples"]
             target_memberships = batch["all_memberships"]
         else:

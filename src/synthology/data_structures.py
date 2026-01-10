@@ -366,7 +366,7 @@ class KnowledgeGraph:
 
         NOTE: The schema is inferred from the data in the CSV.
             For full schema with all possible classes/relations,
-            use the original ontology parser.
+            look at ALL csv's.
 
         Args:
             file_path (str): Path to CSV file.
