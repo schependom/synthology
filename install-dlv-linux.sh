@@ -5,6 +5,8 @@
 if command -v dlv &> /dev/null
 then
     echo "DLV is already installed at $(command -v dlv). Skipping installation."
+    echo "Here's the config file:"
+    cat "$CONFIG_FILE"
     exit 0
 fi
 
@@ -22,5 +24,6 @@ sed -i.bak "s@^dlv: .*@dlv: $DLV_PATH@" "$CONFIG_FILE"
 rm "$CONFIG_FILE.bak"
 
 echo "DLV path updated to: $DLV_PATH"
-echo "Verification? Here's the config file :)"
+
+echo "Here's the config file:"
 cat "$CONFIG_FILE"
