@@ -123,7 +123,7 @@ dlv: /path/to/dlv/executable # <- change this!
 On Linux, this can be done easily with the following command:
 
 ```bash
-chmod +x install-dlv-linux.sh && ./install-dlv-linux.sh
+./install-dlv-linux.sh
 ```
 
 ## Generating datasets
