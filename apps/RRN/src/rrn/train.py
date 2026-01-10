@@ -15,7 +15,7 @@ from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 
 from .dataloading.datamodule import RRNDataModule
-from .models.rrn_module import RRNModule
+from .models.rrn_plus_mlp import RRN # type: ignore
 
 REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../../..")
 
@@ -31,31 +31,7 @@ def train(cfg: DictConfig) -> None:
 
     logger.info(f"Starting RRN training with configuration:\n{OmegaConf.to_yaml(cfg)}")
 
-    # Set up the data module
-    data_module = RRNDataModule(cfg)
-
-    # Pre-scan schema to populate config.model.classes/relations
-    data_module.prepare_schema()
-
-    # Set up the model
-    model = RRNModule(cfg)
-
-    # Instantiate callbacks
-    callbacks: List[pl.Callback] = []
-    if "callbacks" in cfg:
-        for _, cb_conf in cfg.callbacks.items():
-            if "_target_" in cb_conf:
-                callbacks.append(instantiate(cb_conf))
-
-    # Set up the trainer
-    trainer = pl.Trainer(
-        max_epochs=cfg.hyperparams.num_epochs,
-        num_nodes=cfg.num_nodes,
-        callbacks=callbacks,
-    )
-
-    # Start training
-    trainer.fit(model, data_module)
+    # ....
 
 
 if __name__ == "__main__":
