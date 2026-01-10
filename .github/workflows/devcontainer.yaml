@@ -12,16 +12,26 @@ on:
 jobs:
   build-devcontainer:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
 
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build the devcontainer
         uses: devcontainers/ci@v0.2
         with:
           # Point to the root where .devcontainer folder is located
-          imageName: synthology-dev-container
+          imageName: ghcr.io/${{ github.repository }}/devcontainer
           runCmd: |
             echo "Checking uv version..."
             uv --version
