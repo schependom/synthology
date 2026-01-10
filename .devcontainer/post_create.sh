@@ -10,7 +10,12 @@ source $HOME/.cargo/env
 uv sync --dev
 
 # Download and Install DLV
+chmod +x install-dlv-linux.sh
 ./install-dlv-linux.sh
+
+# Move DLV to global path and update config
+sudo mv dlv /usr/local/bin/
+sed -i 's@dlv: .*@dlv: /usr/local/bin/dlv@' configs/asp_generator/config.yaml
 
 # Install pre-commit hooks
 uv run pre-commit install --install-hooks
