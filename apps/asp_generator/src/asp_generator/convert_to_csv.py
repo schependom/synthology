@@ -208,18 +208,23 @@ def main(cfg: DictConfig):
     base_output_dir = original_cwd / "data" / "asp" / dataset_name
     # /data/asp/{dataset.name}/train_val
     # /data/asp/{dataset.name}/test
-    train_val_dir = base_output_dir / "train_val"
+    train_dir = base_output_dir / "train"
+    val_dir = base_output_dir / "val"
     test_dir = base_output_dir / "test"
     # Final structure:
-    #   {base}/train_val/
+    #   {base}/train/
+    #   {base}/val/
     #   {base}/test/
 
-    if train_val_dir.exists():
-        shutil.rmtree(train_val_dir)
+    if train_dir.exists():
+        shutil.rmtree(train_dir)
+    if val_dir.exists():
+        shutil.rmtree(val_dir)
     if test_dir.exists():
         shutil.rmtree(test_dir)
 
-    train_val_dir.mkdir(parents=True, exist_ok=True)
+    train_dir.mkdir(parents=True, exist_ok=True)
+    val_dir.mkdir(parents=True, exist_ok=True)
     test_dir.mkdir(parents=True, exist_ok=True)
 
     try:
@@ -263,19 +268,44 @@ def main(cfg: DictConfig):
     random.seed(seed)
     random.shuffle(samples)
 
+    # Splitting logic
+    # Default 10% validation from the "train_val" pile if not specified differently
+    val_pct = getattr(cfg, "val_pct", 0.1)
+    
+    # We already have train_val logic from config perhaps, or just assume input is everything?
+    # The prompts suggested input_dir has EVERYTHING.
+    # Currently:
     train_val_pct = cfg.train_val_pct
-    split_idx = int(len(samples) * train_val_pct)
+    
+    # Original logic: train_val_pct determines how much goes to train_val vs test.
+    # New logic: Split train_val further into train and val.
+    
+    split_idx_test = int(len(samples) * train_val_pct)
+    
+    all_train_val_samples = samples[:split_idx_test]
+    test_samples = samples[split_idx_test:]
+    
+    # Now split all_train_val_samples into train and val
+    val_count = int(len(all_train_val_samples) * val_pct)
+    # Ensure at least 1 if possible, or 0 if empty
+    if len(all_train_val_samples) > 0 and val_count == 0 and val_pct > 0:
+        val_count = 1
+        
+    train_samples = all_train_val_samples[val_count:]
+    val_samples = all_train_val_samples[:val_count]
 
-    train_val_samples = samples[:split_idx]
-    test_samples = samples[split_idx:]
-
-    logger.info(f"Splitting data (train_val_pct={train_val_pct}):")
-    logger.info(f"  Train/Val: {len(train_val_samples)} samples -> {train_val_dir}")
+    logger.info(f"Splitting data (train_val_pct={train_val_pct}, val_pct={val_pct}):")
+    logger.info(f"  Train:     {len(train_samples)} samples -> {train_dir}")
+    logger.info(f"  Val:       {len(val_samples)} samples -> {val_dir}")
     logger.info(f"  Test:      {len(test_samples)} samples -> {test_dir}")
 
-    # Save Train/Val
-    if train_val_samples:
-        save_samples(train_val_samples, train_val_dir)
+    # Save Train
+    if train_samples:
+        save_samples(train_samples, train_dir)
+
+    # Save Val
+    if val_samples:
+        save_samples(val_samples, val_dir)
 
     # Save Test
     if test_samples:

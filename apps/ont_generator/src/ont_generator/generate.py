@@ -18,6 +18,7 @@ from collections import defaultdict
 from typing import Dict, List, Optional, Set
 
 import hydra
+from loguru import logger
 from omegaconf import DictConfig
 from rdflib.namespace import RDF
 
@@ -471,6 +472,8 @@ def main(cfg: DictConfig):
     For train/test split generation, use create_data.py instead.
     This script is for verification and testing on small ontologies.
     """
+    logger.info(f"Running Ontology Knowledge Graph Generator with configuration:\n{cfg.pretty()}")
+
     if cfg.logging.level:
         logging.basicConfig(level=getattr(logging, cfg.logging.level))
 

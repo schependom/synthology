@@ -1,3 +1,4 @@
 name: "Ontology Based Family Dataset"
-trainval_path: "datasets/ont/family_tree/trainval"
-test_path: "datasets/ont/family_tree/test"
+train_path: "data/ont/family_tree/train"
+val_path: "data/ont/family_tree/val"
+test_path: "data/ont/family_tree/test"

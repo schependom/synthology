@@ -5,7 +5,5 @@ defaults:
 num_workers: 4
 shuffle: true
 pin_memory: true
-validation:
-  split_ratio: 0.2
 test:
   enabled: false

@@ -21,8 +21,9 @@ class RRNDataModule(pl.LightningDataModule):
 
     def prepare_schema(self) -> None:
         """Helper to scan schema and populate config."""
-        trainval_path = self.cfg.data.dataset.trainval_path
-        self.schema = scan_schema(trainval_path)
+        # Use train path for scanning schema
+        train_path = self.cfg.data.dataset.train_path
+        self.schema = scan_schema(train_path)
 
         # Inject schema into config so model can initialize correctly
         if "model" in self.cfg:
@@ -41,7 +42,8 @@ class RRNDataModule(pl.LightningDataModule):
 
         # Load datasets based on the stage
         if stage == "fit" or stage is None:
-            self.train_dataset, self.val_dataset = # split based on trainval_path and config.data.validation.split_ratio
+            self.train_dataset = self.load_dataset(self.cfg.data.dataset.train_path)
+            self.val_dataset = self.load_dataset(self.cfg.data.dataset.val_path)
 
         if stage == "test" or stage is None:
             self.test_dataset = self.load_dataset(self.cfg.data.dataset.test_path)

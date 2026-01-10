@@ -12,7 +12,6 @@ AUTHOR
     Vincent Van Schependom
 """
 
-import logging
 import os
 import random
 from collections import defaultdict
@@ -21,6 +20,7 @@ from typing import Dict, List, Optional, Tuple
 
 import hydra
 import networkx as nx
+from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
@@ -124,13 +124,14 @@ class KGEDatasetGenerator:
     def generate_dataset(
         self,
         n_train: int,
+        n_val: int,
         n_test: int,
         min_individuals: int,
         max_individuals: int,
         min_rules: int = 1,
         max_rules: int = 5,
         min_proofs_per_rule: int = 5,
-    ) -> Tuple[List[KnowledgeGraph], List[KnowledgeGraph]]:
+    ) -> Tuple[List[KnowledgeGraph], List[KnowledgeGraph], List[KnowledgeGraph]]:
         """
         Generate complete training and testing datasets.
 
@@ -144,18 +145,17 @@ class KGEDatasetGenerator:
             min_proofs_per_rule: Minimum proofs to select per rule
 
         Returns:
-            Tuple of (train_samples, test_samples)
+            Tuple of (train_samples, val_samples, test_samples)
         """
         logger.info(f"\n{'=' * 80}")
         logger.info("GENERATING KGE DATASET")
         logger.info(f"{'=' * 80}")
-        logger.info(f"Target: {n_train} train samples, {n_test} test samples")
+        logger.info(f"Target: {n_train} train, {n_val} val, {n_test} test samples")
         logger.info(f"Individual range: {min_individuals}-{max_individuals}")
         logger.info(f"Rules per sample: {min_rules}-{max_rules}")
         logger.info(f"Min proofs per rule: {min_proofs_per_rule}")
         logger.info(f"{'=' * 80}")
 
-        # Generate training samples
         # Generate training samples
         logger.info("Generating training samples...")
         train_samples = self._generate_samples(
@@ -168,7 +168,18 @@ class KGEDatasetGenerator:
             sample_type="TRAIN",
         )
 
-        # Generate test samples (independent)
+        # Generate validation samples
+        logger.info("Generating validation samples...")
+        val_samples = self._generate_samples(
+            n_samples=n_val,
+            min_individuals=min_individuals,
+            max_individuals=max_individuals,
+            min_rules=min_rules,
+            max_rules=max_rules,
+            min_proofs_per_rule=min_proofs_per_rule,
+            sample_type="VAL",
+        )
+
         # Generate test samples (independent)
         logger.info("Generating test samples...")
         test_samples = self._generate_samples(
@@ -182,9 +193,9 @@ class KGEDatasetGenerator:
         )
 
         # Print summary
-        self._print_dataset_summary(train_samples, test_samples)
+        self._print_dataset_summary(train_samples, val_samples, test_samples)
 
-        return train_samples, test_samples
+        return train_samples, val_samples, test_samples
 
     def _generate_samples(
         self,
@@ -221,7 +232,14 @@ class KGEDatasetGenerator:
         while len(samples) < n_samples and failed_attempts < max_failed_attempts:
             # Reset individual pool for each sample
             # INDUCTIVE SPLIT: Use different individual name prefix for Test set
-            prefix = "test_" if sample_type == "TEST" else "train_"
+            # For Val, we can use "val_" or stick to "train_" if we consider it part of training distribution visually?
+            # It's better to be clean: "val_"
+            if sample_type == "TEST":
+                prefix = "test_"
+            elif sample_type == "VAL":
+                prefix = "val_"
+            else:
+                prefix = "train_"
             self.generator.chainer.reset_individual_pool(name_prefix=prefix)
 
             sample = self._generate_one_sample(
@@ -302,9 +320,19 @@ class KGEDatasetGenerator:
         selected_rules = random.sample(self.rules, n_rules)
 
         # Track rule usage
-        rule_usage = self.train_rule_usage if sample_type == "TRAIN" else self.test_rule_usage
+        if sample_type == "TRAIN":
+            rule_usage = self.train_rule_usage
+        elif sample_type == "TEST":
+            rule_usage = self.test_rule_usage
+        else:
+            # Just don't track or track separately? Let's just not crash.
+            # We only log train/test usage explicitly in summary.
+            # Let's use a dummy dict or similar if we wanted, but for now just skip modification if not train/test.
+            rule_usage = defaultdict(int)
+
         for rule in selected_rules:
-            rule_usage[rule.name] += 1
+            if sample_type in ["TRAIN", "TEST"]:
+                rule_usage[rule.name] += 1
             self.rule_selection_count[rule.name] += 1
 
         # Generate proofs and build proof map
@@ -476,6 +504,7 @@ class KGEDatasetGenerator:
     def _print_dataset_summary(
         self,
         train_samples: List[KnowledgeGraph],
+        val_samples: List[KnowledgeGraph],
         test_samples: List[KnowledgeGraph],
     ) -> None:
         """Print summary statistics for generated datasets."""
@@ -542,6 +571,7 @@ class KGEDatasetGenerator:
             return stats
 
         train_stats = get_stats(train_samples)
+        val_stats = get_stats(val_samples)
         test_stats = get_stats(test_samples)
 
         logger.info(f"\n{'=' * 80}")
@@ -552,11 +582,14 @@ class KGEDatasetGenerator:
         # Check isomorphism
         logger.info("Checking structural isomorphism...")
         isomorphic_count = 0
+        # Check Train vs Test
         for train_kg in train_samples:
             for test_kg in test_samples:
                 if self.check_structural_isomorphism(train_kg, test_kg):
                     isomorphic_count += 1
                     break
+
+        # Check Val vs Test (if needed, but usually train vs test is key)
 
         if isomorphic_count > 0:
             logger.warning(f"Warning: Found {isomorphic_count} isomorphic samples between train/test")
@@ -659,6 +692,13 @@ class KGEDatasetGenerator:
         print(f"    - Base Facts:    {train_stats.get('avg_neg_base_facts', 0):.1f}")
         print(f"    - Inferred:      {train_stats.get('avg_neg_inferred_facts', 0):.1f}")
         print(f"    - Propagated:    {train_stats.get('avg_neg_propagated_facts', 0):.1f}")
+
+        print("\nVAL SET:")
+        print(f"  Samples:           {val_stats.get('n_samples', 0)}")
+        print(f"  Avg individuals:   {val_stats.get('avg_individuals', 0):.1f}")
+        print(f"  Avg triples:       {val_stats.get('avg_triples', 0):.1f}")
+        print(f"    - Positive:      {val_stats.get('avg_pos_triples', 0):.1f}")
+        print(f"    - Negative:      {val_stats.get('avg_neg_triples', 0):.1f}")
 
         print("\nTEST SET:")
         print(f"  Samples:           {test_stats.get('n_samples', 0)}")
@@ -796,9 +836,6 @@ def load_dataset_from_csv(
 # ============================================================================ #
 
 
-# Configure logger
-logger = logging.getLogger(__name__)
-
 REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../../..")
 
 
@@ -806,11 +843,7 @@ REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../../..")
 def main(cfg: DictConfig):
     """Main entry point for dataset generation."""
 
-    if cfg.logging.level:
-        logging.basicConfig(level=getattr(logging, cfg.logging.level))
-
-    logger.info("Starting Dataset Generation")
-    logger.debug(f"Configuration:\n{OmegaConf.to_yaml(cfg)}")
+    logger.info(f"Running Ontology Knowledge Graph Generator with configuration:\n{OmegaConf.to_yaml(cfg)}")
 
     # Initialize generator
     # Initialize generator
@@ -820,8 +853,9 @@ def main(cfg: DictConfig):
     )
 
     # Generate datasets
-    train_samples, test_samples = generator.generate_dataset(
+    train_samples, val_samples, test_samples = generator.generate_dataset(
         n_train=cfg.dataset.n_train,
+        n_val=cfg.dataset.n_val,
         n_test=cfg.dataset.n_test,
         min_individuals=cfg.dataset.min_individuals,
         max_individuals=cfg.dataset.max_individuals,
@@ -834,6 +868,9 @@ def main(cfg: DictConfig):
     output_dir = cfg.dataset.output_dir
     save_dataset_to_csv(train_samples, f"{output_dir}/train", prefix="train_sample")
     save_explanations(train_samples, f"{output_dir}/train")
+
+    save_dataset_to_csv(val_samples, f"{output_dir}/val", prefix="val_sample")
+    save_explanations(val_samples, f"{output_dir}/val")
 
     save_dataset_to_csv(test_samples, f"{output_dir}/test", prefix="test_sample")
     save_explanations(test_samples, f"{output_dir}/test")
