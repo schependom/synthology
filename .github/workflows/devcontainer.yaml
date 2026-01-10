@@ -1,0 +1,31 @@
+# GitHub action to test the .devcontainer/devcontainer.json setup
+name: Devcontainer Build Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-devcontainer:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build the devcontainer
+        uses: devcontainers/ci@v0.2
+        with:
+          workingDirectory: ./.devcontainer
+          runCmd: |
+            echo "Checking uv version..."
+            uv --version
+            echo "Checking Python version..."
+            uv run python -c "import sys; print(f'Python {sys.version}'); assert sys.version_info[:2] == (3, 9), 'Not Python 3.9'"
+            echo "Checking environment dependencies..."
+            uv run invoke --list
+            echo "Devcontainer built and configured successfully"
