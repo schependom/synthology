@@ -20,12 +20,24 @@ jobs:
       - name: Build the devcontainer
         uses: devcontainers/ci@v0.2
         with:
-          workingDirectory: ./.devcontainer
+          # Point to the root where .devcontainer folder is located
+          imageName: synthology-dev-container
           runCmd: |
             echo "Checking uv version..."
             uv --version
+
             echo "Checking Python version..."
             uv run python -c "import sys; print(f'Python {sys.version}'); assert sys.version_info[:2] == (3, 9), 'Not Python 3.9'"
+
+            echo "Checking DLV installation..."
+            # Verify dlv is in the PATH and can execute
+            dlv -help | head -n 1
+
+            echo "Checking system dependencies..."
+            # Check if unixodbc is present as required
+            odbcinst -j
+
             echo "Checking environment dependencies..."
             uv run invoke --list
+
             echo "Devcontainer built and configured successfully"

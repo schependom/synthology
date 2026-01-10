@@ -37,6 +37,7 @@ This repository implements this generator and evaluates the quality of the gener
 -   [Installation](#installation)
     -   [macOS/Linux](#macoslinux)
     -   [Windows](#windows)
+    -   [DLV](#dlv)
 -   [Generating datasets](#generating-datasets)
     -   [ASP solver](#asp-solver)
     -   [Ontology-based generator](#ontology-based-generator)
@@ -95,6 +96,23 @@ You probably want to open the devcontainer included with this repository (e.g. u
 This container runs Ubuntu and auto-installs `uv`, after which it sets up the project environment.
 
 After opening the devcontainer, you can run all Unix commands below as-is.
+
+### DLV
+
+The family tree data generator makes use of the DLV system in order to perform symbolic reasoning over family trees by
+means of the ontology mentioned above.
+
+If running the project on your **own machine** (mac/Linux), you have to download the DLV executable for your platform from the
+[official website](http://www.dlvsystem.com/dlv/#1). In the dev container, DLV is already installed.
+
+After you have downloaded and extracted the DLV executable, copy the path to the executable file and paste it into the `configs/asp_generator/config.yaml` file under the `dlv` field:
+
+```yaml
+# configs/asp_generator/config.yaml
+# ...
+dlv: /path/to/dlv/executable # <- change this!
+# ...
+```
 
 ## Generating datasets
 
