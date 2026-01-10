@@ -14,8 +14,8 @@ from reldata.io import kg_writer
 from reldata.vocab import class_type_factory as ctf
 from reldata.vocab import relation_type_factory as rtf
 
-from ftdatagen import config, person
-from ftdatagen import person_factory as pf
+from . import config, person
+from . import person_factory as pf
 
 __author__ = "Patrick Hohenecker"
 __copyright__ = (

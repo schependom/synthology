@@ -2,13 +2,16 @@
 # with configuration from
 # configs/asp_generator/family-tree.yaml
 
+import os
+
 import hydra
-from ftdatagen.__main__ import main
-from ftdatagen.config import Config
+
+from .__main__ import main
+from .config import Config
 
 # Read config from configs/asp_generator/family-tree.yaml and run
-
-REPO_ROOT = "../.."
+# Fallback to relative path if SYNTHOLOGY_ROOT not set (e.g. during simple package tests)
+REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../../..")
 
 
 @hydra.main(version_base=None, config_path=f"{REPO_ROOT}/configs/asp_generator/", config_name="family-tree")

@@ -19,7 +19,7 @@ class RRNModule(pl.LightningModule):
     def __init__(self, config: DictConfig):
         super(RRNModule, self).__init__()
         self.config = config
-        self.model = RRNNetwork(config.model)  # Initialize the RRN network with model config
+        self.model = RRNNetwork(config)  # Initialize the RRN network with model config
         self.criterion = instantiate(config.loss_function)  # Loss function from config
 
     def forward(self, x):
@@ -34,7 +34,7 @@ class RRNModule(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        optimizer = instantiate(self.config.hyperparameters.optimizer, params=self.parameters())
+        optimizer = instantiate(self.config.hyperparams.optimizer, params=self.parameters())
         return optimizer
 
     def validation_step(self, batch, batch_idx):

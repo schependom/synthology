@@ -123,11 +123,6 @@ class Membership:
     """
     Represents class membership of an individual.
     This fact can be a base fact (proofs=[]) or an inferred fact (proofs=[...]).
-
-    NOTE
-
-        - is_inferred is kept for backward compatibility
-        - it should always be true, since we are creating a synthetic datagenerator without seed base facts
     """
 
     individual: Individual
@@ -449,7 +444,7 @@ class KnowledgeGraph:
                     # We'll just leave it None or minimal for now as we don't have the Atom easily available here without reconstruction
                     # The property only checks: any(p.rule is not None for p in self.proofs)
                     dummy_atom = Atom("dummy_s", "dummy_p", "dummy_o")
-                    dummy_proof = Proof(goal=dummy_atom, rule=dummy_rule, sub_proofs=[])
+                    dummy_proof = Proof(goal=dummy_atom, rule=dummy_rule, sub_proofs=tuple())
                     proofs.append(dummy_proof)
 
                 # Reconstruct based on fact type
@@ -567,7 +562,7 @@ class KnowledgeGraph:
         cls,
         input_dir: str,
         prefix: str = "sample",
-        n_samples: int = None,
+        n_samples: Optional[int] = None,
     ) -> List["KnowledgeGraph"]:
         """
         Batch load multiple KG samples from CSV files.
@@ -611,7 +606,11 @@ class KnowledgeGraph:
             format: Output format ("pdf", "png", "svg")
             title: Optional title for the graph
         """
-        from graph_visualizer import GraphVisualizer
+        try:
+            from ont_datagen.utils.graph_visualizer import GraphVisualizer  # type: ignore
+        except ImportError:
+            print("Warning: ont_datagen.utils.graph_visualizer not available. Skipping visualization.")
+            return
 
         if len(self.individuals) > 100:
             print(f"Graph too large to visualize ({len(self.individuals)} individuals). Skipping visualization.")
@@ -687,9 +686,11 @@ class Atom:
         Applies a variable substitution to this pattern.
         """
         return Atom(
-            subject=substitution.get(self.subject, self.subject),
-            predicate=substitution.get(self.predicate, self.predicate),
-            object=substitution.get(self.object, self.object),
+            subject=substitution.get(self.subject, self.subject) if isinstance(self.subject, Var) else self.subject,
+            predicate=substitution.get(self.predicate, self.predicate)
+            if isinstance(self.predicate, Var)
+            else self.predicate,
+            object=substitution.get(self.object, self.object) if isinstance(self.object, Var) else self.object,
         )
 
     def get_variables(self) -> Set[Var]:
@@ -723,7 +724,7 @@ class ExecutableRule:
     """
 
     name: str
-    conclusion: Atom
+    conclusion: Union[Atom, None]  # None for dummy rules
     premises: List[Atom]
 
     def __repr__(self):
@@ -1145,6 +1146,23 @@ class Proof:
 
         return f"<B>{s}</B> {p} <B>{o}</B>"
 
+    def format_tree(self, indent: int = 0) -> str:
+        """Format the proof tree as a string."""
+        lines = []
+        prefix = "  " * indent
+
+        # Format current node
+        if self.is_base_fact():
+            lines.append(f"{prefix}[BASE] {self.goal}")
+        else:
+            lines.append(f"{prefix}[RULE: {self.rule.name}] {self.goal}")
+
+        # Format sub-proofs
+        for i, sub_proof in enumerate(self.sub_proofs):
+            lines.append(sub_proof.format_tree(indent + 1))
+
+        return "\n".join(lines)
+
     def print(self, indent: int = 0) -> None:
         """Print the proof tree to console."""
         print(self.format_tree(indent))
@@ -1181,7 +1199,7 @@ class Proof:
     def _format_term(self, term: Term) -> str:
         """Helper to format a term."""
         if hasattr(term, "name"):
-            return term.name
+            return str(term.name)
         if term == RDF.type:
             return "rdf:type"
         return str(term)

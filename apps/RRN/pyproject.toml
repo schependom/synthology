@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-rrn = "rrn:main"
+rrn = "rrn.train:train"
 
 [build-system]
 requires = ["uv_build>=0.9.21,<0.10.0"]

@@ -19,11 +19,11 @@ class RRNDataModule(pl.LightningDataModule):
     def setup(self, stage: str) -> None:
         # Load datasets based on the stage
         if stage == "fit" or stage is None:
-            self.train_dataset = self.load_dataset(self.cfg.data.train_path)
-            self.val_dataset = self.load_dataset(self.cfg.data.val_path)
+            self.train_dataset = self.load_dataset(self.cfg.data.dataset.train_path)
+            self.val_dataset = self.load_dataset(self.cfg.data.dataset.val_path)
 
         if stage == "test" or stage is None:
-            self.test_dataset = self.load_dataset(self.cfg.data.test_path)
+            self.test_dataset = self.load_dataset(self.cfg.data.dataset.test_path)
 
     def load_dataset(self, data_path: str) -> Dataset:
         # Placeholder for dataset loading logic
@@ -31,10 +31,10 @@ class RRNDataModule(pl.LightningDataModule):
         return NotImplemented
 
     def train_dataloader(self) -> DataLoader:
-        return DataLoader(self.train_dataset, batch_size=self.cfg.data.batch_size, shuffle=True)
+        return DataLoader(self.train_dataset, batch_size=self.cfg.hyperparams.batch_size, shuffle=True)
 
     def val_dataloader(self) -> DataLoader:
-        return DataLoader(self.val_dataset, batch_size=self.cfg.data.batch_size)
+        return DataLoader(self.val_dataset, batch_size=self.cfg.hyperparams.batch_size)
 
     def test_dataloader(self) -> DataLoader:
-        return DataLoader(self.test_dataset, batch_size=self.cfg.data.batch_size)
+        return DataLoader(self.test_dataset, batch_size=self.cfg.hyperparams.batch_size)

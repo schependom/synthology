@@ -1,5 +1,7 @@
+defaults:
+  - dataset: asp
+  - _self_
 
-dataset: asp # from datasets/asp.yaml or datasets/ont.yaml
 num_workers: 4
 shuffle: true
 pin_memory: true

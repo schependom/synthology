@@ -20,7 +20,21 @@ import random
 from collections import defaultdict
 from typing import Dict, List, Optional, Set
 
-from synthology.data_structures import *
+from omegaconf import DictConfig
+
+from synthology.data_structures import (
+    RDF,
+    Atom,
+    Class,
+    Individual,
+    KnowledgeGraph,
+    Membership,
+    Proof,
+    Relation,
+    Term,
+    Triple,
+    Var,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +48,9 @@ class NegativeSampler:
         self,
         schema_classes: Dict[str, Class],
         schema_relations: Dict[str, Relation],
-        domains: Dict[str, Set[str]] = None,
-        ranges: Dict[str, Set[str]] = None,
+        cfg: DictConfig,
+        domains: Optional[Dict[str, Set[str]]] = None,
+        ranges: Optional[Dict[str, Set[str]]] = None,
         verbose: bool = False,
     ):
         """
@@ -44,12 +59,14 @@ class NegativeSampler:
         Args:
             schema_classes: Dict of class name -> Class object
             schema_relations: Dict of relation name -> Relation object
+            cfg: Hydra configuration object.
             domains: Dict of relation name -> set of domain class names
             ranges: Dict of relation name -> set of range class names
             verbose: Enable debug output
         """
         self.schema_classes = schema_classes
         self.schema_relations = schema_relations
+        self.cfg = cfg
         self.domains = domains or {}
         self.ranges = ranges or {}
         self.verbose = verbose
@@ -85,7 +102,7 @@ class NegativeSampler:
         ratio: float = 1.0,
         corrupt_base_facts: bool = False,
         export_proofs: bool = False,
-        output_dir: str = None,
+        output_dir: Optional[str] = None,
     ) -> KnowledgeGraph:
         """
         Add negative samples to a knowledge graph.
@@ -132,7 +149,7 @@ class NegativeSampler:
             self.strategy_usage["type_aware"] += len(kg.triples) - initial_len
             return kg
         elif strategy == "mixed":
-            return self._mixed_corruption(kg, ratio, corrupt_base_facts, export_proofs, output_dir)
+            return self._mixed_corruption(kg, ratio, corrupt_base_facts)
         else:
             raise ValueError(f"Unknown strategy: {strategy}")
 
@@ -275,7 +292,7 @@ class NegativeSampler:
         ratio: float,
         corrupt_base_facts: bool,
         export_proofs: bool = False,
-        output_dir: str = None,
+        output_dir: Optional[str] = None,
     ) -> KnowledgeGraph:
         """
         Strategy 3: Proof-based corruption.
@@ -629,7 +646,6 @@ class NegativeSampler:
                 negative_triples.append(neg_triple)
 
         kg.triples.extend(negative_triples)
-        kg.triples.extend(negative_triples)
         return kg
 
     def _mixed_corruption(
@@ -637,8 +653,6 @@ class NegativeSampler:
         kg: KnowledgeGraph,
         ratio: float,
         corrupt_base_facts: bool,
-        export_proofs: bool,
-        output_dir: str,
     ) -> KnowledgeGraph:
         """
         Strategy 5: Mixed corruption.
@@ -685,8 +699,6 @@ class NegativeSampler:
                     candidates = [c for c in candidates if c != pos_triple.subject]
                     if candidates:
                         new_subj = random.choice(candidates)
-                    if candidates:
-                        new_subj = random.choice(candidates)
                         neg_triple = Triple(
                             new_subj,
                             pos_triple.predicate,
@@ -699,8 +711,6 @@ class NegativeSampler:
                     # Corrupt object
                     candidates = self._get_range_candidates(pos_triple.predicate, kg.individuals, ind_classes)
                     candidates = [c for c in candidates if c != pos_triple.object]
-                    if candidates:
-                        new_obj = random.choice(candidates)
                     if candidates:
                         new_obj = random.choice(candidates)
                         neg_triple = Triple(
@@ -720,8 +730,6 @@ class NegativeSampler:
                     candidates = [c for c in class_groups[subj_classes] if c != pos_triple.subject]
                     if candidates:
                         new_subj = random.choice(candidates)
-                    if candidates:
-                        new_subj = random.choice(candidates)
                         neg_triple = Triple(
                             new_subj,
                             pos_triple.predicate,
@@ -734,8 +742,6 @@ class NegativeSampler:
                     # Corrupt object
                     obj_classes = frozenset(ind_classes.get(pos_triple.object, set()))
                     candidates = [c for c in class_groups[obj_classes] if c != pos_triple.object]
-                    if candidates:
-                        new_obj = random.choice(candidates)
                     if candidates:
                         new_obj = random.choice(candidates)
                         neg_triple = Triple(
@@ -811,7 +817,7 @@ class NegativeSampler:
     # ==================== HELPER METHODS ==================== #
 
     def _corrupt_triple_random(
-        self, triple: Triple, individuals: List[Individual], original_triple: Triple = None
+        self, triple: Triple, individuals: List[Individual], original_triple: Optional[Triple] = None
     ) -> Optional[Triple]:
         """Randomly corrupt subject or object of a triple."""
         if not individuals:
@@ -859,7 +865,7 @@ class NegativeSampler:
         return f"{context}: {diff_str}"
 
     def _corrupt_membership_random(
-        self, membership: Membership, classes: List[Class], original_membership: Membership = None
+        self, membership: Membership, classes: List[Class], original_membership: Optional[Membership] = None
     ) -> Optional[Membership]:
         """Randomly corrupt class membership."""
         if not classes:

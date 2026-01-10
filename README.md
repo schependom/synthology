@@ -1,73 +1,74 @@
 # Synthology
 
+**Benchmarking Inductive Reasoning on Synthetic Knowledge Graphs**
+
+This repository contains the source code for the "Synthology" project, which aims to benchmark the inductive reasoning capabilities of Knowledge Graph Embedding (KGE) models using synthetically generated datasets based on OWL 2 RL ontologies.
+
+## Repository Structure
+
 ```
 synthology/
 ├── apps/
-│   ├── asp_generator/ # adapted from the RRN author
-│   ├── ont_generator/ # the goal of my thesis
-│   ├── RRN/           # created myself based on RRN paper
-│   └── TransE/        # baseline model
+│   ├── asp_generator/      # ASP-based data generator (adapted/reference)
+│   ├── ont_generator/      # Ontology-based data generator (Main Contribution)
+│   ├── RRN/                # Relational Reasoning Network (KGE Model)
+│   └── TransE/             # TransE (Baseline KGE Model)
 │
-├── .devcontainer/          # development container configuration
-│   ├── devcontainer.json
-│   └── post_create.sh
-│
-├── .github/                        # GitHub configuration files
-│   ├── workflows/
-│   │   ├── linting.yaml
-│   │   ├── pre-commit-update.yaml
-│   │   └── tests.yaml
-│   └── dependabot.yaml
-│
-├── configs/                        # all Hydra configuration files
-│   ├── asp_generator/
-│   │   └── family-tree.yaml
-│   ├── ont_generator/
-│   │   └── config.yaml
-│   └── rrn/
-│       ├── data/
-│       │   ├── dataset/
-│       │   │   ├── asp.yaml
-│       │   │   └── ont.yaml
-│       │   └── default.yaml
-│       ├── hyperparams/
-│       │   └── default.yaml
-│       ├── model/
-│       │   └── default.yaml
-│       └── config.yaml
+├── configs/                # Hydra configuration files
+│   ├── ont_generator/      # Configs for ontology generator
+│   └── rrn/                # Configs for RRN training
 │
 ├── data/
-│   ├── asp/                     # input data for asp_generator
-│   │   ├──  out-reldata/
-│   │   ├──  out-csv/
-│   │   └──  family-tree.asp
-│   └── ont/                     # OWL 2 RL input data for ont_generator (thesis)
-│       ├──  out-csv/
-│       └──  family.ttl
+│   ├── ont/                # Input ontologies (e.g., family.ttl)
+│   └── output/             # Generated datasets
 │
-├── models/
-│   └── ...                 # trained models
-│
-├── checkpoints/
-│   └── ...                 # trained models
-│
-├── src/
-│   └── synthology/         # shared code across packages
-│       ├── __init__.py
-│       └── data_structures.py
-│
-├── tests/                  # unit tests
-│   ├── __init__.py
-│   ├── test_datagen.py
-│   ├── test_rrn.py
-│   └── test_transe.py
-│
-├── .gitignore
-├── .pre-commit-config.yaml
-├── .python-version
-├── LICENSE
-├── pyproject.toml
-├── README.md
-├── tasks.py
-└── uv.lock
+├── src/synthology/         # Shared library code (data structures, utils)
+└── tests/                  # Unit and integration tests
 ```
+
+## Getting Started
+
+This project uses `uv` for dependency management and `invoke` for task automation.
+
+### Prerequisites
+
+-   Python 3.10+
+-   `uv` installed (see [uv docs](https://github.com/astral-sh/uv))
+
+### Installation
+
+Sync dependencies:
+
+```bash
+uv sync
+```
+
+## Reproducing Paper Experiments
+
+To generate the datasets used in the paper:
+
+### 1. Generate Synthetic Data
+
+Run the Ontology Generator to create training and testing datasets. This tool uses backward-chaining to generate valid facts and inductive constraints to split individuals between train (e.g., `train_Ind_X`) and test (e.g., `test_Ind_Y`) sets.
+
+```bash
+# Generate Standard Dataset (Family Ontology)
+uv run invoke gen-ft-ont
+```
+
+**Custom Generation:**
+
+You can override configuration parameters:
+
+```bash
+uv run invoke gen-ft-ont \
+    dataset.n_train=500 \
+    dataset.n_test=100 \
+    negative_sampling.strategy=type_aware
+```
+
+## Development
+
+-   **Linting**: `uv run ruff check .`
+-   **Formatting**: `uv run ruff format .`
+-   **Testing**: `uv run pytest`

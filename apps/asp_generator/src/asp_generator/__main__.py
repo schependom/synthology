@@ -8,7 +8,7 @@ import random
 
 import argmagic
 
-from ftdatagen import config, generator
+from . import config, generator
 
 __author__ = "Patrick Hohenecker"
 __copyright__ = (

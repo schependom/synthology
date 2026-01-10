@@ -5,6 +5,8 @@ from invoke import Context, task
 WINDOWS = os.name == "nt"
 PROJECT_NAME = "synthology"
 PYTHON_VERSION = "3.12"
+# Ensure SYNTHOLOGY_ROOT is set for subprocesses to locate configs
+os.environ["SYNTHOLOGY_ROOT"] = os.path.dirname(os.path.abspath(__file__))
 
 
 @task
@@ -13,21 +15,41 @@ def gen_ft_asp(ctx: Context):
 
     # Run ASP generator
     print("\nRunning family tree ASP generator.")
-    ctx.run("uv run --package asp_generator python apps/asp_generator/family-tree.py")
+    ctx.run("uv run --package asp_generator asp_generator")
 
     # Convert reldata outputs to CSV
     print("\nConverting reldata outputs to CSV format.")
     ctx.run(
-        "uv run --package asp_generator python apps/asp_generator/src/convert_to_csv.py --input_dir data/asp/out-reldata/ --output_dir data/asp/out-csv/"
+        "uv run --package asp_generator python -m asp_generator.convert_to_csv --input_dir data/asp/out-reldata/ --output_dir data/asp/out-csv/"
     )
 
 
 @task
-def gen_ft_ont(ctx: Context):
-    """Generates family tree datasets with Ontology-based generator."""
+def gen_ft_ont(ctx: Context, args=""):
+    """Generates family tree datasets with Ontology-based generator.
+
+    Usage: invoke gen-ft-ont --args "dataset.n_train=500 ..."
+    """
 
     print("\nRunning family tree Ontology-based generator.")
-    ctx.run("uv run --package ont_generator python apps/ont_generator/src/create_data.py")
+    cmd = "uv run --package ont_generator python -m ont_generator.create_data"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
+@task
+def train_rrn(ctx: Context, args=""):
+    """Trains RRN based on configs/rrn/config.yaml.
+
+    Usage: invoke train-rrn-ont --args "hyperparameters.num_epochs=20 ..."
+    """
+
+    print("\nTraining RRN on Ontology-based generated family tree datasets.")
+    cmd = "uv run --package RRN python -m rrn.train"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
 
 
 # Data version control with DVC+SSH

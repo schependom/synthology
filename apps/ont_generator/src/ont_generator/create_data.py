@@ -12,19 +12,23 @@ AUTHOR
     Vincent Van Schependom
 """
 
+import logging
 import os
 import random
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+import hydra
 import networkx as nx
-from generate import KGenerator, atoms_to_knowledge_graph, extract_proof_map
-from negative_sampler import NegativeSampler
+from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
-from validator import Validator
 
 from synthology.data_structures import KnowledgeGraph
+
+from .generate import KGenerator, atoms_to_knowledge_graph, extract_proof_map
+from .negative_sampler import NegativeSampler
+from .utils.validator import Validator
 
 
 class KGEDatasetGenerator:
@@ -40,61 +44,31 @@ class KGEDatasetGenerator:
 
     def __init__(
         self,
-        ontology_file: str,
-        max_recursion: int,
-        global_max_depth: int,
-        max_proofs_per_atom: int,
-        individual_pool_size: int,
-        individual_reuse_prob: float,
-        neg_strategy: str,
-        neg_ratio: float,
-        neg_corrupt_base_facts: bool,
+        cfg: DictConfig,
         verbose: bool,
-        seed: Optional[int] = None,
-        use_signature_sampling: bool = True,
-        export_proofs: bool = False,
-        output_dir: str = None,
     ):
         """
         Initialize dataset generator.
 
         Args:
-            ontology_file: Path to .ttl ontology file
-            max_recursion: Maximum depth for recursive rules
-            global_max_depth: Hard limit on proof tree depth
-            max_proofs_per_atom: Max proofs per atom
-            individual_pool_size: Size of individual reuse pool
-            individual_reuse_prob: Probability of reusing individuals
-            neg_strategy: Negative sampling strategy
-            neg_ratio: Ratio of negative to positive samples
-            neg_corrupt_base_facts: Whether to corrupt base facts
+            cfg: Hydra configuration object
             verbose: Enable detailed logging
-            seed: Random seed for reproducibility
-            use_signature_sampling: Enable signature sampling in chainer
-            export_proofs: Whether to export proof visualizations
-            output_dir: Directory to save visualizations
         """
-        if seed is not None:
-            random.seed(seed)
+        if cfg.dataset.seed is not None:
+            random.seed(cfg.dataset.seed)
 
         self.verbose = verbose
-        self.max_recursion_cap = max_recursion
-        self.individual_pool_size = individual_pool_size
-        self.individual_reuse_prob = individual_reuse_prob
-        self.export_proofs = export_proofs
-        self.output_dir = output_dir
+        # Access safely checks
+        self.max_recursion_cap = cfg.generator.max_recursion
+        self.individual_pool_size = cfg.generator.individual_pool_size
+        self.individual_reuse_prob = cfg.generator.individual_reuse_prob
+        self.export_proofs = cfg.dataset.get("export_proofs", False)
+        self.output_dir = cfg.dataset.output_dir
 
         # Initialize KGenerator
         self.generator = KGenerator(
-            ontology_file=ontology_file,
-            max_recursion=max_recursion,
-            global_max_depth=global_max_depth,
-            max_proofs_per_atom=max_proofs_per_atom,
-            individual_pool_size=individual_pool_size,
-            individual_reuse_prob=individual_reuse_prob,
-            use_signature_sampling=use_signature_sampling,
+            cfg=cfg,
             verbose=False,  # Keep generator quiet during batch generation
-            export_proof_visualizations=export_proofs,
         )
 
         # Store schema references
@@ -107,6 +81,7 @@ class KGEDatasetGenerator:
         self.negative_sampler = NegativeSampler(
             schema_classes=self.schema_classes,
             schema_relations=self.schema_relations,
+            cfg=cfg,
             domains=self.generator.parser.domains,
             ranges=self.generator.parser.ranges,
             verbose=verbose,
@@ -121,9 +96,9 @@ class KGEDatasetGenerator:
         )
 
         # Negative sampling config
-        self.neg_strategy = neg_strategy
-        self.neg_ratio = neg_ratio
-        self.neg_corrupt_base_facts = neg_corrupt_base_facts
+        self.neg_strategy = cfg.negative_sampling.strategy
+        self.neg_ratio = cfg.negative_sampling.ratio
+        self.neg_corrupt_base_facts = cfg.negative_sampling.corrupt_base_facts
 
         # Track rule usage for coverage analysis
         self.train_rule_usage: Dict[str, int] = defaultdict(int)
@@ -340,7 +315,8 @@ class KGEDatasetGenerator:
             # Generate proofs with Instance Looping for volume
             # Randomly decide how many "instances" (chains) to generate for this rule
             # e.g., generate 5-15 diverse root facts (Fathers) for this rule
-            n_instances_for_rule = random.randint(5, 15)  # Make configurable?
+            # This range provides a good balance of content diversity
+            n_instances_for_rule = random.randint(5, 15)
 
             proofs = self.generator.generate_proofs_for_rule(
                 rule.name, n_instances=n_instances_for_rule, max_proofs=None
@@ -352,10 +328,9 @@ class KGEDatasetGenerator:
             self.rule_success_count[rule.name] += 1
 
             # Select random subset of proofs if still too many
-            # But now we rely on n_instances to control volume mostly
-            n_select = random.randint(
-                min(len(proofs), min_proofs_per_rule), min(len(proofs), 10000)
-            )  # TODO: adjust max as needed
+            # We enforce a cap to avoid memory issues with extremely prolific rules
+            MAX_PROOFS_CAP = 10000
+            n_select = random.randint(min(len(proofs), min_proofs_per_rule), min(len(proofs), MAX_PROOFS_CAP))
             selected = random.sample(proofs, n_select)
 
             for proof in selected:
@@ -820,16 +795,14 @@ def load_dataset_from_csv(
 #                              MAIN ENTRY POINT                                #
 # ============================================================================ #
 
-import logging
-
-import hydra
-from omegaconf import DictConfig, OmegaConf
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
+REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../../..")
 
-@hydra.main(version_base=None, config_path="../../../configs/ont_generator", config_name="config")
+
+@hydra.main(version_base=None, config_path=f"{REPO_ROOT}/configs/ont_generator", config_name="config")
 def main(cfg: DictConfig):
     """Main entry point for dataset generation."""
 
@@ -840,21 +813,10 @@ def main(cfg: DictConfig):
     logger.debug(f"Configuration:\n{OmegaConf.to_yaml(cfg)}")
 
     # Initialize generator
+    # Initialize generator
     generator = KGEDatasetGenerator(
-        ontology_file=cfg.ontology.path,
-        max_recursion=cfg.generator.max_recursion,
-        global_max_depth=cfg.generator.global_max_depth,
-        max_proofs_per_atom=cfg.generator.max_proofs_per_atom,
-        individual_pool_size=cfg.generator.individual_pool_size,
-        individual_reuse_prob=cfg.generator.individual_reuse_prob,
-        neg_strategy=cfg.negative_sampling.strategy,
-        neg_ratio=cfg.negative_sampling.ratio,
-        neg_corrupt_base_facts=cfg.negative_sampling.corrupt_base_facts,
-        seed=cfg.dataset.seed,
+        cfg=cfg,
         verbose=(cfg.logging.level == "DEBUG"),
-        use_signature_sampling=cfg.generator.use_signature_sampling,
-        export_proofs=cfg.dataset.export_proofs,
-        output_dir=cfg.dataset.output_dir,
     )
 
     # Generate datasets

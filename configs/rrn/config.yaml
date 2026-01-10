@@ -8,17 +8,17 @@ defaults:
   - _self_
 
 
-# Data settings
-data:
-  # Override data settings here if needed
+# # Data settings
+# data:
+#   # Override data settings here if needed
 
-# Model settings
-model:
-  # Override data settings here if needed
+# # Model settings
+# model:
+#   # Override data settings here if needed
 
-# Hyperparameters settings
-hyperparams:
-  # Override data settings here if needed
+# # Hyperparameters settings
+# hyperparams:
+#   # Override data settings here if needed
 
 
 use_amp: true

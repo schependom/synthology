@@ -302,7 +302,7 @@ class OntologyParser:
             handler = self.handlers.get(p)
             if handler:
                 try:
-                    handler(s, p, o)
+                    handler(s, p, o)  # type: ignore
                 except Exception as e:
                     print(f"Warning: Error handling triple ({s}, {p}, {o}): {e}")
             # Note: We silently skip unhandled predicates (they're common in ontologies)

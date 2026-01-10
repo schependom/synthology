@@ -5,17 +5,22 @@ This script initializes the Hydra configuration, sets up the data module and mod
 and starts the training process using PyTorch Lightning.
 """
 
+import os
 from typing import List
 
 import hydra
 import pytorch_lightning as pl
 from hydra.utils import instantiate
-from omegaconf import DictConfig
-from src.dataloading.datamodule import RRNDataModule
-from src.models.rrn_module import RRNModule
+from loguru import logger
+from omegaconf import DictConfig, OmegaConf
+
+from .dataloading.datamodule import RRNDataModule
+from .models.rrn_module import RRNModule
+
+REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../../..")
 
 
-@hydra.main(version_base=None, config_path="configs/", config_name="config")
+@hydra.main(version_base=None, config_path=f"{REPO_ROOT}/configs/rrn", config_name="config")
 def train(cfg: DictConfig) -> None:
     """
     Main training function.
@@ -23,6 +28,9 @@ def train(cfg: DictConfig) -> None:
     Args:
         cfg: Configuration object containing all settings for training.
     """
+
+    logger.info(f"Starting RRN training with configuration:\n{OmegaConf.to_yaml(cfg)}")
+
     # Set up the data module
     data_module = RRNDataModule(cfg)
 
@@ -38,7 +46,7 @@ def train(cfg: DictConfig) -> None:
 
     # Set up the trainer
     trainer = pl.Trainer(
-        max_epochs=cfg.hyperparameters.num_epochs,
+        max_epochs=cfg.hyperparams.num_epochs,
         num_nodes=cfg.num_nodes,
         callbacks=callbacks,
     )

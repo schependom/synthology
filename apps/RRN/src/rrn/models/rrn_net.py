@@ -308,13 +308,6 @@ class RRNNetwork(nn.Module):
 
     Iteratively updates embeddings by propagating information through
     both class memberships and relational triples.
-
-    Args:
-        config: Configuration object containing:
-            - embedding_size:     Dimensionality of entity embeddings (d)
-            - iterations:         Number of update iterations (N)
-            - classes:            List of objects with 'index' attribute (or count)
-            - relations:          List of objects with 'index' attribute (or count)
     """
 
     def __init__(self, config: DictConfig):
@@ -323,19 +316,11 @@ class RRNNetwork(nn.Module):
         # Check if config is dict or object
         self.config = config
 
-        # Extract parameters
-        # Support both .attribute and ['key'] access
-        if isinstance(config, dict):
-            embedding_size = config["embedding_size"]
-            iterations = config["iterations"]
-            classes = config.get("classes", [])
-            relations = config.get("relations", [])
-        else:
-            embedding_size = config.embedding_size
-            iterations = config.iterations
-            # Try to get classes/relations, assuming they might not be present in all config types
-            classes = getattr(config, "classes", [])
-            relations = getattr(config, "relations", [])
+        embedding_size = config.model.embedding_size
+        iterations = config.model.iterations
+        # Try to get classes/relations, assuming they might not be present in all config types
+        classes = getattr(config, "classes", [])
+        relations = getattr(config, "relations", [])
 
         self._embedding_size = embedding_size
         self._iterations = iterations

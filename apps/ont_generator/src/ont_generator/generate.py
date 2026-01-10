@@ -12,15 +12,13 @@ AUTHOR
 """
 
 import logging
+import os
 import sys
 from collections import defaultdict
 from typing import Dict, List, Optional, Set
 
 import hydra
-from chainer import BackwardChainer
-from negative_sampler import NegativeSampler
 from omegaconf import DictConfig
-from parse import OntologyParser
 from rdflib.namespace import RDF
 
 from synthology.data_structures import (
@@ -30,12 +28,17 @@ from synthology.data_structures import (
     Class,
     Individual,
     KnowledgeGraph,
+    LiteralValue,
     Membership,
     Proof,
     Relation,
     Term,
     Triple,
 )
+
+from .chainer import BackwardChainer
+from .negative_sampler import NegativeSampler
+from .parse import OntologyParser
 
 # ============================================================================ #
 #                         SHARED UTILITY FUNCTIONS                             #
@@ -145,6 +148,7 @@ def atoms_to_knowledge_graph(
             register_individual(s)
             key = (s.name, o.name)
             if key not in memberships:
+                assert isinstance(s, Individual)
                 memberships[key] = Membership(s, o, True, proofs=[])
             if current_proofs:
                 memberships[key].proofs.extend(current_proofs)
@@ -155,6 +159,7 @@ def atoms_to_knowledge_graph(
             register_individual(o)
             key = (s.name, p.name, o.name)
             if key not in triples:
+                assert isinstance(s, Individual)
                 triples[key] = Triple(s, p, o, True, proofs=[])
             if current_proofs:
                 triples[key].proofs.extend(current_proofs)
@@ -164,6 +169,8 @@ def atoms_to_knowledge_graph(
             register_individual(s)
             key = (s.name, p.name, o)
             if key not in attr_triples:
+                assert isinstance(s, Individual)
+                assert isinstance(o, LiteralValue)
                 attr_triples[key] = AttributeTriple(s, p, o, proofs=[])
             if current_proofs:
                 attr_triples[key].proofs.extend(current_proofs)
@@ -195,51 +202,33 @@ class KGenerator:
 
     def __init__(
         self,
-        ontology_file: str,
-        max_recursion: int,
-        global_max_depth: int,
-        max_proofs_per_atom: int,
-        individual_pool_size: int,
-        individual_reuse_prob: float = 0.7,
-        use_signature_sampling: bool = True,
+        cfg: DictConfig,
         verbose: bool = True,
-        export_proof_visualizations: bool = False,
     ):
         """
         Initializes the Knowledge Graph Generator.
 
         Args:
-            ontology_file (str): Path to the OWL ontology file (.ttl).
-            max_recursion (int): Maximum recursion depth for rules.
-            global_max_depth (int): Hard limit on proof tree depth effectively.
-            max_proofs_per_atom (int): Max proofs to generate *per recursive step*.
-            individual_pool_size (int): Size of individual pool.
-            individual_reuse_prob (float): Probability of reuse.
-            use_signature_sampling (bool): Enable signature-based sampling in Chainer.
+            cfg (DictConfig): Hydra configuration object.
             verbose (bool): Print debug info.
-            export_proof_visualizations (bool): Export GraphViz images.
         """
         self.verbose = verbose
-        self.export_proof_visualizations = export_proof_visualizations
+        # Access safely with defaults or assume valid config structure
+        self.export_proof_visualizations = cfg.dataset.get("export_proofs", False)
 
         # Parse ontology
-        self.parser = OntologyParser(ontology_file)
+        self.parser = OntologyParser(cfg.ontology.path)
 
         # Initialize backward chainer with constraints
         self.chainer = BackwardChainer(
             all_rules=self.parser.rules,
+            cfg=cfg,
             constraints=self.parser.constraints,
             inverse_properties=self.parser.inverse_properties,
             domains=self.parser.domains,
             ranges=self.parser.ranges,
-            max_recursion_depth=max_recursion,
-            global_max_depth=global_max_depth,
-            max_proofs_per_atom=max_proofs_per_atom,
-            individual_pool_size=individual_pool_size,
-            individual_reuse_prob=individual_reuse_prob,
-            use_signature_sampling=use_signature_sampling,
             verbose=verbose,
-            export_proof_visualizations=export_proof_visualizations,
+            export_proof_visualizations=self.export_proof_visualizations,
         )
 
         # Store schema references
@@ -251,7 +240,7 @@ class KGenerator:
         self,
         rule_name: str,
         n_instances: int = 1,
-        max_proofs: int = None,
+        max_proofs: Optional[int] = None,
     ) -> List[Proof]:
         """
         Generates proofs for a specific rule by name.
@@ -267,7 +256,7 @@ class KGenerator:
         """
         if rule_name not in self.chainer.all_rules:
             if self.verbose:
-                print(f"Rule '{rule_name}' not found.")
+                logger.warning(f"Rule '{rule_name}' not found.")
             return []
 
         all_proofs = []
@@ -305,12 +294,12 @@ class KGenerator:
         Returns:
             Complete knowledge graph with all positive facts
         """
-        print("Generating complete knowledge graph from all rules...")
-        print(f"Rules: {len(self.parser.rules)}, Constraints: {len(self.parser.constraints)}")
+        logger.info("Generating complete knowledge graph from all rules...")
+        logger.info(f"Rules: {len(self.parser.rules)}, Constraints: {len(self.parser.constraints)}")
 
         all_rules = self.parser.rules
         if not all_rules:
-            print("Warning: No rules found in ontology")
+            logger.warning("Warning: No rules found in ontology")
             return self._build_empty_kg()
 
         # Storage for facts with proof tracking
@@ -326,7 +315,7 @@ class KGenerator:
         # Generate proofs from each rule as starting point
         for i, rule in enumerate(all_rules):
             if self.verbose:
-                print(f"\n[{i + 1}/{len(all_rules)}] Processing rule: {rule.name}")
+                logger.info(f"\n[{i + 1}/{len(all_rules)}] Processing rule: {rule.name}")
 
             proof_generator = self.chainer.generate_proof_trees(rule.name)
             top_level_proofs = 0
@@ -361,11 +350,11 @@ class KGenerator:
             if top_level_proofs == 0:
                 stats["rules_without_proofs"] += 1
                 if self.verbose:
-                    print(f"  No valid proofs for {rule.name}")
+                    logger.info(f"  No valid proofs for {rule.name}")
 
-        print("\nGeneration complete:")
-        print(f"  Proofs accepted: {stats['proofs_accepted']}")
-        print(f"  Rules without proofs: {stats['rules_without_proofs']}/{len(all_rules)}")
+        logger.info("\nGeneration complete:")
+        logger.info(f"  Proofs accepted: {stats['proofs_accepted']}")
+        logger.info(f"  Rules without proofs: {stats['rules_without_proofs']}/{len(all_rules)}")
 
         return self._build_kg(individuals, triples, memberships, attr_triples)
 
@@ -393,7 +382,7 @@ class KGenerator:
         """
         if not atom.is_ground():
             if self.verbose:
-                print(f"Warning: Skipping non-ground atom: {atom}")
+                logger.warning(f"Warning: Skipping non-ground atom: {atom}")
             return
 
         s, p, o = atom.subject, atom.predicate, atom.object
@@ -403,6 +392,7 @@ class KGenerator:
             self._register_individual(s, individuals)
             key = (s.name, o.name)
             if key not in memberships:
+                assert isinstance(s, Individual)
                 memberships[key] = Membership(s, o, True, proofs=[])
             memberships[key].proofs.append(proof)
 
@@ -412,6 +402,7 @@ class KGenerator:
             self._register_individual(o, individuals)
             key = (s.name, p.name, o.name)
             if key not in triples:
+                assert isinstance(s, Individual)
                 triples[key] = Triple(s, p, o, True, proofs=[])
             triples[key].proofs.append(proof)
 
@@ -420,6 +411,8 @@ class KGenerator:
             self._register_individual(s, individuals)
             key = (s.name, p.name, o)
             if key not in attr_triples:
+                assert isinstance(s, Individual)
+                assert isinstance(o, LiteralValue)
                 attr_triples[key] = AttributeTriple(s, p, o, proofs=[])
             attr_triples[key].proofs.append(proof)
 
@@ -467,8 +460,10 @@ class KGenerator:
 # Configure logger
 logger = logging.getLogger(__name__)
 
+REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../../..")
 
-@hydra.main(version_base=None, config_path="../../../configs/ont_generator", config_name="config")
+
+@hydra.main(version_base=None, config_path=f"{REPO_ROOT}/configs/ont_generator", config_name="config")
 def main(cfg: DictConfig):
     """
     Main entry point for full graph generation.
@@ -481,15 +476,10 @@ def main(cfg: DictConfig):
 
     try:
         # Initialize generator
+        # Initialize generator
         generator = KGenerator(
-            ontology_file=cfg.ontology.path,
-            max_recursion=cfg.generator.max_recursion,
-            global_max_depth=cfg.generator.global_max_depth,
-            max_proofs_per_atom=cfg.generator.max_proofs_per_atom,
-            individual_pool_size=cfg.generator.individual_pool_size,
-            individual_reuse_prob=cfg.generator.individual_reuse_prob,
+            cfg=cfg,
             verbose=(cfg.logging.level == "DEBUG"),
-            export_proof_visualizations=cfg.dataset.export_proofs,
         )
 
         # Generate full graph
@@ -509,6 +499,7 @@ def main(cfg: DictConfig):
             sampler = NegativeSampler(
                 schema_classes=generator.schema_classes,
                 schema_relations=generator.schema_relations,
+                cfg=cfg,
                 domains=generator.parser.domains,
                 ranges=generator.parser.ranges,
                 verbose=(cfg.logging.level == "DEBUG"),

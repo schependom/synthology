@@ -9,7 +9,7 @@ import insanity
 from reldata.data import base_individual, individual_factory
 from reldata.data import data_context as dc
 
-from ftdatagen import person
+from . import person
 
 __author__ = "Patrick Hohenecker"
 __copyright__ = (

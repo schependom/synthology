@@ -14,6 +14,7 @@ import random
 from collections import defaultdict
 from typing import Dict, Iterator, List, Optional, Set, Tuple
 
+from omegaconf import DictConfig
 from rdflib.namespace import OWL, RDF
 
 from synthology.data_structures import (
@@ -43,16 +44,11 @@ class BackwardChainer:
     def __init__(
         self,
         all_rules: List[ExecutableRule],
-        constraints: List[Constraint] = None,
-        inverse_properties: Dict[str, Set[str]] = None,
-        domains: Dict[str, Set[str]] = None,
-        ranges: Dict[str, Set[str]] = None,
-        max_recursion_depth: int = 2,
-        global_max_depth: int = 5,
-        max_proofs_per_atom: int = None,
-        individual_pool_size: int = 50,
-        individual_reuse_prob: float = 0.85,
-        use_signature_sampling: bool = True,
+        cfg: DictConfig,
+        constraints: Optional[List[Constraint]] = None,
+        inverse_properties: Optional[Dict[str, Set[str]]] = None,
+        domains: Optional[Dict[str, Set[str]]] = None,
+        ranges: Optional[Dict[str, Set[str]]] = None,
         verbose: bool = False,
         export_proof_visualizations: bool = False,
         entity_prefix: str = "Ind_",
@@ -62,19 +58,14 @@ class BackwardChainer:
 
         Args:
             all_rules (List[ExecutableRule]):   All rules from the ontology parser.
+            cfg (DictConfig):                   Hydra configuration object.
             constraints (List[Constraint]):     All constraints from the ontology parser.
             inverse_properties (Dict[str, Set[str]]): Mapping of inverse properties.
             domains (Dict[str, Set[str]]):      Mapping of property domains.
             ranges (Dict[str, Set[str]]):       Mapping of property ranges.
-            max_recursion_depth (int):          Max number of times a recursive rule
-                                                can be used in a single proof path.
-            global_max_depth (int):             Hard limit on total proof tree depth.
-            max_proofs_per_atom (int):          Max number of proofs to generate for any single atom.
-            individual_pool_size (int):         Number of individuals to keep in the pool for reuse.
-            individual_reuse_prob (float):      Probability of reusing an existing individual from the pool.
-            use_signature_sampling (bool):      Whether to sample one proof per unique rule signature.
             verbose (bool):                     Enable detailed debug output.
             export_proof_visualizations (bool): Whether to export proof visualizations.
+            entity_prefix (str):                Prefix for generated individuals.
         """
         # Store rules as dict {rule_name: ExecutableRule} for fast lookup
         self.all_rules = {rule.name: rule for rule in all_rules}
@@ -82,16 +73,19 @@ class BackwardChainer:
         self.inverse_properties = inverse_properties if inverse_properties else {}
         self.domains = domains if domains else {}
         self.ranges = ranges if ranges else {}
-        self.max_recursion_depth = max_recursion_depth
-        self.global_max_depth = global_max_depth
-        self.max_proofs_per_atom = max_proofs_per_atom
-        self.use_signature_sampling = use_signature_sampling
+
+        # Extract from config
+        self.max_recursion_depth = cfg.generator.max_recursion
+        self.global_max_depth = cfg.generator.global_max_depth
+        self.max_proofs_per_atom = cfg.generator.max_proofs_per_atom
+        self.use_signature_sampling = cfg.generator.use_signature_sampling
+
         self.verbose = verbose
         self.export_proof_visualizations = export_proof_visualizations
 
         # Individual pooling parameters
-        self.individual_pool_size = individual_pool_size
-        self.individual_reuse_prob = individual_reuse_prob
+        self.individual_pool_size = cfg.generator.individual_pool_size
+        self.individual_reuse_prob = cfg.generator.individual_reuse_prob
         self.individual_pool: List[Individual] = []
         self._individual_counter = 0
         self.individual_name_prefix = entity_prefix
@@ -217,6 +211,7 @@ class BackwardChainer:
         index: Dict[Tuple, List[ExecutableRule]] = defaultdict(list)
 
         for rule in rules:
+            assert rule.conclusion is not None, "Rule conclusion cannot be None"
             key = self._get_atom_key(rule.conclusion)
             if key is not None:
                 index[key].append(rule)
@@ -241,6 +236,7 @@ class BackwardChainer:
         # Build a dependency graph: atom_key -> {atom_keys it depends on}
         graph: Dict[Tuple, Set[Tuple]] = defaultdict(set)
         for rule in all_rules:
+            assert rule.conclusion is not None, "Rule conclusion cannot be None"
             head_key = self._get_atom_key(rule.conclusion)
             if head_key is None:
                 continue
@@ -279,6 +275,7 @@ class BackwardChainer:
         # Map recursive atom keys to rule names
         recursive_rule_names: Set[str] = set()
         for rule in all_rules:
+            assert rule.conclusion is not None, "Rule conclusion cannot be None"
             head_key = self._get_atom_key(rule.conclusion)
             if head_key in recursive_keys:
                 recursive_rule_names.add(rule.name)
@@ -674,10 +671,10 @@ class BackwardChainer:
                 if self.export_proof_visualizations:
                     # write out the valid proof
                     complete_proof.save_visualization(
-                        start_rule_name,
-                        valid_proof_count,
-                        "pdf",
-                        f"Proof #{valid_proof_count} for {ground_goal}",
+                        root_label=start_rule_name,
+                        filepath=f"proof_{valid_proof_count}",
+                        format="pdf",
+                        title=f"Proof #{valid_proof_count} for {ground_goal}",
                     )
 
                 yield complete_proof
@@ -783,7 +780,7 @@ class BackwardChainer:
 
         # Find rules that could prove this atom
         key = self._get_atom_key(goal_atom)
-        matching_rules = self.rules_by_head.get(key, [])
+        matching_rules = self.rules_by_head.get(key, []) if key is not None else []
 
         # Try each matching rule
         for original_rule in matching_rules:
@@ -793,7 +790,7 @@ class BackwardChainer:
 
                 if current_recursive_uses >= self.max_recursion_depth:
                     if self.verbose:
-                        print(f"Skipping {original_rule.name} (recursion limit)")
+                        logger.debug(f"Skipping {original_rule.name} (recursion limit)")
                     continue
 
                 # Update recursion counter
@@ -813,9 +810,13 @@ class BackwardChainer:
                 parent_pred_name = parent_predicate.name if hasattr(parent_predicate, "name") else str(parent_predicate)
 
                 # Check if rule_pred is inverse of parent_pred
-                if parent_pred_name in self.inverse_properties.get(rule_pred_name, set()):
+                if (
+                    parent_pred_name in self.inverse_properties.get(rule_pred_name, set())  # type: ignore
+                    if self.inverse_properties
+                    else set()
+                ):
                     if self.verbose:
-                        print(
+                        logger.debug(
                             f"Skipping {original_rule.name} (inverse loop: {rule_pred_name} is inverse of {parent_pred_name})"
                         )
                     continue
@@ -830,10 +831,11 @@ class BackwardChainer:
                 rule_vars.update(premise.get_variables())
 
             # Unify goal with rule conclusion
+            assert rule.conclusion is not None, "Rule conclusion cannot be None"
             subst = self._unify(goal_atom, rule.conclusion)
             if subst is None:
                 if self.verbose:
-                    print(f"Unification between {goal_atom} and {rule.conclusion} failed for rule {rule.name}")
+                    logger.debug(f"Unification between {goal_atom} and {rule.conclusion} failed for rule {rule.name}")
                 continue
 
             # Create a new substitution dict for this rule's scope
@@ -925,7 +927,9 @@ class BackwardChainer:
                 for idx, sub_proof_combination in enumerate(itertools.product(*premise_sub_proof_iters)):
                     if idx >= MAX_BUFFER_SIZE:
                         if self.verbose:
-                            print(f"  [WARN] Hit buffer limit ({MAX_BUFFER_SIZE}) for rule {original_rule.name}")
+                            logger.warning(
+                                f"  [WARN] Hit buffer limit ({MAX_BUFFER_SIZE}) for rule {original_rule.name}"
+                            )
                         break
 
                     new_proof = Proof.create_derived_proof(
@@ -950,7 +954,9 @@ class BackwardChainer:
 
                     if self.max_proofs_per_atom and yielded_count >= self.max_proofs_per_atom:
                         if self.verbose:
-                            print(f"Max proofs per atom reached ({self.max_proofs_per_atom}) for goal: {goal_atom}")
+                            logger.debug(
+                                f"Max proofs per atom reached ({self.max_proofs_per_atom}) for goal: {goal_atom}"
+                            )
                         return
             else:
                 # STANDARD GENERATION (No grouping, direct yield)
@@ -965,7 +971,9 @@ class BackwardChainer:
 
                     if self.max_proofs_per_atom and yielded_count >= self.max_proofs_per_atom:
                         if self.verbose:
-                            print(f"Max proofs per atom reached ({self.max_proofs_per_atom}) for goal: {goal_atom}")
+                            logger.debug(
+                                f"Max proofs per atom reached ({self.max_proofs_per_atom}) for goal: {goal_atom}"
+                            )
                         return
 
     def _is_substitution_valid(self, subst: Dict[Var, Term], rule: ExecutableRule) -> bool:
