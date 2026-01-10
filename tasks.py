@@ -12,7 +12,19 @@ os.environ["SYNTHOLOGY_ROOT"] = os.path.dirname(os.path.abspath(__file__))
 
 @task
 def gen_ft_asp(ctx: Context):
-    """Generates family tree datasets with ASP solver."""
+    """Generates family tree datasets with ASP solver using default configurations in configs/asp_generator/"""
+
+    # If ./data/asp/out-reldata has content,
+    # ask user to confirm cleanup
+    if os.path.exists("./data/asp/out-reldata") and os.listdir("./data/asp/out-reldata"):
+        response = input(
+            "Previous ASP generator outputs detected in ./data/asp/out-reldata. "
+            "You can convert them to CSV using 'invoke convert-reldata' if needed. "
+            "Do you want to delete them before generating new data? (y/n): "
+        )
+        if response.lower() != "y":
+            print("Aborting dataset generation.")
+            return
 
     # Clean up ./data/asp/out-reldata first
     logger.info("Cleaning up previous ASP generator outputs.")
@@ -31,17 +43,26 @@ def gen_ft_asp(ctx: Context):
     print("\n-------------------------------------------")
     print("Converting generated ASP data to CSV format")
     print("--------------------------------------------\n")
-    ctx.run("uv run --package asp_generator python -m asp_generator.convert_to_csv")
+    ctx.run("uv run --package asp_generator python -u -m asp_generator.convert_to_csv")
 
     logger.success("Family tree dataset generation with ASP completed.")
 
 
 @task
-def gen_ft_ont(ctx: Context, args=""):
-    """Generates family tree datasets with Ontology-based generator.
+def convert_reldata(ctx: Context):
+    """Converts family tree datasets in data/asp/out-reldata to CSV format."""
 
-    Usage: invoke gen-ft-ont --args "dataset.n_train=500 ..."
-    """
+    print("\n-------------------------------------------")
+    print("Converting generated ASP data to CSV format")
+    print("--------------------------------------------\n")
+    ctx.run("uv run --package asp_generator python -u -m asp_generator.convert_to_csv")
+
+    logger.success("Conversion of family tree dataset from reldata to CSV completed.")
+
+
+@task
+def gen_ft_ont(ctx: Context, args=""):
+    """Generates family tree datasets with Ontology-based Generator using default configurations in configs/ont_generator/"""
 
     print("\nRunning family tree Ontology-based generator.")
     cmd = "uv run --package ont_generator python -m ont_generator.create_data"
@@ -52,13 +73,10 @@ def gen_ft_ont(ctx: Context, args=""):
 
 @task
 def train_rrn(ctx: Context, args=""):
-    """Trains RRN based on configs/rrn/config.yaml.
-
-    Usage: invoke train-rrn-ont --args "hyperparameters.num_epochs=20 ..."
-    """
+    """Trains RRN based on default configurations in configs/rrn/"""
 
     print("\nTraining RRN on Ontology-based generated family tree datasets.")
-    cmd = "uv run --package RRN python -m rrn.train"
+    cmd = "uv run --package rrn python -m rrn.train"
     if args:
         cmd += f" {args}"
     ctx.run(cmd)
@@ -90,6 +108,8 @@ def train_rrn(ctx: Context, args=""):
 #
 @task
 def dvc(ctx, folder="data", message="Add new data"):
+    """Adds, commits and pushes data changes to DVC remote storage."""
+
     ctx.run(f"dvc add {folder}")
     ctx.run(f"git add {folder}.dvc .gitignore")
     ctx.run(f"git commit -m '{message}'")
