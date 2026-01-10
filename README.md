@@ -105,7 +105,13 @@ means of the ontology mentioned above.
 If running the project on your **own machine** (mac/Linux), you have to download the DLV executable for your platform from the
 [official website](http://www.dlvsystem.com/dlv/#1). In the dev container, DLV is already installed.
 
-After you have downloaded and extracted the DLV executable, copy the path to the executable file and paste it into the `configs/asp_generator/config.yaml` file under the `dlv` field:
+After you have downloaded and extracted the DLV executable, change the permissions to make it executable:
+
+```bash
+chmod +x /path/to/dlv/executable
+```
+
+Then, copy the path to the executable file and paste it into the `configs/asp_generator/config.yaml` file under the `dlv` field:
 
 ```yaml
 # configs/asp_generator/config.yaml
