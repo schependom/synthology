@@ -1,21 +1,16 @@
 """
 Main entry point for training the Recursive Reasoning Network (RRN) model.
 
-This script initializes the Hydra configuration, sets up the data module and model,
-and starts the training process using PyTorch Lightning.
+This script initializes the Hydra configuration, chooses the appropriate model (batched/exact)
+and starts the training process (full RRN = recursive updates + MLPs) using PyTorch Lightning.
 """
 
 import os
-from typing import List
 
 import hydra
-import pytorch_lightning as pl
-from hydra.utils import instantiate
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 
-from .dataloading.datamodule import RRNDataModule
-from .models.rrn_plus_mlp import RRN # type: ignore
 
 REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../../..")
 

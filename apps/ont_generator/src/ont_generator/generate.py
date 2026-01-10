@@ -458,9 +458,6 @@ class KGenerator:
 # ============================================================================ #
 
 
-# Configure logger
-logger = logging.getLogger(__name__)
-
 REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../../..")
 
 
