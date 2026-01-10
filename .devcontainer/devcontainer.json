@@ -3,7 +3,9 @@
 {
     "name": "synthology",
     // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
-    "image": "mcr.microsoft.com/devcontainers/python:3.9-bullseye",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
     "features": {},
 
     // Use 'postCreateCommand' to run commands after the container is created.
