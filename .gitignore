@@ -188,3 +188,5 @@ data/ont/out-csv/
 
 # Hydra
 outputs/
+
+.agent/
