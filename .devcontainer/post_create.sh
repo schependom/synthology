@@ -10,11 +10,7 @@ source $HOME/.cargo/env
 uv sync --dev
 
 # Download and Install DLV
-# Replace the URL with the official download link for the unixodbc version
-DLV_URL="https://www.dlvsystem.it/files/dlv.x86-64-linux-elf-unixodbc"
-curl -Lo dlv $DLV_URL
-chmod +x dlv
-sudo mv dlv /usr/local/bin/dlv
+./install-dlv-linux.sh
 
 # Install pre-commit hooks
 uv run pre-commit install --install-hooks
