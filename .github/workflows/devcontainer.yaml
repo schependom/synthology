@@ -28,7 +28,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build the devcontainer
-        uses: devcontainers/ci@v0.2
+        uses: devcontainers/ci@v0.3
         with:
           # Point to the root where .devcontainer folder is located
           imageName: ghcr.io/${{ github.repository }}/devcontainer
