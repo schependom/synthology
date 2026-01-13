@@ -40,6 +40,7 @@ This repository implements this generator and evaluates the quality of the gener
         -   [DLV](#dlv)
         -   [Development tools](#development-tools)
     -   [Windows](#windows)
+        -   [Activation of virtual environment](#activation-of-virtual-environment)
         -   [DLV](#dlv-1)
         -   [Development tools](#development-tools-1)
 -   [Generating datasets](#generating-datasets)
@@ -151,7 +152,17 @@ For the easiest use, you should open the **devcontainer**, which I included in `
 
 The (Ubuntu) devcontainer will be built using `Dockerfile` and `post_create.sh` will take care of installing `uv`, as well as syncing the project dependencies and setting up the config files.
 
-After opening the devcontainer, you can run all Unix commands below as-is.
+#### Activation of virtual environment
+
+After the installation is complete, VS Code might prompt you with
+
+> "Press any key to exit"
+
+Once you actually press a key, a new terminal will open in the devcontainer, but the virtual environment might **not** be activated yet.
+
+**Close the terminal and open a new one** (`CMD + J` or `Terminal > Create New Terminal`). This new terminal should now have the **virtual environment** activated _automatically_.
+
+You should **always** see `(synthology) > ` at the beginning of the terminal prompt when working in the devcontainer, which indicates that the virtual environment is active.
 
 #### DLV
 
