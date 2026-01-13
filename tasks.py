@@ -36,6 +36,7 @@ def gen_ft_asp(ctx: Context):
     print("-------------------------------------------------------")
     print("Running family tree ASP generator by Patrick Hohenecker")
     print("-------------------------------------------------------\n")
+    ctx.run("export PYTHONUNBUFFERED=1")
     ctx.run("uv run --package asp_generator asp_generator")
 
     # Convert reldata outputs to CSV
@@ -56,6 +57,7 @@ def convert_reldata(ctx: Context):
     print("\n-------------------------------------------")
     print("Converting generated ASP data to CSV format")
     print("--------------------------------------------\n")
+    ctx.run("export PYTHONUNBUFFERED=1")
     ctx.run("uv run --package asp_generator python -u -m asp_generator.convert_to_csv")
 
     logger.success("Conversion of family tree dataset from reldata to CSV completed.")
@@ -77,6 +79,7 @@ def train_rrn(ctx: Context, args=""):
     """Trains RRN based on default configurations in configs/rrn/"""
 
     print("\nTraining RRN on Ontology-based generated family tree datasets.")
+    ctx.run("export PYTHONUNBUFFERED=1")
     cmd = "uv run --package rrn python -m rrn.train"
     if args:
         cmd += f" {args}"

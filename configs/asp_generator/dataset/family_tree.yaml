@@ -4,7 +4,7 @@ max_branching_factor: 5
 max_tree_depth: 5
 max_tree_size: 26
 negative_facts: true
-num_samples: 500
+num_samples: 100
 output_dir: "./data/asp/out-reldata"
 quiet: false
 seed: 25
