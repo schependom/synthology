@@ -1,39 +1,62 @@
-# Install dependency if not present (Debian/Ubuntu)
-# sudo apt-get update && sudo apt-get install -y unixodbc
+#!/bin/bash
 
-# If on MacOS, exit with message
+# Setup Variables
+CONFIG_FILE="configs/asp_generator/config.yaml"
+DLV_URL="https://www.dlvsystem.it/files/dlv.x86-64-linux-elf-unixodbc"
+
+# OS Check
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    echo "This script is intended for Linux systems only. Please follow the instructions in the README.md for MacOS."
+    echo "Error: This script is intended for Linux systems only."
+    echo "Please follow the instructions in the README.md for MacOS."
     exit 1
 fi
 
-CONFIG_FILE="configs/asp_generator/config.yaml"
+# Check for Config File
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: Config file not found at $CONFIG_FILE"
+    echo "Please ensure you are running this script from the root of the repository."
+    exit 1
+fi
 
-# Check if already installed on linux
-if command -v dlv &> /dev/null
-then
+# Check for existing DLV or Download
+if command -v dlv &> /dev/null; then
+    DLV_PATH=$(command -v dlv)
     echo "====================================================================="
-    echo "DLV is already installed at $(command -v dlv). Skipping installation."
+    echo "DLV is already installed at $DLV_PATH. Skipping download."
     echo "====================================================================="
 else
     echo "============================================"
-    echo "DLV not found. Proceeding with installation."
+    echo "DLV not found. Downloading..."
     echo "============================================"
-    echo ""
 
-    DLV_URL="https://www.dlvsystem.it/files/dlv.x86-64-linux-elf-unixodbc"
-    curl -Lo dlv $DLV_URL
-    chmod +x dlv
+    # Download with -f (fail silently on server error) to detect broken links
+    if curl -fLo dlv "$DLV_URL"; then
+        chmod +x dlv
+        DLV_PATH="$PWD/dlv"
+        echo "Download successful."
+    else
+        echo "Error: Failed to download DLV. Please check your internet connection or the URL."
+        exit 1
+    fi
 fi
 
-DLV_PATH="$(command -v dlv || echo "$PWD/dlv")"
+# Sanity Check: Does the binary work?
+echo "Verifying DLV executable..."
+if ! "$DLV_PATH" --version &> /dev/null && ! "$DLV_PATH" -help &> /dev/null; then
+     echo "WARNING: The DLV binary at $DLV_PATH appears to be broken."
+     echo "You may be missing dependencies. Try running: sudo apt-get install unixodbc"
+     # We don't exit here, just warn, as --version might not be supported by all DLV versions
+fi
+
 echo "Updating DLV path in $CONFIG_FILE to $DLV_PATH"
 
-# Using '@' as a delimiter to avoid issues with '/' or '|' in paths
-sed -i.bak "s@^dlv: .*@dlv: $DLV_PATH@" "$CONFIG_FILE"
-rm "$CONFIG_FILE.bak"
+# Replace DLV path in config file using sed
+sed -i.bak "s@^([[:space:]]*)dlv:.*@\1dlv: $DLV_PATH@" "$CONFIG_FILE"
 
-echo "DLV path updated to: $DLV_PATH"
+# Clean up backup only if it exists
+[ -f "$CONFIG_FILE.bak" ] && rm "$CONFIG_FILE.bak"
 
-echo "Here's the config file (please verify):"
-cat "$CONFIG_FILE"
+echo "DLV path updated successfully."
+echo "-------------------------------------"
+grep "dlv:" "$CONFIG_FILE"
+echo "-------------------------------------"

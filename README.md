@@ -8,7 +8,7 @@ This repository contains the source code for my bachelor thesis at KU Leuven.
 
 ### Context & Problem Statement
 
-**Neuro-Symbolic AI** aims to bridge the gap between two paradigms: the robustness and pattern-matching capabilities of **Neural AI** (e.g., embeddings, GNNs) and the interpretable, rigorous reasoning of **Symbolic AI** (e.g., logic, ontologies). A key application domain is **Knowledge Graph Reasoning (KGR)**, which involves predicting missing links in a Knowledge Graph (KG) by performing multi-hop logical reasoning.
+**Neuro-Symbolic AI** aims to bridge the gap between two paradigms: the robustness and pattern-matching capabilities of **Neural AI** (like KG embeddings and GNNs) and the interpretable, rigorous reasoning of **Symbolic AI** (e.g. formal logic and ontologies). A key application domain is **Knowledge Graph Reasoning (KGR)**, which involves predicting missing links in a Knowledge Graph (KG) by performing multi-hop logical reasoning.
 
 However, training effective Neuro-Symbolic models requires large datasets that specifically necessitate complex reasoning. Existing data generation methods - such as standard benchmarks, forward-chaining reasoners, or Answer Set Programming (ASP) - often produce datasets that are:
 
@@ -36,8 +36,12 @@ This repository implements this generator and evaluates the quality of the gener
 -   [Features](#features)
 -   [Installation](#installation)
     -   [macOS/Linux](#macoslinux)
+        -   [UV installation](#uv-installation)
+        -   [DLV](#dlv)
+        -   [Development tools](#development-tools)
     -   [Windows](#windows)
-    -   [DLV](#dlv)
+        -   [DLV](#dlv-1)
+        -   [Development tools](#development-tools-1)
 -   [Generating datasets](#generating-datasets)
     -   [ASP solver](#asp-solver)
     -   [Ontology-based generator](#ontology-based-generator)
@@ -55,8 +59,8 @@ This repository implements this generator and evaluates the quality of the gener
 Don't worry if the repository looks a bit overwhelming :)
 I value **reproducibility** of scientific experiments very highly, so:
 
--   I created a very sophisticated `uv` **_monorepo_**, i.e. a single repository containing multiple packages as 'subprojects'.
--   I added a **devcontainer** configuration for easy setup on any OS (including Windows).
+-   I created a sophisticated `uv` **_monorepo_**, i.e. a single repository containing multiple packages as 'subprojects', each with their own dependencies and configurations.
+-   I added a **Linux devcontainer** for easy setup on any OS (including Windows, which is not Unix-based like Linux or macOS).
 
 The _subprojects_ (located in `apps/`) are:
 
@@ -65,23 +69,35 @@ The _subprojects_ (located in `apps/`) are:
 -   `rrn`: The Recursive Reasoning Model (also by Patrick Hohenecker) is a neuro-symbolic link prediction model, used for testing the quality of the generated datasets.
 -   `baselines`: A collection of baseline link prediction models (e.g., TransE, DistMult, ComplEx) to further benchmark the performance of the generated datasets.
 
-The `uv` nature of this repo makes it possible to easily manage dependencies between these subprojects. Furthermore, it provides a task runner (`invoke`) to run common tasks (e.g., generating datasets, training models, running experiments) from the project root. Use the following command to see all available tasks:
+The `uv` nature of this repo makes it possible to easily manage **dependencies** between these subprojects. Furthermore, it provides a **task runner** (`invoke`) to run common tasks (e.g., generating datasets, training models, running experiments) from the project root. Use the following command to see all available tasks:
 
 ```bash
-uv run invoke --list
+uv run invoke --list        # list all available tasks
+uv run invoke <task-name>   # run a specific task
 ```
 
 ## Installation
 
 This project uses `uv` for dependency management and `invoke` for task automation.
-Make sure you have cloned the repo and are in the project root directory.
+Make sure you have **cloned** the repo and are in the project **root directory**.
 
 ### macOS/Linux
 
-Make sure you have `uv` installed (first-time setup), e.g. with Homebrew:
+On Unix systems, you can locally run all commands **as-is**. As an alternative, follow the [Windows](#windows) instructions to use the **devcontainer**.
+Below are the steps to set up the project on your own macOS or Linux machine **without** using the devcontainer.
+
+#### UV installation
+
+If don't already have `uv` installed, then do so first, e.g. on macOS with Homebrew:
 
 ```bash
 brew install uv
+```
+
+Or on Linux using the official installation script:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 Then, install project dependencies:
@@ -90,20 +106,21 @@ Then, install project dependencies:
 uv sync
 ```
 
-### Windows
+As you can see, with `uv`, installing dependencies is as easy as running a single command! No contradictory `requirements.txt` files or anything like that :)
 
-You probably want to open the devcontainer included with this repository (e.g. using VS Code).
-This container runs Ubuntu and auto-installs `uv`, after which it sets up the project environment.
-
-After opening the devcontainer, you can run all Unix commands below as-is.
-
-### DLV
+#### DLV
 
 The family tree data generator makes use of the DLV system in order to perform symbolic reasoning over family trees by
 means of the ontology mentioned above.
 
-If running the project on your **own machine** (mac/Linux), you have to download the DLV executable for your platform from the
-[official website](http://www.dlvsystem.com/dlv/#1). In the dev container, DLV is already installed.
+If you are running the project on your **own Linux machine**, you can use the provided installation script to download and set up DLV automatically:
+
+```bash
+bash install-dlv-linux.sh
+```
+
+If running the project on your **own macOS** machine, you have to download the DLV executable for your platform from the
+[official website](http://www.dlvsystem.com/dlv/#1)
 
 After you have downloaded and extracted the DLV executable, change the permissions to make it executable:
 
@@ -111,7 +128,7 @@ After you have downloaded and extracted the DLV executable, change the permissio
 chmod +x /path/to/dlv/executable
 ```
 
-Then, copy the path to the executable file and paste it into the `configs/asp_generator/config.yaml` file under the `dlv` field:
+Finally, update the configuration file `configs/asp_generator/config.yaml` to point to the DLV executable you just downloaded:
 
 ```yaml
 # configs/asp_generator/config.yaml
@@ -120,17 +137,35 @@ dlv: /path/to/dlv/executable # <- change this!
 # ...
 ```
 
-On Linux, this can be done easily with the following command:
+#### Development tools
 
-```bash
-./install-dlv-linux.sh
-```
+See the [Development](#development) section for instructions on setting up development tools like `ruff` and `ty` (using VS Code extensions is recommended).
+
+### Windows
+
+For the easiest use, you should open the **devcontainer**, which I included in `.devcontainer/`, for example using VS Code:
+
+-   I assume you are in the project root directory.
+-   Click the `><` icon in the bottom-left corner of VS Code.
+-   Select `Reopen in Container`.
+
+The (Ubuntu) devcontainer will be built using `Dockerfile` and `post_create.sh` will take care of installing `uv`, as well as syncing the project dependencies and setting up the config files.
+
+After opening the devcontainer, you can run all Unix commands below as-is.
+
+#### DLV
+
+You don't need to install DLV manually (like on macOS/Linux), as it is already installed in the devcontainer.
+
+#### Development tools
+
+See the [Development](#development) section for instructions on setting up development tools like `ruff` and `ty` (using VS Code extensions is recommended).
 
 ## Generating datasets
 
 ### ASP solver
 
-Below, I describe how to generate the [`reldata`](https://github.com/phohenecker/reldata) Family Tree dataset based on the ASP solver by [Patrick Hohenecker](https://github.com/phohenecker/family-tree-data-gen)\_.
+Below, I describe how to generate the [`reldata`](https://github.com/phohenecker/reldata) Family Tree dataset based on the ASP solver by [Patrick Hohenecker](https://github.com/phohenecker/family-tree-data-gen).
 
 Use the provided `invoke` task to generate the dataset. This will generate the dataset in `data/asp/out-reldata`.
 
