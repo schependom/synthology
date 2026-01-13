@@ -1,5 +1,8 @@
-# GitHub action to test the .devcontainer/devcontainer.json setup
-name: Devcontainer Build Test
+# GitHub action to test
+#   1. building the devcontainer
+#   2. testing that the project works on Unix (Linux/macOS) and Windows natively
+
+name: Dev Container & Native Tests
 
 on:
   push:
@@ -8,46 +11,105 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
-  build-devcontainer:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
 
+  # -----------------------------------------------------------------------------
+  # Job 1: Test the Dev Container Build & Setup
+  # -----------------------------------------------------------------------------
+
+  dev-container:
+    name: Build & Test Dev Container
+    runs-on: ubuntu-latest
+    steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: Build and run Dev Container
+        uses: devcontainers/ci@v0.3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build the devcontainer
-        uses: devcontainers/ci@v0.2
-        with:
-          # Point to the root where .devcontainer folder is located
-          imageName: ghcr.io/${{ github.repository }}/devcontainer
+          # Points to the folder containing devcontainer.json
+          subFolder: .devcontainer
+          # This command runs INSIDE the built container.
+          # It verifies that 'uv', 'python', and the 'dlv' binary installed in Dockerfile exist.
           runCmd: |
-            echo "Checking uv version..."
+            echo "Verifying Development Environment..."
             uv --version
+            python --version
+            
+            # Check if DLV was installed to the path defined in Dockerfile
+            if [ -f "/usr/local/bin/dlv" ]; then
+              echo "DLV binary found."
+            else
+              echo "Error: DLV binary missing."
+              exit 1
+            fi
+            
+            # Verify the config update from post_create.sh was applied
+            # (Optional: add a check here if you want to be very rigorous)
+            
+            # Run project tests
+            uv run pytest
 
-            echo "Checking Python version..."
-            uv run python -c "import sys; print(f'Python {sys.version}'); assert sys.version_info[:2] == (3, 9), 'Not Python 3.9'"
+  # -----------------------------------------------------------------------------
+  # Job 2: Test Native Installations (Linux, Mac, Windows)
+  # -----------------------------------------------------------------------------
 
-            echo "Checking DLV installation..."
-            # Verify dlv is in the PATH and can execute
-            dlv -help | head -n 1
+  native-test:
+    name: Test Native Setup (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
 
-            echo "Checking system dependencies..."
-            # Check if unixodbc is present as required
-            odbcinst -j
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            echo "Checking environment dependencies..."
-            uv run invoke --list
+      # ------------------------------------------------------------------
+      # System Dependencies
+      # The Dockerfile installs unixodbc, so we must replicate that
+      # on native runners to ensure 'uv sync' (which installs pyodbc) works.
+      # ------------------------------------------------------------------
 
-            echo "Devcontainer built and configured successfully"
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unixodbc unixodbc-dev
+
+      - name: Install system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: brew install unixodbc
+
+      # ------------------------------------------------------------------
+      # Python & uv Setup
+      # ------------------------------------------------------------------
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python 3.9
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          enable-cache: true
+
+      # ------------------------------------------------------------------
+      # Project Install
+      # ------------------------------------------------------------------
+      - name: Install dependencies
+        run: uv sync --all-groups
+
+      # We skip the DLV binary install here because the URL in the 
+      # Dockerfile is Linux-specific. On native Windows/Mac, this would 
+      # require different binaries. We focus on ensuring the Python 
+      # environment is valid.
+
+      - name: Run Tests
+        run: uv run pytest

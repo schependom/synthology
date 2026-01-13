@@ -1,14 +1,17 @@
-# This configuration file is for pre-commit, a framework for managing and maintaining multi-language pre-commit hooks.
-# The pre-commit tool is ran before committing code to ensure code quality and consistency.
+# pre-commit configuration file
+#
+# I use pre-commit.ci to run all pre-commit hooks with GitHub actions,
+# such that they get automatically fixed and committed when possible.
+#
+# This makes sure that, when developers forget to run pre-commit hooks locally,
+# the codebase still stays clean.
 
-# See https://pre-commit.com for more information
-# See https://pre-commit.com/hooks.html for more hooks
+exclude: '^.github/workflows/'
 
 repos:
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
-    # This version is automatically managed by the '.github/workflows/pre-commit-update.yaml' workflow.
-    # The pre-commit-update.yaml workflow is necessary because Dependabot does not support updating pre-commit hooks.
+    # This version is automatically managed.
     # The '.github/workflows/pre-commit-update.yaml' workflow runs `uv run pre-commit autoupdate` according to a schedule (cronjob).
     # If a newer version is found, that workflow updates this line and opens a Pull Request with the changes.
     hooks:
@@ -19,10 +22,24 @@ repos:
 
 -   repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.10
-    # This version is automatically managed by the '.github/workflows/pre-commit-update.yaml' workflow.
+    # This version is automatically managed.
     hooks:
     # Run ruff linter with auto-fix
     -   id: ruff
         args: [--fix]
     # Run ruff formatter
     -   id: ruff-format
+    # Check if okay now
+    -   id: ruff-check
+
+# pre-commit.ci
+ci:
+    autofix_commit_msg: |
+        [pre-commit.ci] Auto fixes from pre-commit hooks
+
+    autofix_prs: true
+    autoupdate_branch: ''
+    autoupdate_commit_msg: '[pre-commit.ci] Pre-commit autoupdate'
+    autoupdate_schedule: weekly
+    skip: []
+    submodules: false

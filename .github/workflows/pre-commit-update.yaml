@@ -1,5 +1,7 @@
-# Dependabot does not support updating
-# pre-commit so this workflow will do that
+# Dependabot does not support updating pre-commit-config.yaml versions,
+# so this workflow will do that, every day at midnight.
+#
+# If any updates are found, a Pull Request will be opened with the changes.
 
 name: Pre-commit auto-update
 
@@ -28,6 +30,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: 3.9
+          enable-cache: true
 
       - name: Install dependencies
         run: uv sync --only-group dev
