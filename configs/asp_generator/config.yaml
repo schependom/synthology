@@ -3,7 +3,7 @@ defaults:
   - _self_
 
 # Required: path to the dlv executable
-dlv: /usr/local/bin/dlv/dl
+dlv: /usr/local/bin/dlv
 
 # Train/test split
 train_val_pct: 0.8

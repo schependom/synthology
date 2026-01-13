@@ -19,8 +19,8 @@ fi
 # Update DLV path in config (DLV is installed in Dockerfile)
 CONFIG_FILE="configs/asp_generator/config.yaml"
 if [ -f "$CONFIG_FILE" ]; then
-    sed -i 's@dlv: .*@dlv: /usr/local/bin/dlv/dl@' "$CONFIG_FILE"
-    echo "Updated DLV path in $CONFIG_FILE to '/usr/local/bin/dlv/dl'."
+    sed -i 's@dlv: .*@dlv: /usr/local/bin/dlv@' "$CONFIG_FILE"
+    echo "Updated DLV path in $CONFIG_FILE to '/usr/local/bin/dlv'."
 else
     # error
     echo "Config file $CONFIG_FILE not found!"
@@ -31,6 +31,10 @@ fi
 # Install pre-commit hooks
 uv run pre-commit install --install-hooks
 echo "Pre-commit hooks installed."
+
+# Set unbuffered output for Python
+export PYTHONUNBUFFERED=1
+echo "Set PYTHONUNBUFFERED=1 for unbuffered Python output."
 
 echo "##########################################"
 echo "Post-create script completed successfully."

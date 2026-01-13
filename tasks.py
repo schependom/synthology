@@ -43,6 +43,7 @@ def gen_ft_asp(ctx: Context):
     print("\n-------------------------------------------")
     print("Converting generated ASP data to CSV format")
     print("--------------------------------------------\n")
+    ctx.run("export PYTHONUNBUFFERED=1")
     ctx.run("uv run --package asp_generator python -u -m asp_generator.convert_to_csv")
 
     logger.success("Family tree dataset generation with ASP completed.")
