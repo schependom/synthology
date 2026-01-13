@@ -7,11 +7,9 @@ echo "Installed uv and Python dependencies."
 
 # Source virtual environment
 if [ -f ".venv/bin/activate" ]; then
-
     # Activate
     source .venv/bin/activate
     echo "Activated virtual environment."
-
 else
     # error
     echo "Virtual environment activation script not found!"
