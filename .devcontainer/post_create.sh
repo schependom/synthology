@@ -2,7 +2,7 @@
 
 # Install uv and Python dependencies
 # uv is installed in Dockerfile, just sync
-uv sync --all-groups
+uv sync --dev
 echo "Installed uv and Python dependencies."
 
 # Source virtual environment
