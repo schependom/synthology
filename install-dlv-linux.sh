@@ -2,7 +2,7 @@
 
 # Setup Variables
 CONFIG_FILE="configs/asp_generator/config.yaml"
-DLV_URL="https://www.dlvsystem.it/files/dlv.x86-64-linux-elf-unixodbc"
+DLV_URL="https://www.dlvsystem.it/files/dlv.x86-64-linux-elf-static.bin"
 
 # OS Check
 if [[ "$OSTYPE" == "darwin"* ]]; then
