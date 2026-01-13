@@ -18,8 +18,8 @@ def gen_ft_asp(ctx: Context):
     # ask user to confirm cleanup
     if os.path.exists("./data/asp/out-reldata") and os.listdir("./data/asp/out-reldata"):
         response = input(
-            "Previous ASP generator outputs detected in ./data/asp/out-reldata. "
-            "You can convert them to CSV using 'invoke convert-reldata' if needed. "
+            "Previous ASP generator outputs detected in ./data/asp/out-reldata.\n"
+            "You can convert them to CSV using 'invoke convert-reldata' if needed.\n\n"
             "Do you want to delete them before generating new data? (y/n): "
         )
         if response.lower() != "y":

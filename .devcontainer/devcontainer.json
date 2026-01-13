@@ -1,5 +1,10 @@
-// For format details, see https://aka.ms/devcontainer.json. For config options, see the
-// README at: https://github.com/devcontainers/templates/tree/main/src/python
+// Setup file for Synthology UNIX development container
+// with Python, uv, and DLV installed.
+//
+// This dev container uses the Dockerfile in the same directory
+// to actually build the container.
+//
+// Author: Vincent Van Schependom
 {
     "name": "synthology",
     // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
@@ -8,7 +13,7 @@
     },
     "features": {},
 
-    // Use 'postCreateCommand' to run commands after the container is created.
+    // Download dependencies, set DLV path, and install pre-commit hooks
     "postCreateCommand": "bash .devcontainer/post_create.sh",
 
     // Configure tool-specific properties.
@@ -19,8 +24,8 @@
                 "python.testing.pytestArgs": ["tests"],
                 "python.testing.unittestEnabled": false,
                 "python.testing.pytestEnabled": true,
-                "python.defaultInterpreterPath": "/workspaces/synthology/.venv/bin/python",
-                "python.testing.pytestPath": "/workspaces/synthology/.venv/bin/pytest"
+                "python.defaultInterpreterPath": ".venv/bin/python",
+                "python.testing.pytestPath": ".venv/bin/pytest"
             }
         }
     }
