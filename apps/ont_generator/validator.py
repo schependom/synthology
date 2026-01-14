@@ -224,13 +224,13 @@ class Validator:
         """
         errors = []
 
-        # 1. Minimum Size
+        # Minimum Size
         if len(kg.individuals) < 2:
             errors.append("Triviality: Fewer than 2 individuals")
         if len(kg.triples) == 0 and len(kg.memberships) == 0:
             errors.append("Triviality: Empty graph (no facts)")
 
-        # 2. Connectivity (using NetworkX)
+        # Connectivity (using NetworkX)
         if len(kg.individuals) > 0:
             G = nx.Graph()
             for ind in kg.individuals:
@@ -249,7 +249,7 @@ class Validator:
                 # We want at least 80% of nodes to be in the main component for a healthy KG
                 if ratio < 0.8:
                     errors.append(
-                        f"Wrapper: Graph is fragmented (LCC covers {ratio:.1%} of {len(G.nodes)} nodes). Ideal > 80%"
+                        f"Fragmented Graph: Graph is fragmented (LCC covers {ratio:.1%} of {len(G.nodes)} nodes). Ideal > 80%"
                     )
 
         return errors

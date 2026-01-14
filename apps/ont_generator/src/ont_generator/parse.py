@@ -15,6 +15,7 @@ AUTHOR
 from collections import defaultdict
 from typing import Dict, List, Set, Union
 
+from loguru import logger
 from rdflib import BNode, Graph, Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, XSD
 
@@ -83,14 +84,22 @@ class OntologyParser:
         self.Z = Var("Z")
 
         # ==================== MAIN PARSING PIPELINE ==================== #
-        print("Discovering schema (Classes, Properties)...")
+        logger.info("Discovering schema (Classes, Properties)...")
         self._discover_schema()
 
-        print("Parsing ontology axioms into rules and constraints...")
+        logger.info("Parsing ontology axioms into rules and constraints...")
         self._setup_handlers()
         self._parse_rules_and_constraints()
 
-        print("Ontology parsing complete.")
+        logger.success("Ontology parsing complete:")
+        logger.info(f"\{len(self.classes)} \tClasses")
+        logger.info(f"\{len(self.relations)} \tRelations")
+        logger.info(f"\{len(self.attributes)} \tAttributes")
+        logger.info(f"\{len(self.rules)} \tExecutable Rules")
+        logger.info(f"\{len(self.constraints)} \tConstraints")
+        logger.info(f"\{len(self.inverse_properties)} \tInverse Property Pairs")
+        logger.info(f"\{len(self.domains)} \tDomain Constraints")
+        logger.info(f"\{len(self.ranges)} \tRange Constraints")
 
     def _get_clean_name(self, uri: URIRef) -> str:
         """
@@ -117,7 +126,7 @@ class OntologyParser:
             if ":" in qname and not qname.startswith("http"):
                 # Extract the local part after the colon
                 return qname.split(":", 1)[-1]
-        except:
+        except Exception:
             pass  # Fallback to manual split
 
         # Manual fallback: split on # or /

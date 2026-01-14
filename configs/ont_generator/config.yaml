@@ -4,17 +4,17 @@ defaults:
 ontology:
   path: "data/ont/family.ttl"
 
-dataset: # asp uses 80/10/10 split by default
-  n_train: 80
-  n_test: 10
-  n_val: 10
+dataset: # asp uses 72% train, 8% val, 20% test by default
+  n_train: 72
+  n_test: 20
+  n_val: 8
   min_individuals: 1
   max_individuals: 1000
   min_rules: 1
   max_rules: 5
   min_proofs_per_rule: 5
-  output_dir: "data/ont/out-csv/"
-  seed: null
+  output_dir: "data/ont/family_tree"
+  seed: 23
   export_proofs: false
   export_graphs: false
 

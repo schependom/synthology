@@ -1083,7 +1083,9 @@ class BackwardChainer:
             if not existing_types.isdisjoint(disjoint_with):
                 if self.verbose:
                     conflict = existing_types.intersection(disjoint_with)
-                    # print(f"[Constraint] Reuse rejected: {ind.name} is {existing_types}, required {req_cls_name} (disjoint with {conflict})")
+                    logger.warning(
+                        f"[Constraint] Reuse rejected: {ind.name} is {existing_types}, required {req_cls_name} (disjoint with {conflict})"
+                    )
                 return False
 
         return True

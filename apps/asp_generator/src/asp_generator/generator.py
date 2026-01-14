@@ -110,7 +110,7 @@ class Generator(object):
         all_names = sorted(counts.keys())
 
         if not all_names:
-            print("  (no data)")
+            print("  (no data)", flush=True)
             return
 
         # get maximum count
@@ -135,7 +135,7 @@ class Generator(object):
             bars = "|" * int(math.ceil(counts[n] / step_size))
 
             # print stats line
-            print(stats_pattern.format(index=idx, name=n, count=counts[n], bars=bars))
+            print(stats_pattern.format(index=idx, name=n, count=counts[n], bars=bars), flush=True)
 
     @classmethod
     def _print_stats(cls, pos_counts: typing.Dict[str, int], neg_counts: typing.Dict[str, int]):
@@ -144,7 +144,7 @@ class Generator(object):
         all_names = sorted(pos_counts.keys())
 
         if not all_names:
-            print("  (no data)")
+            print("  (no data)", flush=True)
             return
 
         # get maximum counts
@@ -187,7 +187,8 @@ class Generator(object):
                     neg_bars=neg_bars,
                     num_pos=pos_counts[n],
                     num_neg=neg_counts[n],
-                )
+                ),
+                flush=True,
             )
 
     @classmethod
@@ -420,7 +421,7 @@ class Generator(object):
         sample_graphs = []
 
         for sample_idx in range(conf.num_samples):  # type: ignore
-            print("creating sample #{}: ".format(sample_idx), end="")
+            print("creating sample #{}: ".format(sample_idx), end="", flush=True)
 
             # use a fresh data context
             with dc.DataContext() as data_ctx:
@@ -430,7 +431,7 @@ class Generator(object):
                 total_start = time.time()
 
                 # sample family tree
-                print("sampling family tree", end="")
+                print("sampling family tree", end="", flush=True)
                 start = time.time()
                 done = False
                 while not done:
@@ -455,19 +456,19 @@ class Generator(object):
                         sample_graphs.append(current_graph)
                         done = True
 
-                print(" OK ({:.3f}s)".format(time.time() - start), end="")
+                print(" OK ({:.3f}s)".format(time.time() - start), end="", flush=True)
 
                 # run ASP solver to compute all inferences
-                print(" | computing inferences", end="")
+                print(" | computing inferences", end="", flush=True)
                 start = time.time()
                 data = cls._run_asp_solver(conf, family_tree)
-                print(" OK ({:.3f}s)".format(time.time() - start), end="")
+                print(" OK ({:.3f}s)".format(time.time() - start), end="", flush=True)
 
                 # write sample to disk
-                print(" | writing to disk", end="")
+                print(" | writing to disk", end="", flush=True)
                 start = time.time()
                 cls._write_sample(conf, family_tree, data, sample_name_pattern.format(sample_idx))
-                print(" OK ({:.3f}s) | ".format(time.time() - start), end="")
+                print(" OK ({:.3f}s) | ".format(time.time() - start), end="", flush=True)
 
                 # update statistics
                 tree_size_counts[len(family_tree)] += 1
@@ -479,9 +480,9 @@ class Generator(object):
                         else:
                             inferences_neg_relation_counts[i.predicate] += 1
 
-                print("finished in {:.3f}s".format(time.time() - total_start))
+                print("finished in {:.3f}s".format(time.time() - total_start), flush=True)
 
-        print()  # add an empty line to the output
+        print(flush=True)  # add an empty line to the output
 
         # prepare tree-size-statistics for printing
         title_format = "size={{:0{}d}}".format(len(str(conf.max_tree_size + 1)))
@@ -500,13 +501,13 @@ class Generator(object):
         }
 
         # print statistics
-        print("DISTRIBUTION OF FAMILY TREE SIZES\n")
+        print("DISTRIBUTION OF FAMILY TREE SIZES\n", flush=True)
         cls._print_distribution(tree_size_counts)
-        print("\nDISTRIBUTION OF TOTAL NUMBER OF RELATIONS PER SAMPLE\n")
+        print("\nDISTRIBUTION OF TOTAL NUMBER OF RELATIONS PER SAMPLE\n", flush=True)
         cls._print_distribution(total_relations_counts)
-        print("\nINFERABLE RELATIONS\n")
+        print("\nINFERABLE RELATIONS\n", flush=True)
         cls._print_stats(inferences_pos_relation_counts, inferences_neg_relation_counts)
-        print("\nDISTRIBUTION OF POSITIVE RELATION INFERENCES\n")
+        print("\nDISTRIBUTION OF POSITIVE RELATION INFERENCES\n", flush=True)
         cls._print_distribution(inferences_pos_relation_counts)
-        print("\nDISTRIBUTION OF NEGATIVE RELATION INFERENCES\n")
+        print("\nDISTRIBUTION OF NEGATIVE RELATION INFERENCES\n", flush=True)
         cls._print_distribution(inferences_neg_relation_counts)

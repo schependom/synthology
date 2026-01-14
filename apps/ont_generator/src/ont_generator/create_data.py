@@ -147,17 +147,15 @@ class KGEDatasetGenerator:
         Returns:
             Tuple of (train_samples, val_samples, test_samples)
         """
-        logger.info(f"\n{'=' * 80}")
         logger.info("GENERATING KGE DATASET")
-        logger.info(f"{'=' * 80}")
-        logger.info(f"Target: {n_train} train, {n_val} val, {n_test} test samples")
-        logger.info(f"Individual range: {min_individuals}-{max_individuals}")
-        logger.info(f"Rules per sample: {min_rules}-{max_rules}")
-        logger.info(f"Min proofs per rule: {min_proofs_per_rule}")
-        logger.info(f"{'=' * 80}")
-
+        # logger.info(f"\t{'=' * 80}")
+        logger.info(f"\tTarget: {n_train} train, {n_val} val, {n_test} test samples")
+        logger.info(f"\tIndividual range: {min_individuals}-{max_individuals}")
+        logger.info(f"\tRules per sample: {min_rules}-{max_rules}")
+        logger.info(f"\tMin proofs per rule: {min_proofs_per_rule}")
+        # logger.info(f"\t{'=' * 80}")
         # Generate training samples
-        logger.info("Generating training samples...")
+        # logger.info("Generating training samples...")
         train_samples = self._generate_samples(
             n_samples=n_train,
             min_individuals=min_individuals,
@@ -169,7 +167,7 @@ class KGEDatasetGenerator:
         )
 
         # Generate validation samples
-        logger.info("Generating validation samples...")
+        # logger.info("Generating validation samples...")
         val_samples = self._generate_samples(
             n_samples=n_val,
             min_individuals=min_individuals,
@@ -181,7 +179,7 @@ class KGEDatasetGenerator:
         )
 
         # Generate test samples (independent)
-        logger.info("Generating test samples...")
+        # logger.info("Generating test samples...")
         test_samples = self._generate_samples(
             n_samples=n_test,
             min_individuals=min_individuals,
@@ -227,6 +225,7 @@ class KGEDatasetGenerator:
         failed_attempts = 0
         max_failed_attempts = n_samples * 10
 
+        print("=" * 80)
         pbar = tqdm(total=n_samples, desc=f"Generating {sample_type} samples")
 
         while len(samples) < n_samples and failed_attempts < max_failed_attempts:
@@ -574,13 +573,10 @@ class KGEDatasetGenerator:
         val_stats = get_stats(val_samples)
         test_stats = get_stats(test_samples)
 
-        logger.info(f"\n{'=' * 80}")
-        logger.info("DATASET GENERATION COMPLETE")
-        logger.info(f"{'=' * 80}")
+        logger.success("Train/val/test dataset generation complete.")
 
         # Check isomorphism
-        # Check isomorphism
-        logger.info("Checking structural isomorphism...")
+        logger.info("Checking structural isomorphism between train/test...")
         isomorphic_count = 0
         # Check Train vs Test
         for train_kg in train_samples:
@@ -589,60 +585,62 @@ class KGEDatasetGenerator:
                     isomorphic_count += 1
                     break
 
-        # Check Val vs Test (if needed, but usually train vs test is key)
-
         if isomorphic_count > 0:
             logger.warning(f"Warning: Found {isomorphic_count} isomorphic samples between train/test")
         else:
             logger.info("No structural isomorphism between train and test")
 
         # Rule coverage
-        logger.info("\n--- Rule Coverage ---")
+        logger.info("=" * 80)
+        logger.info("RULE COVERAGES")
+        logger.info("=" * 80)
 
         def log_rule_usage(title, usage_dict, total_selections):
-            logger.info(f"\n{title}:")
-            logger.info(f"{'Rule Name':<40} | {'Count':<10} | {'Percentage':<10}")
-            logger.info("-" * 70)
+            logger.info(f"{title}:")
+            logger.info(f"{'Rule Name':<60} | {'Count':<10} | {'Percentage':<10}")
+            logger.info("-" * 90)
             for rule_name, count in sorted(usage_dict.items(), key=lambda x: x[1], reverse=True):
                 percentage = (count / total_selections) * 100 if total_selections > 0 else 0
-                logger.info(f"{rule_name:<40} | {count:<10} | {percentage:.1f}%")
+                logger.info(f"{rule_name:<60} | {count:<10} | {percentage:.1f}%")
 
         total_train_selections = sum(self.train_rule_usage.values())
-        log_rule_usage("Train Rule Usage", self.train_rule_usage, total_train_selections)
+        log_rule_usage("TRAIN rule usage", self.train_rule_usage, total_train_selections)
 
         total_test_selections = sum(self.test_rule_usage.values())
-        log_rule_usage("Test Rule Usage", self.test_rule_usage, total_test_selections)
+        log_rule_usage("TEST rule usage", self.test_rule_usage, total_test_selections)
 
         unused_in_train = set(r.name for r in self.rules) - set(self.train_rule_usage.keys())
         unused_in_test = set(r.name for r in self.rules) - set(self.test_rule_usage.keys())
 
         if unused_in_train:
-            logger.warning(f"\nWarning: {len(unused_in_train)} rules unused in training")
+            logger.warning(f"\nWarning: {len(unused_in_train)} rules unused in TRAINING")
             for r in sorted(unused_in_train):
                 logger.warning(f"  - {r}")
         if unused_in_test:
-            logger.warning(f"Warning: {len(unused_in_test)} rules unused in testing")
+            logger.warning(f"Warning: {len(unused_in_test)} rules unused in TESTING")
             for r in sorted(unused_in_test):
                 logger.warning(f"  - {r}")
 
         # Detailed breakdown of unused rules
-        all_unused = unused_in_train.intersection(unused_in_test)
+        all_unused = unused_in_train.union(unused_in_test)
         if all_unused:
-            logger.info("\n--- Unused Rules Analysis ---")
-            logger.info(f"{'Rule Name':<40} | {'Reason':<20} | {'Attempts':<10}")
-            logger.info("-" * 80)
+            logger.info("Unused Rules Analysis:")
+            logger.info(f"{'Rule Name':<60} | {'Reason':<20} | {'Attempts':<10}")
+            logger.info("-" * 100)
             for rule_name in sorted(all_unused):
                 attempts = self.rule_selection_count[rule_name]
                 if attempts == 0:
                     reason = "Never Selected"
                 else:
                     reason = "Failed to Generate"
-                logger.info(f"{rule_name:<40} | {reason:<20} | {attempts:<10}")
+                logger.info(f"{rule_name:<60} | {reason:<20} | {attempts:<10}")
 
         # Negative Strategy Usage
         strategy_usage = self.negative_sampler.strategy_usage
         if strategy_usage:
-            logger.info("\n--- Negative Strategy Usage ---")
+            logger.info("=" * 80)
+            logger.info("NEGATIVE SAMPLING STRATEGY USAGE")
+            logger.info("=" * 80)
             logger.info(f"{'Strategy':<20} | {'Count':<10} | {'Percentage':<10}")
             logger.info("-" * 50)
             total_negatives = sum(strategy_usage.values())
@@ -651,30 +649,38 @@ class KGEDatasetGenerator:
                 logger.info(f"{strategy:<20} | {count:<10} | {percentage:.1f}%")
 
         # Validation Report
-        logger.info("\n--- Validation Report ---")
+        logger.info("=" * 40)
+        logger.info("DATA VALIDATION REPORT")
+        logger.info("=" * 40)
         if not self.discarded_samples:
-            logger.info("All generated samples passed validation checks (0 discarded).")
+            logger.success("All generated samples passed validation checks (0 discarded).")
         else:
-            logger.warning(f"Discarded {len(self.discarded_samples)} samples due to validation errors:")
-
             # Group errors by type for cleaner reporting
             error_counts = defaultdict(int)
+            total_errors = 0
             for errors in self.discarded_samples.values():
-                for err in errors:
-                    # Simplify error message to group similar ones
-                    # e.g., "Constraint Violation: Ind_5 ..." -> "Constraint Violation"
-                    base_err = err.split(":")[0] if ":" in err else err
+                total_errors += len(errors)
+                if errors:
+                    # To ensure the counts add up to the total number of discarded samples,
+                    # we attribute each discarded sample to its *first* validation error type.
+                    first_error = errors[0]
+                    base_err = first_error.split(":")[0] if ":" in first_error else first_error
                     error_counts[base_err] += 1
+
+            logger.warning(f"Discarded {len(self.discarded_samples)} samples:")
 
             for err_type, count in sorted(error_counts.items(), key=lambda x: x[1], reverse=True):
                 logger.warning(f"  - {err_type}: {count}")
 
-            if self.verbose:
-                logger.debug("\nDetailed Discard Reasons (First 5):")
-                for i, (sample_id, errors) in enumerate(self.discarded_samples.items()):
-                    if i >= 5:
-                        break
-                    logger.debug(f"  {sample_id}: {errors}")
+            # logger.debug("\nDetailed Discard Reasons (First 5):")
+            # for i, (sample_id, errors) in enumerate(self.discarded_samples.items()):
+            #     if i >= 5:
+            #         break
+            #     logger.debug(f"  {sample_id}: {errors}")
+
+        print(f"\n{'=' * 80}")
+        print("DATASET STATISTICS")
+        print(f"{'=' * 80}")
 
         print("\nTRAINING SET:")
         print(f"  Samples:           {train_stats.get('n_samples', 0)}")
@@ -744,16 +750,16 @@ def save_dataset_to_csv(
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    logger.info(f"Saving {len(samples)} samples to {output_dir}/")
+    logger.info(f"Saving {len(samples)} samples to {output_dir}")
 
     for idx, kg in enumerate(samples):
         file_path = output_path / f"{prefix}_{idx:05d}.csv"
         kg.to_csv(str(file_path))
 
         if (idx + 1) % 100 == 0 or (idx + 1) == len(samples):
-            logger.info(f"  Saved {idx + 1}/{len(samples)}")
+            logger.info(f"\tSaved {idx + 1}/{len(samples)}")
 
-    logger.info(f"Dataset saved to {output_dir}/")
+    logger.success(f"Dataset CSVs saved to {output_dir}")
 
 
 def save_explanations(
@@ -788,7 +794,7 @@ def save_explanations(
                     f.write(f'{sample_id},{subj},{pred},{obj},"{expl}"\n')
                     count += 1
 
-    logger.info(f"Saved {count} explanations.")
+    logger.success(f"Saved {count} negative explanations.")
 
 
 def load_dataset_from_csv(
@@ -846,7 +852,6 @@ def main(cfg: DictConfig):
     logger.info(f"Running Ontology Knowledge Graph Generator with configuration:\n{OmegaConf.to_yaml(cfg)}")
 
     # Initialize generator
-    # Initialize generator
     generator = KGEDatasetGenerator(
         cfg=cfg,
         verbose=(cfg.logging.level == "DEBUG"),
@@ -866,16 +871,16 @@ def main(cfg: DictConfig):
 
     # Save to CSV
     output_dir = cfg.dataset.output_dir
+
     save_dataset_to_csv(train_samples, f"{output_dir}/train", prefix="train_sample")
-    save_explanations(train_samples, f"{output_dir}/train")
-
     save_dataset_to_csv(val_samples, f"{output_dir}/val", prefix="val_sample")
-    save_explanations(val_samples, f"{output_dir}/val")
-
     save_dataset_to_csv(test_samples, f"{output_dir}/test", prefix="test_sample")
+
+    save_explanations(val_samples, f"{output_dir}/val")
+    save_explanations(train_samples, f"{output_dir}/train")
     save_explanations(test_samples, f"{output_dir}/test")
 
-    logger.info("Dataset generation complete!")
+    logger.success("Ontology-based Knowledge Graph Dataset generation complete!")
 
     # Export Graphs (a few samples)
     if cfg.dataset.export_graphs:

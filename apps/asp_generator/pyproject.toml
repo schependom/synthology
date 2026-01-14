@@ -10,6 +10,7 @@ dependencies = [
     "argmagic",
     "aspwrapper",
     "insanity>=2017.1",
+    "loguru>=0.7.3",
     "networkx>=3.2.1",
     "reldata",
     "streamtologger>=2017.1",

@@ -28,7 +28,7 @@
 :parentOf rdf:type owl:ObjectProperty ;
     rdfs:domain :Person ;
     rdfs:range :Person ;
-    rdf:type owl:AsymmetricProperty . # From constraint :- parentOf(X,Y), parentOf(Y,X) 
+    rdf:type owl:AsymmetricProperty . # From constraint :- parentOf(X,Y), parentOf(Y,X)
 
 :childOf rdf:type owl:ObjectProperty ;
     owl:inverseOf :parentOf .

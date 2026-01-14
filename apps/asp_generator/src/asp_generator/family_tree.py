@@ -37,4 +37,9 @@ def run_family_tree_generator(cfg: Config):
 
 
 if __name__ == "__main__":
-    run_family_tree_generator()
+    try:
+        run_family_tree_generator()
+        logger.success("Family tree `reldata` files successfully written.")
+    except Exception as e:
+        logger.error(f"Error running family tree generator: {e}")
+        exit(1)

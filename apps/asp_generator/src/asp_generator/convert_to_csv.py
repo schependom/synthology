@@ -1,4 +1,3 @@
-import logging
 import multiprocessing
 import os
 import random
@@ -9,7 +8,10 @@ from pathlib import Path
 from typing import Dict, Tuple
 
 import hydra
+from loguru import logger
 from omegaconf import DictConfig
+from reldata import io as reldata_io
+from reldata.io import kg_reader
 
 # Now safe to import
 from synthology.data_structures import (
@@ -34,10 +36,6 @@ src_path = project_root / "src"
 if str(src_path) not in sys.path:
     sys.path.append(str(src_path))
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
-
 
 def _process_and_save_task(args: Tuple[str, str, str]) -> bool:
     """
@@ -47,17 +45,14 @@ def _process_and_save_task(args: Tuple[str, str, str]) -> bool:
     """
     input_dir, output_filepath, basename = args
     try:
-        # Import inside worker to avoid pickling complex reader objects
-        from reldata.io import kg_reader
-
-        # 1. Read
+        # Read
         rd_kg = kg_reader.KgReader.read(input_dir, basename)
 
-        # 2. Convert
+        # Convert
         if rd_kg:
             kg = convert_reldata_kg(rd_kg)
 
-            # 3. Write immediately
+            # Write
             # Ensure parent dir exists (redundancy for safety)
             Path(output_filepath).parent.mkdir(parents=True, exist_ok=True)
 
@@ -148,7 +143,7 @@ def convert_reldata_kg(rd_kg) -> KnowledgeGraph:
                         s_memberships.append(s_mem)
         return individuals_map[name]
 
-    # 1. Iterate over triples
+    # Iterate over triples
     if hasattr(rd_kg, "triples"):
         for i, rd_triple in enumerate(rd_kg.triples):
             subj_raw = getattr(rd_triple, "subject", None)
@@ -171,7 +166,7 @@ def convert_reldata_kg(rd_kg) -> KnowledgeGraph:
             check_inference(s_triple, rd_triple)
             s_triples.append(s_triple)
 
-    # 2. Iterate over individuals
+    # Iterate over individuals
     if hasattr(rd_kg, "individuals"):
         inds = rd_kg.individuals
         iterable = inds.values() if isinstance(inds, dict) else inds
@@ -194,8 +189,6 @@ REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../../..")
 
 @hydra.main(version_base=None, config_path=f"{REPO_ROOT}/configs/asp_generator", config_name="config")
 def main(cfg: DictConfig):
-    import hydra.utils
-
     original_cwd = Path(hydra.utils.get_original_cwd())
 
     input_dir = cfg.dataset.output_dir
@@ -220,12 +213,6 @@ def main(cfg: DictConfig):
             logger.info(f"Cleaning existing directory: {d}")
             shutil.rmtree(d)
         d.mkdir(parents=True, exist_ok=True)
-
-    try:
-        from reldata import io as reldata_io
-    except ImportError:
-        logger.error("Could not import 'reldata'. verify it is installed.")
-        return
 
     try:
         # Lightweight discovery (filenames only)
@@ -295,7 +282,7 @@ def main(cfg: DictConfig):
             except Exception as exc:
                 logger.error(f"Sample {basename} generated an exception: {exc}")
 
-    logger.info(f"Complete. Successfully converted: {success_count}/{len(tasks)}")
+    logger.success(f"CSV conversion complete. Successfully converted {success_count}/{len(tasks)} `reldata` samples.")
 
 
 if __name__ == "__main__":

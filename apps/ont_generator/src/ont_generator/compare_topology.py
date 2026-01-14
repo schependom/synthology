@@ -103,7 +103,7 @@ def calculate_metrics(kg: KnowledgeGraph) -> Dict[str, Any]:
     # Global clustering coefficient
     try:
         avg_clustering = nx.average_clustering(G)
-    except:
+    except Exception:
         avg_clustering = 0
 
     return {

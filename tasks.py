@@ -37,7 +37,7 @@ def gen_ft_asp(ctx: Context):
     print("Running family tree ASP generator by Patrick Hohenecker")
     print("-------------------------------------------------------\n")
     ctx.run("export PYTHONUNBUFFERED=1")
-    ctx.run("uv run --package asp_generator asp_generator")
+    ctx.run("export LOGURU_COLORIZE=1 && uv run --package asp_generator asp_generator")
 
     # Convert reldata outputs to CSV
     # using config from configs/asp_generator/config.yaml
@@ -45,7 +45,7 @@ def gen_ft_asp(ctx: Context):
     print("Converting generated ASP data to CSV format")
     print("--------------------------------------------\n")
     ctx.run("export PYTHONUNBUFFERED=1")
-    ctx.run("uv run --package asp_generator python -u -m asp_generator.convert_to_csv")
+    ctx.run("export LOGURU_COLORIZE=1 && uv run --package asp_generator python -u -m asp_generator.convert_to_csv")
 
     logger.success("Family tree dataset generation with ASP completed.")
 
@@ -58,7 +58,7 @@ def convert_reldata(ctx: Context):
     print("Converting generated ASP data to CSV format")
     print("--------------------------------------------\n")
     ctx.run("export PYTHONUNBUFFERED=1")
-    ctx.run("uv run --package asp_generator python -u -m asp_generator.convert_to_csv")
+    ctx.run("export LOGURU_COLORIZE=1 && uv run --package asp_generator python -u -m asp_generator.convert_to_csv")
 
     logger.success("Conversion of family tree dataset from reldata to CSV completed.")
 
@@ -68,7 +68,7 @@ def gen_ft_ont(ctx: Context, args=""):
     """Generates family tree datasets with Ontology-based Generator using default configurations in configs/ont_generator/"""
 
     print("\nRunning family tree Ontology-based generator.")
-    cmd = "uv run --package ont_generator python -m ont_generator.create_data"
+    cmd = "export LOGURU_COLORIZE=1 && uv run --package ont_generator python -m ont_generator.create_data"
     if args:
         cmd += f" {args}"
     ctx.run(cmd)
