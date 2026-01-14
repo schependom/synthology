@@ -57,6 +57,9 @@ class KGEDatasetGenerator:
         self.export_proofs = cfg.export_proofs
         self.output_dir = cfg.dataset.output_dir
 
+        self.min_proof_roots = cfg.generator.get("min_proof_roots", 5)
+        self.max_proof_roots = cfg.generator.get("max_proof_roots", 15)
+
         # Initialize KGenerator
         self.generator = KGenerator(
             cfg=cfg,
@@ -332,7 +335,7 @@ class KGEDatasetGenerator:
             # Randomly decide how many "instances" (chains) to generate for this rule
             # e.g., generate 5-15 diverse root facts (Fathers) for this rule
             # This range provides a good balance of content diversity
-            n_proof_roots_for_rule = random.randint(5, 15)
+            n_proof_roots_for_rule = random.randint(self.min_proof_roots, self.max_proof_roots)
 
             proofs = self.generator.generate_proofs_for_rule(
                 rule.name, n_proof_roots=n_proof_roots_for_rule, max_proofs=None
@@ -423,27 +426,34 @@ class KGEDatasetGenerator:
             kg.memberships.append(new_mem)
 
         # Iteratively apply rules until fixpoint
-        # (Simple version: just one pass is enough for domain/range
-        # unless we have complex chains which we don't handle here yet)
-
+        # Ensures transitive closure of domain/range implications
         domains = self.generator.parser.domains
         ranges = self.generator.parser.ranges
 
-        for t in kg.triples:
-            if not t.positive:
-                continue
+        while True:
+            added_count = 0
+            current_mem_len = len(kg.memberships)
 
-            prop_name = t.predicate.name
+            for t in kg.triples:
+                if not t.positive:
+                    continue
 
-            # Apply Domain
-            if prop_name in domains:
-                for domain_cls in domains[prop_name]:
-                    add_membership(t.subject, domain_cls)
+                prop_name = t.predicate.name
 
-            # Apply Range
-            if prop_name in ranges:
-                for range_cls in ranges[prop_name]:
-                    add_membership(t.object, range_cls)
+                # Apply Domain
+                if prop_name in domains:
+                    for domain_cls in domains[prop_name]:
+                        add_membership(t.subject, domain_cls)
+                        added_count += 1
+
+                # Apply Range
+                if prop_name in ranges:
+                    for range_cls in ranges[prop_name]:
+                        add_membership(t.object, range_cls)
+                        added_count += 1
+
+            if len(kg.memberships) == current_mem_len:
+                break  # No changes, fixpoint reached
 
     @staticmethod
     def check_structural_isomorphism(kg1: KnowledgeGraph, kg2: KnowledgeGraph) -> bool:

@@ -82,6 +82,7 @@ class BackwardChainer:
         # Individual pooling parameters
         self.individual_pool_size = cfg.generator.individual_pool_size
         self.individual_reuse_prob = cfg.generator.individual_reuse_prob
+        self.always_generate_base_facts = cfg.generator.get("always_generate_base_facts", False)
         self.individual_pool: List[Individual] = []
         self._individual_counter = 0
         self.individual_name_prefix = entity_prefix
@@ -652,41 +653,114 @@ class BackwardChainer:
         if failed_to_prove_a_premise:
             return
 
-        # Yield all combinations of sub-proofs (Cartesian product)
-        # Example: If premise 1 has 2 proofs and premise 2 has 3 proofs,
-        #          this yields 2 × 3 = 6 complete proof trees
+        if failed_to_prove_a_premise:
+            return
+
+        # Yield a random sample of combinations (Monte Carlo) instead of exhaustive Product
+        # This avoids the "first few items" bias of itertools.product and avoids O(N^M) explosion
+
+        # Calculate total possible combinations
+        total_combinations = 1
+        for sub_iter in premise_sub_proof_iters:
+            total_combinations *= len(sub_iter)
+
+        # Determine strategy based on total size
+        # If small, we can be exhaustive (or just use product)
+        # If large, we MUST use sampling
+        IS_HUGE = total_combinations > 10000
+
         proof_count = 0
         valid_proof_count = 0
 
-        for sub_proof_combination in itertools.product(*premise_sub_proof_iters):
-            proof_count += 1
-            complete_proof = Proof.create_derived_proof(
-                goal=ground_goal,
-                rule=start_rule,  # Use unrenamed rule
-                sub_proofs=list(sub_proof_combination),
-                substitutions=subst,
-            )
+        # If using signature sampling, we want DIVERSITY first, so we collect a buffer
+        # If not, we just yield valid ones until we hit the limit
 
-            # ------------------------- CONSTRAINT CHECKING ------------------------- #
-            # Collect all atoms from this complete proof tree
-            all_atoms = self._collect_all_atoms(complete_proof)
+        # Generator for combinations
+        def combination_generator():
+            if not IS_HUGE:
+                # Small enough to iterate deterministically (or if we really want all)
+                for combo in itertools.product(*premise_sub_proof_iters):
+                    yield list(combo)
+            else:
+                # Random sampling from the Cartesian space
+                # We try to yield unique combinations if possible, but for huge spaces collisions are rare
+                # We limit attempts to avoid infinite loops
+                max_attempts = min(total_combinations, 5000)
+                seen_indices = set()
 
-            # Check if proof satisfies all constraints
-            if self._check_constraints(all_atoms):
-                valid_proof_count += 1
+                for _ in range(max_attempts):
+                    # Pick random index for each premise
+                    indices = tuple(random.randrange(len(sub_iter)) for sub_iter in premise_sub_proof_iters)
+                    if indices in seen_indices:
+                        continue
+                    seen_indices.add(indices)
 
-                if self.export_proof_visualizations:
-                    # write out the valid proof
-                    complete_proof.save_visualization(
-                        root_label=start_rule_name,
-                        filepath=f"proof_{valid_proof_count}",
-                        format="pdf",
-                        title=f"Proof #{valid_proof_count} for {ground_goal}",
-                    )
+                    combo = [premise_sub_proof_iters[i][idx] for i, idx in enumerate(indices)]
+                    yield combo
 
-                yield complete_proof
-            elif self.verbose:
-                logger.debug(f"  ✗ Proof {proof_count} for {ground_goal} rejected due to constraint violation")
+        # Use signature sampling (reservoir-ish)
+        if self.use_signature_sampling:
+            generated_proofs = []
+            MAX_BUFFER = 500  # Collect this many valid candidate proofs before grouping
+
+            for sub_proof_combination in combination_generator():
+                complete_proof = Proof.create_derived_proof(
+                    goal=ground_goal,
+                    rule=start_rule,  # Use unrenamed rule
+                    sub_proofs=sub_proof_combination,
+                    substitutions=subst,
+                )
+
+                # Constraint check
+                all_atoms = self._collect_all_atoms(complete_proof)
+                if self._check_constraints(all_atoms):
+                    generated_proofs.append(complete_proof)
+                    if len(generated_proofs) >= MAX_BUFFER:
+                        break
+
+            # Group by signature
+            signature_groups = defaultdict(list)
+            for p in generated_proofs:
+                sig = self._get_proof_signature(p)
+                signature_groups[sig].append(p)
+
+            # Yield one from each group
+            keys = list(signature_groups.keys())
+            random.shuffle(keys)  # Shuffle to yield random signatures
+
+            for sig in keys:
+                proofs_in_group = signature_groups[sig]
+                yield random.choice(proofs_in_group)
+
+        else:
+            # Direct yielding logic
+            for sub_proof_combination in combination_generator():
+                complete_proof = Proof.create_derived_proof(
+                    goal=ground_goal,
+                    rule=start_rule,  # Use unrenamed rule
+                    sub_proofs=sub_proof_combination,
+                    substitutions=subst,
+                )
+
+                # Constraint check
+                all_atoms = self._collect_all_atoms(complete_proof)
+                if self._check_constraints(all_atoms):
+                    valid_proof_count += 1
+
+                    if self.export_proof_visualizations:
+                        complete_proof.save_visualization(
+                            root_label=start_rule_name,
+                            filepath=f"proof_{valid_proof_count}",
+                            format="pdf",
+                            title=f"Proof #{valid_proof_count} for {ground_goal}",
+                        )
+
+                    yield complete_proof
+
+                    # Stop if we have enough (caller controls this usually via islice, but good to check)
+                    # Note: generate_proofs_for_rule handles the main count limit, so we just yield endlessly here
+                    # unless we want to curb it per rule-instantiation.
+                    # We rely on extraction logic to stop consuming.
 
     def register_proof(self, proof: Proof) -> None:
         """
@@ -774,10 +848,18 @@ class BackwardChainer:
 
         # ------------------------- BASE CASE ------------------------- #
         # Allow this atom to be proven as a base fact
-        yield Proof.create_base_proof(goal_atom)
-        yielded_count += 1
-        if self.max_proofs_per_atom and yielded_count >= self.max_proofs_per_atom:
-            return
+        # If always_generate_base_facts is False, we only yield base proof if no rules apply
+        # (checked below) or if we want to allow hybrid (checked here).
+
+        # We need to know if rules apply to decide if this is a "leaf" by necessity.
+        key = self._get_atom_key(goal_atom)
+        matching_rules = self.rules_by_head.get(key, []) if key is not None else []
+
+        if self.always_generate_base_facts or not matching_rules:
+            yield Proof.create_base_proof(goal_atom)
+            yielded_count += 1
+            if self.max_proofs_per_atom and yielded_count >= self.max_proofs_per_atom:
+                return
 
         # ------------------------- RECURSIVE CASE ------------------------- #
         # Try to derive using rules

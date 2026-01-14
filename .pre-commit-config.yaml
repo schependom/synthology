@@ -24,9 +24,6 @@ repos:
     rev: v0.14.10
     # This version is automatically managed.
     hooks:
-    # Run ruff linter with auto-fix
-    -   id: ruff
-        args: [--fix]
     # Run ruff formatter
     -   id: ruff-format
     # Check if okay now

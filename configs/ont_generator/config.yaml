@@ -26,6 +26,9 @@ generator:
   individual_pool_size: 50
   individual_reuse_prob: 0.7
   use_signature_sampling: true
+  min_proof_roots: 5
+  max_proof_roots: 15
+  always_generate_base_facts: false
 
 negative_sampling:
   strategy: "mixed"
