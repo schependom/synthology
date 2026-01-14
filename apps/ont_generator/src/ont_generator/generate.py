@@ -22,6 +22,9 @@ from loguru import logger
 from omegaconf import DictConfig
 from rdflib.namespace import RDF
 
+from ont_generator.chainer import BackwardChainer
+from ont_generator.negative_sampler import NegativeSampler
+from ont_generator.parse import OntologyParser
 from synthology.data_structures import (
     Atom,
     Attribute,
@@ -36,10 +39,6 @@ from synthology.data_structures import (
     Term,
     Triple,
 )
-
-from .chainer import BackwardChainer
-from .negative_sampler import NegativeSampler
-from .parse import OntologyParser
 
 # ============================================================================ #
 #                         SHARED UTILITY FUNCTIONS                             #
@@ -196,9 +195,8 @@ class KGenerator:
     """
     Knowledge Graph Generator.
 
-    Orchestrates proof generation via backward chaining for synthetic
-    knowledge graph creation. Designed to be called by create_data.py
-    for train/test split generation.
+    Orchestrates proof generation via backward chaining for synthetic knowledge graph creation.
+    Designed to be called by create_data.py for train/test split generation.
     """
 
     def __init__(
@@ -210,14 +208,14 @@ class KGenerator:
         Initializes the Knowledge Graph Generator.
 
         Args:
-            cfg (DictConfig): Hydra configuration object.
-            verbose (bool): Print debug info.
+            cfg (DictConfig):   Hydra configuration object.
+            verbose (bool):     Print debug info.
         """
+        # Flags
         self.verbose = verbose
-        # Access safely with defaults or assume valid config structure
-        self.export_proof_visualizations = cfg.dataset.get("export_proofs", False)
+        self.export_proof_visualizations = cfg.export_proofs
 
-        # Parse ontology
+        # Parser initialization
         self.parser = OntologyParser(cfg.ontology.path)
 
         # Initialize backward chainer with constraints
@@ -229,28 +227,26 @@ class KGenerator:
             domains=self.parser.domains,
             ranges=self.parser.ranges,
             verbose=verbose,
-            export_proof_visualizations=self.export_proof_visualizations,
         )
 
         # Store schema references
-        self.schema_classes = self.parser.classes
-        self.schema_relations = self.parser.relations
-        self.schema_attributes = self.parser.attributes
+        self.schema_classes = self.parser.classes  # Dict[str, Class], e.g. "Person" -> Class(...)
+        self.schema_relations = self.parser.relations  # Dict[str, Relation], e.g. "knows" -> Relation(...)
+        self.schema_attributes = self.parser.attributes  # Dict[str, Attribute], e.g. "age" -> Attribute(...)
 
     def generate_proofs_for_rule(
         self,
         rule_name: str,
-        n_instances: int = 1,
+        n_proof_roots: int = 1,
         max_proofs: Optional[int] = None,
     ) -> List[Proof]:
         """
         Generates proofs for a specific rule by name.
 
         Args:
-            rule_name (str): The name of the rule to generate proofs for.
-            n_instances (int): Number of independent generation cycles (loops) to run for this rule.
-                               Higher values create more distinct facts (volume).
-            max_proofs (int): Maximum number of total proofs to return.
+            rule_name (str):    The name of the rule to generate proofs for.
+            n_proof_roots (int):  Number of independent generation cycles (loops) to run for this rule.
+            max_proofs (int):   Maximum number of total proofs to return.
 
         Returns:
             List[Proof]: A list of generated proof trees.
@@ -262,24 +258,23 @@ class KGenerator:
 
         all_proofs = []
 
-        for _ in range(n_instances):
-            # Generate proofs
-            # Note: We are iterating the generator to get the list of proofs for THIS instance
-            # Each call to generate_proof_trees potentially creates new individuals if variables are unbound
-            current_proofs = list(self.chainer.generate_proof_trees(rule_name))
-
-            # Register proofs to update chainer state for reuse
-            for p in current_proofs:
-                self.chainer.register_proof(p)
-
-            all_proofs.extend(current_proofs)
-
-            # Optimization: Check if we have enough
+        # Outer loop: Restarts the search (creating new root individuals)
+        for _ in range(n_proof_roots):
+            # Stop completely if we hit the global cap
             if max_proofs and len(all_proofs) >= max_proofs:
                 break
 
-        if max_proofs:
-            return all_proofs[:max_proofs]
+            # Consume generator ONE item at a time
+            proof_generator = self.chainer.generate_proof_trees(rule_name)
+
+            for proof in proof_generator:
+                self.chainer.register_proof(proof)
+                all_proofs.append(proof)
+
+                # Check limit inside the inner loop
+                if max_proofs and len(all_proofs) >= max_proofs:
+                    break
+
         return all_proofs
 
     def generate_full_graph(self) -> KnowledgeGraph:

@@ -1,7 +1,7 @@
 """
 DESCRIPTION
 
-    Pure Python Backward-Chaining Knowledge Graph Generator.
+    Pure Python Backward-Chainer for proving goals based on rules and their premises.
 
 AUTHOR
 
@@ -9,11 +9,11 @@ AUTHOR
 """
 
 import itertools
-import logging
 import random
 from collections import defaultdict
 from typing import Dict, Iterator, List, Optional, Set, Tuple
 
+from loguru import logger
 from omegaconf import DictConfig
 from rdflib.namespace import OWL, RDF
 
@@ -29,8 +29,6 @@ from synthology.data_structures import (
     Term,
     Var,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class BackwardChainer:
@@ -50,24 +48,22 @@ class BackwardChainer:
         domains: Optional[Dict[str, Set[str]]] = None,
         ranges: Optional[Dict[str, Set[str]]] = None,
         verbose: bool = False,
-        export_proof_visualizations: bool = False,
         entity_prefix: str = "Ind_",
     ):
         """
         Initializes the chainer.
 
         Args:
-            all_rules (List[ExecutableRule]):   All rules from the ontology parser.
-            cfg (DictConfig):                   Hydra configuration object.
-            constraints (List[Constraint]):     All constraints from the ontology parser.
-            inverse_properties (Dict[str, Set[str]]): Mapping of inverse properties.
-            domains (Dict[str, Set[str]]):      Mapping of property domains.
-            ranges (Dict[str, Set[str]]):       Mapping of property ranges.
-            verbose (bool):                     Enable detailed debug output.
-            export_proof_visualizations (bool): Whether to export proof visualizations.
-            entity_prefix (str):                Prefix for generated individuals.
+            all_rules (List[ExecutableRule]):           All rules from the ontology parser.
+            cfg (DictConfig):                           Hydra configuration object.
+            constraints (List[Constraint]):             All constraints from the ontology parser.
+            inverse_properties (Dict[str, Set[str]]):   Mapping of inverse properties.
+            domains (Dict[str, Set[str]]):              Mapping of property domains.
+            ranges (Dict[str, Set[str]]):               Mapping of property ranges.
+            verbose (bool):                             Enable detailed debug output.
+            entity_prefix (str):                        Prefix for generated individuals.
         """
-        # Store rules as dict {rule_name: ExecutableRule} for fast lookup
+        # Store rules, constraints and schema info
         self.all_rules = {rule.name: rule for rule in all_rules}
         self.constraints = constraints if constraints else []
         self.inverse_properties = inverse_properties if inverse_properties else {}
@@ -79,9 +75,9 @@ class BackwardChainer:
         self.global_max_depth = cfg.generator.global_max_depth
         self.max_proofs_per_atom = cfg.generator.max_proofs_per_atom
         self.use_signature_sampling = cfg.generator.use_signature_sampling
+        self.export_proof_visualizations = cfg.export_proofs
 
         self.verbose = verbose
-        self.export_proof_visualizations = export_proof_visualizations
 
         # Individual pooling parameters
         self.individual_pool_size = cfg.generator.individual_pool_size
@@ -90,12 +86,13 @@ class BackwardChainer:
         self._individual_counter = 0
         self.individual_name_prefix = entity_prefix
 
-        # Track types of individuals across proofs to prevent invalid reuse
+        # Track types of individuals across proofs (used for constraint checking)
+        # E.g. "Ind_0" -> {"Person", "Employee"}
         self.committed_individual_types: Dict[Individual, Set[str]] = defaultdict(set)
 
         # Index rules and find recursive ones
         self.rules_by_head = self._index_rules(all_rules)
-        self.recursive_rules: Set[str] = self._find_recursive_rules(all_rules)
+        self.recursive_rules = self._find_recursive_rules(all_rules)
 
         if self.recursive_rules and self.verbose:
             logger.debug(f"Identified {len(self.recursive_rules)} recursive rules")
@@ -103,7 +100,7 @@ class BackwardChainer:
         # Index constraints
         self._index_constraints()
 
-        # Counters
+        # Counter
         self._var_rename_counter = 0
 
         # Track functional property values (ensure uniqueness)
@@ -198,21 +195,27 @@ class BackwardChainer:
     def _index_rules(self, rules: List[ExecutableRule]) -> Dict[Tuple, List[ExecutableRule]]:
         """
         Indexes rules by their conclusion (head atom) for O(1) lookup.
-
         This allows us to quickly find all rules that could prove a given atom.
 
         Args:
-            rules (List[ExecutableRule]): List of all rules from the ontology.
+            rules (List[ExecutableRule]):       List of all rules from the ontology.
 
         Returns:
-            Dict[Tuple, List[ExecutableRule]]: Mapping from atom keys to rules
-                                                 that have that atom as conclusion.
+            Dict[Tuple, List[ExecutableRule]]:  Mapping from atom keys to rules that have that atom as conclusion.
+
+        E.g.:
+            [ExecutableRule(conclusion=Atom(X, hasGrandparent, Y),
+                            premises=[Atom(X, hasParent, Y), Atom(Y, hasParent, Z)]),
+             ExecutableRule(...),] -> {('hasGrandparent', None): [ExecutableRule(...), ...], ...}
         """
         index: Dict[Tuple, List[ExecutableRule]] = defaultdict(list)
 
         for rule in rules:
             assert rule.conclusion is not None, "Rule conclusion cannot be None"
             key = self._get_atom_key(rule.conclusion)
+            # -> E.g. ('hasGrandparent', None), ('rdf:type', 'Person'), etc.
+
+            # key=None for variable predicate
             if key is not None:
                 index[key].append(rule)
             else:
@@ -223,7 +226,6 @@ class BackwardChainer:
     def _find_recursive_rules(self, all_rules: List[ExecutableRule]) -> Set[str]:
         """
         Finds all rules that are part of any recursive cycle.
-
         This includes direct recursion (A -> A) and mutual recursion (A -> B, B -> A).
         Uses DFS to detect cycles in the dependency graph.
 
@@ -235,11 +237,16 @@ class BackwardChainer:
         """
         # Build a dependency graph: atom_key -> {atom_keys it depends on}
         graph: Dict[Tuple, Set[Tuple]] = defaultdict(set)
+
         for rule in all_rules:
             assert rule.conclusion is not None, "Rule conclusion cannot be None"
             head_key = self._get_atom_key(rule.conclusion)
+
+            # Head can't be a Var
             if head_key is None:
                 continue
+
+            # Add edges to premises
             for premise in rule.premises:
                 premise_key = self._get_atom_key(premise)
                 if premise_key is not None:
@@ -318,7 +325,6 @@ class BackwardChainer:
     def _rename_rule_vars(self, rule: ExecutableRule) -> ExecutableRule:
         """
         Creates a new rule with all variables renamed to be unique.
-
         This prevents variable name collisions when using the same rule multiple times.
 
         Example:
@@ -367,7 +373,6 @@ class BackwardChainer:
     def _unify(self, goal: Atom, pattern: Atom) -> Optional[Dict[Var, Term]]:
         """
         Attempts to unify a GROUND goal atom with a rule's conclusion pattern.
-
         Unification finds a substitution that makes the pattern match the goal.
 
         Example:
@@ -382,6 +387,8 @@ class BackwardChainer:
         Returns:
             Optional[Dict[Var, Term]]: A substitution mapping from variables to
                                        ground terms, or None if unification fails.
+
+                                       None if unification fails.
         """
         subst: Dict[Var, Term] = {}
 
@@ -418,16 +425,15 @@ class BackwardChainer:
 
         return subst
 
-    def _check_constraints(self, proof: Proof, collected_atoms: Set[Atom]) -> bool:
+    def _check_constraints(self, collected_atoms: Set[Atom]) -> bool:
         """
-        Checks if a proof violates any constraints.
+        Checks if the collected atoms violate any constraints.
 
         This method verifies:
         1. DisjointWith: No individual belongs to two disjoint classes
         2. IrreflexiveProperty: No reflexive triples for irreflexive properties
         3. FunctionalProperty: Each subject has at most one value for functional properties
 
-        RUNNING EXAMPLE:
         ----------------
         Consider a proof tree that derives:
             - Atom(Ind_0, rdf:type, Person)
@@ -437,9 +443,9 @@ class BackwardChainer:
             :Person owl:disjointWith :Building .
 
         Then this proof violates the disjointWith constraint and should be rejected.
+        ----------------
 
         Args:
-            proof (Proof): The complete proof tree to check.
             collected_atoms (Set[Atom]): All atoms derived in this proof tree.
 
         Returns:
@@ -454,16 +460,17 @@ class BackwardChainer:
         property_values: Dict[Tuple[Individual, Relation], Set[Term]] = defaultdict(set)
 
         for atom in collected_atoms:
-            # ==================== COLLECT CLASS MEMBERSHIPS ==================== #
+            # Collect class membership triples
             if atom.predicate == RDF.type and isinstance(atom.object, Class):
                 if isinstance(atom.subject, Individual):
                     individual_classes[atom.subject].add(atom.object)
 
-            # ==================== COLLECT RELATION TRIPLES ==================== #
+            # Collect relation triples
             elif isinstance(atom.predicate, Relation) and isinstance(atom.subject, Individual):
                 property_values[(atom.subject, atom.predicate)].add(atom.object)
 
-        # ==================== CHECK DISJOINT CLASSES ==================== #
+        # ------------------------- CHECK DISJOINT CLASSES ------------------------- #
+
         for individual, classes in individual_classes.items():
             for cls in classes:
                 disjoint_with = self.disjoint_classes.get(cls, set())
@@ -477,7 +484,7 @@ class BackwardChainer:
                         )
                     return False
 
-        # ==================== CHECK IRREFLEXIVE PROPERTIES ==================== #
+        # ------------------------- CHECK IRREFLEXIVE PROPERTIES ------------------------- #
         for atom in collected_atoms:
             if isinstance(atom.predicate, Relation):
                 if atom.predicate in self.irreflexive_properties:
@@ -489,7 +496,7 @@ class BackwardChainer:
                             )
                         return False
 
-        # ==================== CHECK FUNCTIONAL PROPERTIES ==================== #
+        # ------------------------- CHECK FUNCTIONAL PROPERTIES ------------------------- #
         for (subject, predicate), objects in property_values.items():
             if predicate in self.functional_properties:
                 # Functional property must have exactly one value per subject
@@ -617,7 +624,7 @@ class BackwardChainer:
             proof = Proof.create_base_proof(ground_goal)
             # Check constraints before yielding
             atoms = self._collect_all_atoms(proof)
-            if self._check_constraints(proof, atoms):
+            if self._check_constraints(atoms):
                 yield proof
             return
 
@@ -660,12 +667,12 @@ class BackwardChainer:
                 substitutions=subst,
             )
 
-            # ==================== CONSTRAINT CHECKING ==================== #
+            # ------------------------- CONSTRAINT CHECKING ------------------------- #
             # Collect all atoms from this complete proof tree
             all_atoms = self._collect_all_atoms(complete_proof)
 
             # Check if proof satisfies all constraints
-            if self._check_constraints(complete_proof, all_atoms):
+            if self._check_constraints(all_atoms):
                 valid_proof_count += 1
 
                 if self.export_proof_visualizations:
@@ -765,14 +772,14 @@ class BackwardChainer:
 
         yielded_count = 0
 
-        # ==================== BASE CASE ==================== #
+        # ------------------------- BASE CASE ------------------------- #
         # Allow this atom to be proven as a base fact
         yield Proof.create_base_proof(goal_atom)
         yielded_count += 1
         if self.max_proofs_per_atom and yielded_count >= self.max_proofs_per_atom:
             return
 
-        # ==================== RECURSIVE CASE ==================== #
+        # ------------------------- RECURSIVE CASE ------------------------- #
         # Try to derive using rules
 
         # Add current atom to path BEFORE trying to derive it
@@ -1040,6 +1047,19 @@ class BackwardChainer:
             # Check 2: Rule-local constraints
             temp_subst = current_subst.copy()
             temp_subst[var] = ind
+
+            # Check 3: Irreflexive property check
+            for atom in [rule.conclusion] + rule.premises:
+                ground_atom = atom.substitute(temp_subst)
+                if (
+                    isinstance(ground_atom.predicate, Relation)
+                    and ground_atom.predicate in self.irreflexive_properties
+                    and ground_atom.subject == ground_atom.object
+                ):
+                    break  # Violation, try next candidate
+            else:
+                # No violation found, return this individual
+                return ind
 
             if self._is_substitution_valid(temp_subst, rule):
                 return ind

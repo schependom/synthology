@@ -1,9 +1,9 @@
 """
 DESCRIPTION
 
-    KGE Model Train/Test Data Generator
+    Train/Test Data Generator
 
-    Generates independent knowledge graph samples for KGE model training.
+    Generates independent knowledge graph samples for training and testing.
     Each sample is a complete KG with unique individuals, base facts,
     derived inferences, and balanced positive/negative examples.
 
@@ -24,22 +24,15 @@ from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
+from ont_generator.generate import KGenerator, atoms_to_knowledge_graph, extract_proof_map
+from ont_generator.negative_sampler import NegativeSampler
+from ont_generator.utils.validator import Validator
 from synthology.data_structures import KnowledgeGraph
-
-from .generate import KGenerator, atoms_to_knowledge_graph, extract_proof_map
-from .negative_sampler import NegativeSampler
-from .utils.validator import Validator
 
 
 class KGEDatasetGenerator:
     """
-    Generates training and testing datasets for KGE models.
-
-    Orchestrates:
-    - Sample generation via KGenerator
-    - Negative sampling via NegativeSampler
-    - Train/test splitting
-    - Validation and export
+    Generates training and testing datasets for knowledge graph embedding models.
     """
 
     def __init__(
@@ -51,18 +44,17 @@ class KGEDatasetGenerator:
         Initialize dataset generator.
 
         Args:
-            cfg: Hydra configuration object
-            verbose: Enable detailed logging
+            cfg:        Hydra configuration object
+            verbose:    Enable detailed logging
         """
         if cfg.dataset.seed is not None:
             random.seed(cfg.dataset.seed)
 
         self.verbose = verbose
-        # Access safely checks
         self.max_recursion_cap = cfg.generator.max_recursion
         self.individual_pool_size = cfg.generator.individual_pool_size
         self.individual_reuse_prob = cfg.generator.individual_reuse_prob
-        self.export_proofs = cfg.dataset.get("export_proofs", False)
+        self.export_proofs = cfg.export_proofs
         self.output_dir = cfg.dataset.output_dir
 
         # Initialize KGenerator
@@ -72,6 +64,7 @@ class KGEDatasetGenerator:
         )
 
         # Store schema references
+        # schemas map names to Class/Relation/Attribute objects
         self.schema_classes = self.generator.schema_classes
         self.schema_relations = self.generator.schema_relations
         self.schema_attributes = self.generator.schema_attributes
@@ -136,13 +129,13 @@ class KGEDatasetGenerator:
         Generate complete training and testing datasets.
 
         Args:
-            n_train: Number of training samples
-            n_test: Number of test samples
-            min_individuals: Minimum individuals per sample
-            max_individuals: Maximum individuals per sample
-            min_rules: Min rules to trigger per sample
-            max_rules: Max rules to trigger per sample
-            min_proofs_per_rule: Minimum proofs to select per rule
+            n_train:                Number of training samples
+            n_test:                 Number of test samples
+            min_individuals:        Minimum individuals per sample
+            max_individuals:        Maximum individuals per sample
+            min_rules:              Min rules to trigger per sample
+            max_rules:              Max rules to trigger per sample
+            min_proofs_per_rule:    Minimum proofs to select per rule
 
         Returns:
             Tuple of (train_samples, val_samples, test_samples)
@@ -154,6 +147,7 @@ class KGEDatasetGenerator:
         logger.info(f"\tRules per sample: {min_rules}-{max_rules}")
         logger.info(f"\tMin proofs per rule: {min_proofs_per_rule}")
         # logger.info(f"\t{'=' * 80}")
+
         # Generate training samples
         # logger.info("Generating training samples...")
         train_samples = self._generate_samples(
@@ -209,38 +203,37 @@ class KGEDatasetGenerator:
         Generate a list of independent knowledge graph samples.
 
         Args:
-            n_samples: Number of samples to generate
-            min_individuals: Min individuals per sample
-            max_individuals: Max individuals per sample
-            min_rules: Min rules to trigger per sample
-            max_rules: Max rules to trigger per sample
-            min_proofs_per_rule: Minimum proofs to select per rule
-            stratified_selection: Whether to use stratified rule selection
-            sample_type: "TRAIN" or "TEST" (for logging)
+            n_samples:              Number of samples to generate
+            min_individuals:        Minimum individuals per sample
+            max_individuals:        Maximum individuals per sample
+            min_rules:              Minimum rules to trigger per sample
+            max_rules:              Maximum rules to trigger per sample
+            min_proofs_per_rule:    Minimum proofs to select per rule
+            stratified_selection:   Whether to use stratified rule selection
+            sample_type:            "TRAIN", "VAL", or "TEST" (for logging)
 
         Returns:
             List of generated KG samples
         """
         samples = []
         failed_attempts = 0
-        max_failed_attempts = n_samples * 10
+        max_failed_attempts = n_samples * 10  # TODO: tune
 
         print("=" * 80)
         pbar = tqdm(total=n_samples, desc=f"Generating {sample_type} samples")
 
         while len(samples) < n_samples and failed_attempts < max_failed_attempts:
-            # Reset individual pool for each sample
-            # INDUCTIVE SPLIT: Use different individual name prefix for Test set
-            # For Val, we can use "val_" or stick to "train_" if we consider it part of training distribution visually?
-            # It's better to be clean: "val_"
             if sample_type == "TEST":
                 prefix = "test_"
             elif sample_type == "VAL":
                 prefix = "val_"
             else:
                 prefix = "train_"
+
+            # Reset individual pool for each sample
             self.generator.chainer.reset_individual_pool(name_prefix=prefix)
 
+            # Generate one, individual, knowledge graph sample
             sample = self._generate_one_sample(
                 min_individuals=min_individuals,
                 max_individuals=max_individuals,
@@ -290,25 +283,21 @@ class KGEDatasetGenerator:
         """
         Generate one complete, independent knowledge graph sample.
 
-        Strategy:
-        1. Randomly vary recursion depth (structural diversity)
-        2. Randomly select subset of rules (content diversity)
-        3. Generate proofs for selected rules
-        4. Convert to KG
-        5. Add negative samples via NegativeSampler
-
         Args:
-            min_individuals: Minimum individuals required
-            max_individuals: Maximum individuals allowed
-            min_rules: Minimum rules to trigger
-            max_rules: Maximum rules to trigger
-            sample_type: "TRAIN" or "TEST"
+            min_individuals:    Minimum individuals required
+            max_individuals:    Maximum individuals allowed
+            min_rules:          Minimum rules to trigger
+            max_rules:          Maximum rules to trigger
+            sample_type:        "TRAIN", "VAL", or "TEST"
 
         Returns:
             Generated KG sample, or None if generation failed
         """
         if not self.rules:
             return None
+
+        # We use different variance strategies between each KG (sample)
+        # to ensure diversity across the dataset.
 
         # VARIANCE STRATEGY 1: Vary recursion depth
         current_recursion = random.randint(1, self.max_recursion_cap)
@@ -324,18 +313,18 @@ class KGEDatasetGenerator:
         elif sample_type == "TEST":
             rule_usage = self.test_rule_usage
         else:
-            # Just don't track or track separately? Let's just not crash.
-            # We only log train/test usage explicitly in summary.
-            # Let's use a dummy dict or similar if we wanted, but for now just skip modification if not train/test.
+            # TODO: track VAL separately if needed
             rule_usage = defaultdict(int)
 
         for rule in selected_rules:
             if sample_type in ["TRAIN", "TEST"]:
+                # Update TRAIN/TEST rule usage
                 rule_usage[rule.name] += 1
+            # Update overall rule usage
             self.rule_selection_count[rule.name] += 1
 
         # Generate proofs and build proof map
-        sample_proof_map = defaultdict(list)
+        sample_proof_map = defaultdict(list)  # 'sample' = one KG
         atoms_found = False
 
         for rule in selected_rules:
@@ -343,10 +332,10 @@ class KGEDatasetGenerator:
             # Randomly decide how many "instances" (chains) to generate for this rule
             # e.g., generate 5-15 diverse root facts (Fathers) for this rule
             # This range provides a good balance of content diversity
-            n_instances_for_rule = random.randint(5, 15)
+            n_proof_roots_for_rule = random.randint(5, 15)
 
             proofs = self.generator.generate_proofs_for_rule(
-                rule.name, n_instances=n_instances_for_rule, max_proofs=None
+                rule.name, n_proof_roots=n_proof_roots_for_rule, max_proofs=None
             )
 
             if not proofs:
@@ -576,19 +565,23 @@ class KGEDatasetGenerator:
         logger.success("Train/val/test dataset generation complete.")
 
         # Check isomorphism
-        logger.info("Checking structural isomorphism between train/test...")
-        isomorphic_count = 0
-        # Check Train vs Test
-        for train_kg in train_samples:
-            for test_kg in test_samples:
-                if self.check_structural_isomorphism(train_kg, test_kg):
-                    isomorphic_count += 1
-                    break
+        if len(train_samples) * len(test_samples) < 1000:
+            logger.info("Checking structural isomorphism (this may be slow)...")
+            isomorphic_count = 0
+            # Check Train vs Test
+            for train_kg in train_samples:
+                for test_kg in test_samples:
+                    if self.check_structural_isomorphism(train_kg, test_kg):
+                        isomorphic_count += 1
+                        break
 
-        if isomorphic_count > 0:
-            logger.warning(f"Warning: Found {isomorphic_count} isomorphic samples between train/test")
+            if isomorphic_count > 0:
+                logger.warning(f"Warning: Found {isomorphic_count} isomorphic samples between train/test")
+            else:
+                logger.info("No structural isomorphism between train and test")
+
         else:
-            logger.info("No structural isomorphism between train and test")
+            logger.info("Skipping isomorphism check due to large dataset size.")
 
         # Rule coverage
         logger.info("=" * 80)
@@ -842,7 +835,7 @@ def load_dataset_from_csv(
 # ============================================================================ #
 
 
-REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../../..")
+REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../..")
 
 
 @hydra.main(version_base=None, config_path=f"{REPO_ROOT}/configs/ont_generator", config_name="config")
@@ -883,7 +876,7 @@ def main(cfg: DictConfig):
     logger.success("Ontology-based Knowledge Graph Dataset generation complete!")
 
     # Export Graphs (a few samples)
-    if cfg.dataset.export_graphs:
+    if cfg.export_graphs:
         logger.info("Exporting all graph visualizations...")
         graph_dir = os.path.join(output_dir, "graphs")
         os.makedirs(graph_dir, exist_ok=True)

@@ -150,7 +150,7 @@ For the easiest use, you should open the **devcontainer**, which I included in `
 -   Click the `><` icon in the bottom-left corner of VS Code.
 -   Select `Reopen in Container`.
 
-The (Ubuntu) devcontainer will be built using `Dockerfile` and `post_create.sh` will take care of installing `uv`, as well as syncing the project dependencies and setting up the config files.
+The (Linux) devcontainer will be built using `Dockerfile` and `post_create.sh` will take care of installing `uv`, as well as syncing the project dependencies and setting up the config files.
 
 #### Activation of virtual environment
 

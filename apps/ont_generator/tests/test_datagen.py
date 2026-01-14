@@ -71,7 +71,7 @@
 
 #     # Find a rule name to test
 #     rule_name = next(iter(generator.parser.rules)).name
-#     proofs = generator.generate_proofs_for_rule(rule_name, n_instances=1)
+#     proofs = generator.generate_proofs_for_rule(rule_name, n_proof_roots=1)
 
 #     # We might not find proofs if the rule is hard to satisfy with empty pool,
 #     # but the call should not crash.
