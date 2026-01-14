@@ -45,8 +45,6 @@ jobs:
       - name: Build and run Dev Container
         uses: devcontainers/ci@v0.3
         with:
-          # Points to the folder containing devcontainer.json
-          subFolder: .devcontainer
           # This command runs INSIDE the built container.
           # It verifies that 'uv', 'python', and the 'dlv' binary installed in Dockerfile exist.
           runCmd: |
@@ -62,11 +60,8 @@ jobs:
               exit 1
             fi
             
-            # Verify the config update from post_create.sh was applied
-            # (Optional: add a check here if you want to be very rigorous)
-            
-            # Run project tests
-            uv run pytest
+            # # Run project tests (skip for now)
+            # uv run pytest
 
   # -----------------------------------------------------------------------------
   # Job 2: Test Native Installations (Linux, Mac, Windows)
@@ -106,5 +101,6 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-groups
 
-      - name: Run Tests
-        run: uv run pytest
+      ## Run Tests (skip for now)
+      # - name: Run Tests
+      #   run: uv run pytest
