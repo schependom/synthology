@@ -492,7 +492,17 @@ class NegativeSampler:
                                     )
 
                                     # Check if this new goal contradicts existing facts
-                                    if self.is_valid_negative(neg_goal):
+                                    # Safe-guard: explicitly check against original positive triple
+                                    if (
+                                        neg_goal.subject.name == pos_triple.subject.name
+                                        and neg_goal.predicate.name == pos_triple.predicate.name
+                                        and neg_goal.object.name == pos_triple.object.name
+                                    ):
+                                        if self.verbose:
+                                            logger.debug(
+                                                "Propagation failed: Derived goal is identical to original positive triple."
+                                            )
+                                    elif self.is_valid_negative(neg_goal):
                                         # CRITICAL CHECK: Verify other premises hold
                                         # Only add if the rule chain is otherwise valid
                                         neg_base_atom = Atom(
@@ -520,14 +530,14 @@ class NegativeSampler:
                                                     object=neg_triple.object,
                                                 )
 
+                                                term_mapping = {changed_term: new_term}
+                                                
                                                 # Reconstruct the proof tree with corrupted values
                                                 propagated_proof = self._create_propagated_proof(
                                                     proof,
                                                     base_fact,
                                                     neg_base_atom,
-                                                    neg_goal_atom,
-                                                    normalized_subst,
-                                                    is_root=True,
+                                                    term_mapping
                                                 )
 
                                             if propagated_proof:
@@ -536,8 +546,8 @@ class NegativeSampler:
                                                 propagated_proof.save_visualization(
                                                     full_path,
                                                     format="pdf",
-                                                    title="Propagated Corruption",
-                                                    root_label="DERIVED NEGATIVE FACT",
+                                                    title="Counterfactual Proof (False Pattern)",
+                                                    root_label="FALSE CONCLUSION (DERIVED)",
                                                 )
                                                 exported_propagated_count += 1
                                                 propagated_exported = True
@@ -589,7 +599,7 @@ class NegativeSampler:
                         filename = f"corrupted_proof_{len(negative_triples)}_{pos_triple.subject.name}_{pos_triple.predicate.name}_{pos_triple.object.name}"
                         full_path = os.path.join(output_dir, filename)
                         corrupted_proof.save_visualization(
-                            full_path, format="pdf", root_label="INVALID FACT IF NEGATED"
+                            full_path, format="pdf", root_label="FALSE FACT (CORRUPTED)"
                         )
                         exported_corrupted_count += 1
 
@@ -958,9 +968,7 @@ class NegativeSampler:
         original_proof: Proof,
         original_base_fact: Atom,
         corrupted_base_fact: Atom,
-        new_goal: Atom,
-        new_subst: Dict[Var, Term],
-        is_root: bool = False,
+        term_mapping: Dict[Term, Term],
     ) -> Optional[Proof]:
         """
         Recursively reconstructs a proof tree with corrupted values.
@@ -976,6 +984,7 @@ class NegativeSampler:
                     substitutions=original_proof.substitutions,
                     is_valid=False,
                     is_corrupted_leaf=True,
+                    original_goal=original_base_fact,
                 )
             # Other base facts remain unchanged
             return original_proof
@@ -985,24 +994,56 @@ class NegativeSampler:
             new_sub_proofs = []
             changed = False
 
+            # 1. Update Sub-proofs
             for sp in original_proof.sub_proofs:
-                # Recursively reconstruct sub-proofs
-
                 new_sp = self._create_propagated_proof(
-                    sp, original_base_fact, corrupted_base_fact, new_goal, new_subst, is_root=False
+                    sp, original_base_fact, corrupted_base_fact, term_mapping
                 )
                 new_sub_proofs.append(new_sp)
                 if new_sp is not sp:
                     changed = True
 
-            if changed:
+            # 2. Update Substitutions
+            new_substs = {}
+            substs_changed = False
+            for var, term in original_proof.substitutions.items():
+                if term in term_mapping:
+                    new_substs[var] = term_mapping[term]
+                    substs_changed = True
+                else:
+                    new_substs[var] = term
+
+            if changed or substs_changed:
+                # 3. Recalculate Goal
+                # We need to apply the new substitutions to the rule conclusion.
+                # Since proof.substitutions uses renamed variables (e.g. X_12) and rule.conclusion uses 
+                # original variables (e.g. X), we need to normalize the keys.
+                
+                normalized_new_substs = {}
+                rule_vars = original_proof.rule.conclusion.get_variables()
+                
+                for var, term in new_substs.items():
+                    # Heuristic: base name is part before first underscore
+                    # This assumes standard naming: Name_ID
+                    base_name = var.name.split("_")[0]
+                    for rule_var in rule_vars:
+                         if rule_var.name == base_name:
+                             normalized_new_substs[rule_var] = term
+                
+                try:
+                    new_goal = original_proof.rule.conclusion.substitute(normalized_new_substs)
+                except Exception as e:
+                     logger.warning(f"Failed to substitute new goal in propagation: {e}")
+                     # Fallback to old goal (incorrect but prevents crash)
+                     new_goal = original_proof.goal
+
                 return Proof(
-                    goal=new_goal if is_root else original_proof.goal,
+                    goal=new_goal,
                     rule=original_proof.rule,
                     sub_proofs=tuple(new_sub_proofs),
                     recursive_use_counts=original_proof.recursive_use_counts,
-                    substitutions=original_proof.substitutions,  # Keep original substs for intermediate nodes
-                    is_valid=False,
+                    substitutions=new_substs,
+                    is_valid=False,  # Invalid because a child is invalid (or corrupted)
                 )
 
         return original_proof

@@ -2,7 +2,7 @@ defaults:
   - _self_
 
 ontology:
-  path: "data/ont/toy.ttl"
+  path: "data/ont/family.ttl"
 
 graph_output_path: "visualizations/graphs/"
 proof_output_path: "visualizations/proofs/"
@@ -13,17 +13,17 @@ dataset:
 
 export_proofs: true
 export_graphs: true
-visualize_negatives: true
+visualize_negatives: false
 
 generator:
-  max_recursion: 10
-  global_max_depth: 10
-  max_proofs_per_atom: 10
+  max_recursion: 2
+  global_max_depth: 5
+  max_proofs_per_atom: 2
   individual_pool_size: 50
   individual_reuse_prob: 0.9
   use_signature_sampling: true
-  min_proof_roots: 10
-  max_proof_roots: 50
+  min_proof_roots: 1
+  max_proof_roots: 10
   always_generate_base_facts: false
 
 negative_sampling:

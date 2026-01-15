@@ -825,6 +825,9 @@ class Proof:
     # Flag if this specific node is the corrupted leaf
     is_corrupted_leaf: bool = field(default=False, compare=False)
 
+    # If this is a corrupted leaf, this stores the original valid atom that was corrupted
+    original_goal: Optional[Atom] = field(default=None, compare=False)
+
     def __post_init__(self):
         # A base fact proof cannot have sub-proofs
         if self.rule is None and self.sub_proofs:
@@ -924,6 +927,7 @@ class Proof:
                     substitutions=self.substitutions,
                     is_valid=False,
                     is_corrupted_leaf=True,
+                    original_goal=original_atom,
                 )
             return self
 
@@ -1023,17 +1027,24 @@ class Proof:
             if proof.is_corrupted_leaf:
                 header_color = "#FFEBEE"  # Light red
                 border_color = "#C62828"  # Dark red
-                type_label = "CORRUPTED FACT"
+                type_label = "FALSE PREMISE (CORRUPTED)"
             elif not proof.is_valid:
                 # Custom label for root node if provided
-                if proof == self and root_label == "DERIVED NEGATIVE FACT":
+                if proof == self and root_label == "FALSE CONCLUSION (DERIVED)":
                     header_color = "#FFEBEE"  # Light red
                     border_color = "#C62828"  # Dark red
                     type_label = root_label
                 elif proof == self and root_label:
                     header_color = "#FFEBEE"  # Light red
                     border_color = "#EF9A9A"  # Lighter red
-                    type_label = root_label
+                    # If it's a "Broken" proof where the link is severed (Grandparent case)
+                    if root_label == "BROKEN PROOF (UNKNOWN)":
+                         type_label = root_label
+                         # Use grey/neutral color to indicate it's not "False" but "Unknown"
+                         header_color = "#F5F5F5"
+                         border_color = "#9E9E9E"
+                    else:
+                         type_label = root_label
                 elif proof.is_base_fact():
                     header_color = "#FFEBEE"  # Light red
                     border_color = "#EF9A9A"  # Lighter red
@@ -1062,21 +1073,23 @@ class Proof:
             # Format goal atom
             goal_html = self._format_atom_html(proof.goal)
 
-            # Add "NOT" prefix for negative facts
-            if proof.is_corrupted_leaf:
-                goal_html = f"<B>NOT</B> {goal_html}"
-            elif proof == self and root_label == "DERIVED NEGATIVE FACT":
-                goal_html = f"<B>NOT</B> {goal_html}"
+            # Add reference to original fact if corrupted
+            if proof.is_corrupted_leaf and proof.original_goal:
+                original_html = self._format_atom_html(proof.original_goal)
+                goal_html = f"{goal_html}<BR/><FONT POINT-SIZE='10' COLOR='#C62828'>(was: {original_html})</FONT>"
 
             if not proof.is_valid and not proof.is_corrupted_leaf:
                 # If this is a derived negative fact (propagated), don't cross out
-                if proof == self and root_label == "DERIVED NEGATIVE FACT":
+                if proof == self and root_label == "FALSE CONCLUSION (DERIVED)":
                     pass  # Keep goal_html as is
                 # If this is the root and we have a custom label, don't append [INVALID]
                 elif proof == self and root_label:
-                    goal_html = f"<S>{goal_html}</S>"
+                    if root_label == "BROKEN PROOF (UNKNOWN)":
+                        goal_html = f"<S>{goal_html}</S> <B><FONT COLOR='#9E9E9E'>[UNKNOWN]</FONT></B>"
+                    else:
+                        goal_html = f"<S>{goal_html}</S>"
                 else:
-                    goal_html = f"<S>{goal_html}</S> <B><FONT COLOR='#C62828'>[INVALID]</FONT></B>"
+                    goal_html = f"<S>{goal_html}</S> <B><FONT COLOR='#C62828'>[FALSE]</FONT></B>"
 
             # Build HTML label
             label = (
@@ -1088,7 +1101,16 @@ class Proof:
             # Add substitutions section
             if proof.substitutions:
                 label += '<TR><TD ALIGN="LEFT"><FONT POINT-SIZE="9" COLOR="#555555"><I>Substitutions:</I><BR/>'
-                sub_rows = [f"{k.name} &rarr; <B>{self._format_term(v)}</B>" for k, v in proof.substitutions.items()]
+
+                clean_subs = []
+                for k, v in proof.substitutions.items():
+                    k_name = k.name
+                    # Try to strip suffix X_1 -> X
+                    if "_" in k_name:
+                        k_name = k_name.split("_")[0]
+                    clean_subs.append(f"{k_name} &rarr; <B>{self._format_term(v)}</B>")
+                
+                sub_rows = clean_subs
 
                 # Split into columns if many substitutions
                 if len(sub_rows) > 3:

@@ -511,7 +511,7 @@ def main(cfg: DictConfig):
 
         # check if the kg is not too big
         if len(kg.triples) + len(kg.memberships) > 100:
-            logger.warning("Warning: Generated knowledge graph is very large (>10,000 facts).")
+            logger.warning("Warning: Generated knowledge graph is very large (>100 facts).")
             logger.warning("Not saving visualization to avoid performance issues.")
         else:
             kg.save_visualization(
