@@ -1112,42 +1112,48 @@ class BackwardChainer:
         """
         Tries to get an individual that doesn't violate constraints when added to substitution.
 
-        Checks:
-        1. Domain/Range constraints against previously committed types (prevent invalid reuse)
-        2. Rule-local constraints (Irreflexive, Functional) via _is_substitution_valid
+        Optimization: Uses forward-checking strategy.
+        Instead of picking random individuals and hoping they work, we:
+        1. Identify candidates from pool that satisfy basic type constraints (domain/range/disjointness).
+        2. Pick from valid candidates.
+        3. Verify complex rule-local constraints (Irreflexive, Functional).
         """
         required_classes = self._get_required_classes(var, rule)
 
-        # Try to reuse first
-        for _ in range(10):  # Try 10 times to reuse
-            ind = self._get_individual(reuse=True)
+        # Strategy 1: Attempt Reuse
+        # Filter pool for candidates that satisfy "static" constraints (Types/Disjointness)
+        # We only do this check if we typically reuse individuals
+        if self.individual_pool and random.random() < self.individual_reuse_prob:
+            # OPTIMIZATION: Filter first, then select
+            # This avoids the wasteful "generate-and-fail" loop
+            candidates = [
+                ind
+                for ind in self.individual_pool
+                if self._is_individual_compatible(ind, required_classes)
+            ]
 
-            # Check 1: Domain/Range consistency with committed types
-            if not self._is_individual_compatible(ind, required_classes):
-                continue
+            if candidates:
+                # Shuffle to ensure randomness
+                random.shuffle(candidates)
 
-            # Check 2: Rule-local constraints
-            temp_subst = current_subst.copy()
-            temp_subst[var] = ind
+                # Try up to 10 candidates for the more expensive/complex checks
+                for ind in candidates[:10]:
+                    # Check 2: Rule-local constraints (Substitution consistency)
+                    temp_subst = current_subst.copy()
+                    temp_subst[var] = ind
 
-            # Check 3: Irreflexive property check
-            for atom in [rule.conclusion] + rule.premises:
-                ground_atom = atom.substitute(temp_subst)
-                if (
-                    isinstance(ground_atom.predicate, Relation)
-                    and ground_atom.predicate in self.irreflexive_properties
-                    and ground_atom.subject == ground_atom.object
-                ):
-                    break  # Violation, try next candidate
-            else:
-                # No violation found, return this individual
-                return ind
+                    # Check 3: Irreflexive property check (Linear scan of rule atoms)
+                    # We can rely on _is_substitution_valid for this, but the separate check
+                    # in the original code might have been for early exit.
+                    # Let's use the robust _is_substitution_valid
+                    if self._is_substitution_valid(temp_subst, rule):
+                        return ind
 
-            if self._is_substitution_valid(temp_subst, rule):
-                return ind
-
-        # If reuse fails, force a new individual (reuse=False)
-        # A new individual is unlikely to violate constraints with existing ones
+        # Strategy 2: Create New Individual
+        # If reuse failed or no candidates were compatible, create a new one.
+        # A fresh individual has no committed types, so it (almost) satisfies everything
+        # except potentially rule-local constraints (e.g. if rule says atom(X, prop, X) and prop is irreflexive)
+        # But for a NEW individual X, it can't equal any other term in the rule unless we explicitly bind it so.
         return self._get_individual(reuse=False)
 
     def _get_required_classes(self, var: Var, rule: ExecutableRule) -> Set[str]:
