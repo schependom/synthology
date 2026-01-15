@@ -126,6 +126,9 @@ class NegativeSampler:
         # Index existing facts for fast lookup
         self._index_existing_facts(kg)
 
+        if output_dir:
+            os.makedirs(output_dir, exist_ok=True)
+
         if strategy != "mixed":
             # For single strategies, we can just count the number of negatives added
             # But we need to know how many were actually added.
@@ -863,6 +866,29 @@ class NegativeSampler:
                 return False
 
         return True
+
+    def _corrupt_triple_constrained(
+        self,
+        triple: Triple,
+        individuals: List[Individual],
+        ind_classes: Dict[Individual, Set[str]],
+    ) -> Optional[Triple]:
+        """Corrupts triple respecting domain/range constraints."""
+        if random.random() < 0.5:
+             # Corrupt subject
+             candidates = self._get_domain_candidates(triple.predicate, individuals, ind_classes)
+             candidates = [c for c in candidates if c != triple.subject]
+             if candidates:
+                 new_subj = random.choice(candidates)
+                 return Triple(new_subj, triple.predicate, triple.object, positive=False, proofs=[])
+        else:
+             # Corrupt object
+             candidates = self._get_range_candidates(triple.predicate, individuals, ind_classes)
+             candidates = [c for c in candidates if c != triple.object]
+             if candidates:
+                 new_obj = random.choice(candidates)
+                 return Triple(triple.subject, triple.predicate, new_obj, positive=False, proofs=[])
+        return None
 
     def _corrupt_triple_random(
         self, triple: Triple, individuals: List[Individual], original_triple: Optional[Triple] = None

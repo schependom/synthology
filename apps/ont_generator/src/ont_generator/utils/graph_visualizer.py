@@ -23,7 +23,7 @@ class GraphVisualizer:
         print(f"Graph Visualizations will be saved to: {self.output_dir}")
         os.makedirs(output_dir, exist_ok=True)
 
-    def visualize(self, kg: KnowledgeGraph, filename: str, title: Optional[str] = None) -> None:
+    def visualize(self, kg: KnowledgeGraph, filename: str, title: Optional[str] = None, display_negatives: bool = False) -> None:
         """
         Visualizes a KnowledgeGraph instance.
         """
@@ -116,7 +116,8 @@ class GraphVisualizer:
         for triple in kg.triples:
             # --- COLOR LOGIC (Polarity) ---
             if not triple.positive:
-                break
+                if not display_negatives:
+                    continue
                 color = "#D32F2F"  # Red for negative
                 fontcolor = "#D32F2F"
                 label_prefix = "¬ "  # Logical NOT symbol

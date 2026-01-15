@@ -65,10 +65,29 @@ def convert_reldata(ctx: Context):
 
 @task
 def gen_ft_ont(ctx: Context, args=""):
-    """Generates family tree datasets with Ontology-based Generator using default configurations in configs/ont_generator/"""
+    """
+    Generates family tree datasets with Ontology-based Generator 
+    using default configurations in configs/ont_generator/config.yaml
+    """
 
     print("\nRunning family tree Ontology-based generator.")
-    cmd = "export LOGURU_COLORIZE=1 && uv run --package ont_generator python -m ont_generator.create_data"
+    cmd = "export LOGURU_COLORIZE=1 && " # Ensure logs are colored
+    cmd += "uv run --package ont_generator python -m ont_generator.create_data"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+@task
+def gen_ft_ont_single(ctx: Context, args=""):
+    """
+    Generates one single, big family tree dataset with Ontology-based 
+    Generator using default configurations in configs/ont_generator/config_single_graph.yaml.
+    Handy for debugging purposes (visual inspection of proof trees and KG's).
+    """
+
+    print("\nRunning family tree Ontology-based generator.")
+    cmd = "export LOGURU_COLORIZE=1 && " # Ensure logs are colored
+    cmd += "uv run --package ont_generator python -m ont_generator.generate"
     if args:
         cmd += f" {args}"
     ctx.run(cmd)
@@ -79,8 +98,8 @@ def train_rrn(ctx: Context, args=""):
     """Trains RRN based on default configurations in configs/rrn/"""
 
     print("\nTraining RRN on Ontology-based generated family tree datasets.")
-    ctx.run("export PYTHONUNBUFFERED=1")
-    cmd = "uv run --package rrn python -m rrn.train"
+    cmd = "export PYTHONUNBUFFERED=1 && " # Ensure logs are unbuffered
+    cmd += "uv run --package rrn python -m rrn.train"
     if args:
         cmd += f" {args}"
     ctx.run(cmd)

@@ -598,6 +598,7 @@ class KnowledgeGraph:
         output_name: str,
         format: str = "pdf",
         title: Optional[str] = None,
+        display_negatives: bool = False,
     ) -> None:
         """
         Save knowledge graph visualization to file.
@@ -608,9 +609,9 @@ class KnowledgeGraph:
             title: Optional title for the graph
         """
         try:
-            from ont_datagen.utils.graph_visualizer import GraphVisualizer  # type: ignore
+            from ont_generator.utils.graph_visualizer import GraphVisualizer  # type: ignore
         except ImportError:
-            print("Warning: ont_datagen.utils.graph_visualizer not available. Skipping visualization.")
+            print("Warning: ont_generator.utils.graph_visualizer not available. Skipping visualization.")
             return
 
         if len(self.individuals) > 100:
@@ -618,7 +619,7 @@ class KnowledgeGraph:
             return
 
         visualizer = GraphVisualizer(output_dir=output_path)
-        visualizer.visualize(self, filename=output_name, title=title)
+        visualizer.visualize(self, filename=output_name, title=title, display_negatives=display_negatives)
 
 
 @dataclass

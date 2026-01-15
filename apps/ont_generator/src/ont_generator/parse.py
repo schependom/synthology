@@ -1,7 +1,7 @@
 """
 DESCRIPTION:
 
-    Ontology Parser (OntologyParser)
+    Ontology Parser.
 
     Parses an OWL/RDFS ontology file (.ttl) and translates
     OWL 2 RL axioms into executable rules and constraints for
@@ -89,14 +89,14 @@ class OntologyParser:
         self._parse_rules_and_constraints()
 
         logger.success("Ontology parsing complete:")
-        logger.info(f"\{len(self.classes)} \tClasses")
-        logger.info(f"\{len(self.relations)} \tRelations")
-        logger.info(f"\{len(self.attributes)} \tAttributes")
-        logger.info(f"\{len(self.rules)} \tExecutable Rules")
-        logger.info(f"\{len(self.constraints)} \tConstraints")
-        logger.info(f"\{len(self.inverse_properties)} \tInverse Property Pairs")
-        logger.info(f"\{len(self.domains)} \tDomain Constraints")
-        logger.info(f"\{len(self.ranges)} \tRange Constraints")
+        logger.info(f"\t{len(self.classes)} Classes")
+        logger.info(f"\t{len(self.relations)} Relations")
+        logger.info(f"\t{len(self.attributes)} Attributes")
+        logger.info(f"\t{len(self.rules)} Executable Rules")
+        logger.info(f"\t{len(self.constraints)} Constraints")
+        logger.info(f"\t{len(self.inverse_properties)} Inverse Property Pairs")
+        logger.info(f"\t{len(self.domains)} Domain Constraints")
+        logger.info(f"\t{len(self.ranges)} Range Constraints")
 
     def _get_clean_name(self, uri: URIRef) -> str:
         """

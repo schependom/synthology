@@ -19,7 +19,7 @@ from typing import Dict, List, Optional, Set
 
 import hydra
 from loguru import logger
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from rdflib.namespace import RDF
 
 from ont_generator.chainer import BackwardChainer
@@ -453,10 +453,10 @@ class KGenerator:
 # ============================================================================ #
 
 
-REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../../..")
+REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../..")
 
 
-@hydra.main(version_base=None, config_path=f"{REPO_ROOT}/configs/ont_generator", config_name="config")
+@hydra.main(version_base=None, config_path=f"{REPO_ROOT}/configs/ont_generator", config_name="config_single_graph")
 def main(cfg: DictConfig):
     """
     Main entry point for full graph generation.
@@ -464,7 +464,7 @@ def main(cfg: DictConfig):
     For train/test split generation, use create_data.py instead.
     This script is for verification and testing on small ontologies.
     """
-    logger.info(f"Running Ontology Knowledge Graph Generator with configuration:\n{cfg.pretty()}")
+    logger.info(f"Running Ontology Knowledge Graph Generator with configuration:\n{OmegaConf.to_yaml(cfg)}")
 
     if cfg.logging.level:
         logging.basicConfig(level=getattr(logging, cfg.logging.level))
@@ -505,8 +505,8 @@ def main(cfg: DictConfig):
                 strategy=neg_strategy,
                 ratio=neg_ratio,
                 corrupt_base_facts=corrupt_base_facts,
-                export_proofs=cfg.dataset.export_proofs,
-                output_dir="proof-trees" if cfg.dataset.export_proofs else None,
+                export_proofs=cfg.export_proofs,
+                output_dir=cfg.get("proof_output_path", "proof-trees") if cfg.export_proofs else None,
             )
 
         # check if the kg is not too big
@@ -515,9 +515,10 @@ def main(cfg: DictConfig):
             logger.warning("Not saving visualization to avoid performance issues.")
         else:
             kg.save_visualization(
-                output_path=".",
+                output_path=cfg.get("graph_output_path", "."),
                 output_name="full_knowledge_graph",
                 title="Complete Knowledge Graph",
+                display_negatives=cfg.get("visualize_negatives", False),
             )
 
         # Print summary
@@ -536,8 +537,9 @@ def main(cfg: DictConfig):
         if cfg.logging.level == "DEBUG":
             kg.print()
 
-        if cfg.dataset.export_proofs:
-            logger.info("\nProof trees exported to: proof-trees/")
+        if cfg.export_proofs:
+            proof_out = cfg.get("proof_output_path", "proof-trees")
+            logger.info(f"\nProof trees exported to: {proof_out}")
 
     except FileNotFoundError:
         logger.error(f"Error: Ontology file not found at '{cfg.ontology.path}'", exc_info=True)

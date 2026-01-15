@@ -1,0 +1,35 @@
+defaults:
+  - _self_
+
+ontology:
+  path: "data/ont/toy.ttl"
+
+graph_output_path: "visualizations/graphs/"
+proof_output_path: "visualizations/proofs/"
+
+dataset:
+  output_dir: "data/ont/toy"
+  seed: 23
+
+export_proofs: true
+export_graphs: true
+visualize_negatives: true
+
+generator:
+  max_recursion: 10
+  global_max_depth: 10
+  max_proofs_per_atom: 10
+  individual_pool_size: 50
+  individual_reuse_prob: 0.9
+  use_signature_sampling: true
+  min_proof_roots: 10
+  max_proof_roots: 50
+  always_generate_base_facts: false
+
+negative_sampling:
+  strategy: "proof_based"
+  ratio: 1.0
+  corrupt_base_facts: true
+
+logging:
+  level: DEBUG

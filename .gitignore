@@ -195,3 +195,5 @@ outputs/
 logs/
 # lightning_logs/
 checkpoints/
+
+visualizations/
