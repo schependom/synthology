@@ -174,40 +174,57 @@ See the [Development](#development) section for instructions on setting up devel
 
 ## Generating datasets
 
-### ASP solver
+### Standard Data Format
+
+All generators output data in a **standardized format**.
+Each split (`train`, `val`, `test`) contains:
+
+-   **`facts.csv`**: Base facts (explicit relations/memberships).
+-   **`targets.csv`**: All facts (base + inferred) and negative samples.
+
+### ASP solver (Family Tree)
 
 Below, I describe how to generate the [`reldata`](https://github.com/phohenecker/reldata) Family Tree dataset based on the ASP solver by [Patrick Hohenecker](https://github.com/phohenecker/family-tree-data-gen).
 
-Use the provided `invoke` task to generate the dataset. This will generate the dataset in `data/asp/out-reldata`.
+To generate the Family Tree dataset using the ASP solver:
 
-```bash
-uv run invoke gen-ft-asp
-# configs/asp_generator/config.yaml
-# configs/asp_generator/dataset/family_tree.yaml
-```
+1.  **Generate Raw Data**:
+    ```bash
+    uv run invoke gen-ft-asp
+    # configs/asp_generator/config.yaml
+    # configs/asp_generator/dataset/family_tree.yaml
+    ```
+    This generates raw `reldata` output in `data/asp/out-reldata`.
 
-Alternatively, you can run the ASP generator directly:
+    Alternatively, you can run the ASP generator directly:
 
-```bash
-uv run --package asp_generator python -m asp_generator.create_data
-```
+    ```bash
+    uv run --package asp_generator python apps/asp_generator/src/asp_generator/create_data.py
+    ```
 
-To tweak the generation parameters, please refer to the [configuration section](#custom-configurations)
+    To tweak the generation parameters, please refer to the [configuration section](#custom-configurations)
+
+2.  **Convert to Standard Format**:
+    ```bash
+    uv run --package asp_generator python apps/asp_generator/src/asp_generator/convert_to_csv.py
+    ```
+    This converts and merges the data into `data/asp/family_tree/{train,val,test}` containing `facts.csv` and `targets.csv`.
 
 ### Ontology-based generator
 
-To use the backward-chaining ontology-based generator (with default configurations) developed in this project, use another `invoke` task:
+To use the backward-chaining ontology-based generator (which outputs the standard format):
 
 ```bash
 uv run invoke gen-ft-ont
-# configs/ont_generator/config.yaml
 ```
 
-Or, directly run the generator:
+Or run directly:
 
 ```bash
 uv run --package ont_generator python -m ont_generator.create_data
 ```
+
+This generates `facts.csv` and `targets.csv` in `data/ont/family/{train,val,test}`.
 
 ## Training RRN model
 

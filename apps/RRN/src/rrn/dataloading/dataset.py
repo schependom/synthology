@@ -20,6 +20,9 @@ from synthology.data_structures import (
 
 from .schema import Schema
 
+def default_sample_data():
+    return {"facts": [], "targets": []}
+
 
 class RRNDataset(Dataset):
     def __init__(self, data_path: str, schema: Schema):
@@ -27,7 +30,7 @@ class RRNDataset(Dataset):
         self.schema = schema
         
         # Internal storage: sample_id -> {facts: [], targets: []}
-        self.data: Dict[str, Dict[str, List[Any]]] = defaultdict(lambda: {"facts": [], "targets": []})
+        self.data: Dict[str, Dict[str, List[Any]]] = defaultdict(default_sample_data)
         self.sample_ids: List[str] = []
 
         if not self.data_path.exists():
@@ -122,8 +125,10 @@ class RRNDataset(Dataset):
         
         # Maps for deduplication and index tracking
         individual_map: Dict[str, Individual] = {} # name -> Individual
-        class_map: Dict[str, Class] = {} # name -> Class
-        relation_map: Dict[str, Relation] = {} # name -> Relation
+
+        # Initialize with ALL classes/relations from schema to ensure consistent vector sizes
+        class_map: Dict[str, Class] = {c.name: c for c in self.schema.classes}
+        relation_map: Dict[str, Relation] = {r.name: r for r in self.schema.relations}
         
         memberships_map = {} # (ind_name, cls_name) -> Membership
         triples_map = {} # (s_name, p_name, o_name) -> Triple
