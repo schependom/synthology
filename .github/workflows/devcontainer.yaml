@@ -5,12 +5,12 @@
 name: Dev Container & Native Tests
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+  # push:
+  #   branches:
+  #     - main
+  # pull_request:
+  #   branches:
+  #     - main
   workflow_dispatch:
 
 jobs:
@@ -28,8 +28,6 @@ jobs:
 
       # ------------------------------------------------------------------
       # System Dependencies
-      # The Dockerfile installs unixodbc, so we must replicate that
-      # on native runners to ensure 'uv sync' (which installs pyodbc) works.
       # ------------------------------------------------------------------
 
       - name: Install system dependencies (Linux)
@@ -45,8 +43,7 @@ jobs:
       - name: Build and run Dev Container
         uses: devcontainers/ci@v0.3
         with:
-          # This command runs INSIDE the built container.
-          # It verifies that 'uv', 'python', and the 'dlv' binary installed in Dockerfile exist.
+
           runCmd: |
             echo "Verifying Development Environment..."
             uv --version

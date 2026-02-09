@@ -3301,6 +3301,7 @@ dev = [
     { name = "pandas" },
     { name = "pytest", version = "8.4.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pytest", version = "9.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
+    { name = "rrn" },
     { name = "tqdm" },
 ]
 
@@ -3323,6 +3324,7 @@ dev = [
     { name = "networkx", specifier = ">=3.0" },
     { name = "pandas", specifier = ">=2.0.0" },
     { name = "pytest", specifier = ">=8.0.0" },
+    { name = "rrn", editable = "apps/RRN" },
     { name = "tqdm", specifier = ">=4.66.0" },
 ]
 

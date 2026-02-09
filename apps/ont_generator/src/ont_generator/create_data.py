@@ -12,6 +12,7 @@ AUTHOR
     Vincent Van Schependom
 """
 
+import csv
 import os
 import random
 from collections import defaultdict
@@ -189,6 +190,14 @@ class KGEDatasetGenerator:
 
         # Print summary
         self._print_dataset_summary(train_samples, val_samples, test_samples)
+
+        # Print summary
+        self._print_dataset_summary(train_samples, val_samples, test_samples)
+
+        # Save in Standard Format
+        save_standard_dataset(train_samples, os.path.join(self.output_dir, "train"))
+        save_standard_dataset(val_samples, os.path.join(self.output_dir, "val"))
+        save_standard_dataset(test_samples, os.path.join(self.output_dir, "test"))
 
         return train_samples, val_samples, test_samples
 
@@ -798,6 +807,65 @@ def save_explanations(
                     count += 1
 
     logger.success(f"Saved {count} negative explanations.")
+
+
+def save_standard_dataset(samples: List[KnowledgeGraph], output_base_dir: str) -> None:
+    """
+    Saves the dataset in the Standard Format:
+    - facts.csv: Base facts (positives, hops=0)
+    - targets.csv: Everything else (queries, negatives, inferred)
+
+    Args:
+        samples (List[KnowledgeGraph]): List of samples to save.
+        output_base_dir (str): output directory (e.g. data/train).
+    """
+    path = Path(output_base_dir)
+    path.mkdir(parents=True, exist_ok=True)
+
+    facts_rows = []
+    targets_rows = []
+
+    for idx, kg in enumerate(samples):
+        # Sample ID is 1000 + idx to avoid 0-indexing issues if any
+        sample_id = str(1000 + idx)
+        
+        all_rows = kg.to_standard_rows(sample_id)
+        
+        for row in all_rows:
+            # FACTS: Only Positive Base Facts
+            if row["type"] == "base_fact" and row["label"] == 1:
+                # Minimal columns for facts.csv: sample_id, subject, predicate, object
+                facts_rows.append({
+                    "sample_id": row["sample_id"],
+                    "subject": row["subject"],
+                    "predicate": row["predicate"],
+                    "object": row["object"]
+                })
+                # Base facts are ALSO targets (trivial logic)
+                targets_rows.append(row)
+            else:
+                # Everything else is a target
+                targets_rows.append(row)
+
+    # Write facts.csv
+    facts_path = path / "facts.csv"
+    if facts_rows:
+        with open(facts_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=["sample_id", "subject", "predicate", "object"])
+            writer.writeheader()
+            writer.writerows(facts_rows)
+    
+    # Write targets.csv
+    targets_path = path / "targets.csv"
+    if targets_rows:
+         # dynamic fieldnames based on row keys
+        keys = list(targets_rows[0].keys())
+        with open(targets_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=keys)
+            writer.writeheader()
+            writer.writerows(targets_rows)
+
+    logger.success(f"Saved standard dataset to {output_base_dir} ({len(facts_rows)} facts, {len(targets_rows)} targets)")
 
 
 def load_dataset_from_csv(

@@ -43,6 +43,7 @@ dev = [
     "graphviz>=0.20",
     "tqdm>=4.66.0",
     "coverage>=7.10.7",
+    "rrn",
 ]
 
 [tool.ruff]
@@ -60,3 +61,6 @@ members = [
     "apps/RRN",
     "apps/ont_generator",
 ]
+
+[tool.uv.sources]
+rrn = { workspace = true, editable = true }

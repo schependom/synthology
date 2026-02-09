@@ -57,22 +57,42 @@ def scan_schema(data_path: str) -> Schema:
         logger.warning(f"Data path {data_path} does not exist.")
         return schema
 
-    files = sorted(path.glob("*.csv"))
-    if not files:
-        logger.warning(f"No CSV files found in {data_path}")
-        return schema
+    # Check for Standard Format files
+    facts_path = path / "facts.csv"
+    targets_path = path / "targets.csv"
+    
+    files_to_scan = []
+    if facts_path.exists():
+        files_to_scan.append(facts_path)
+    if targets_path.exists():
+        files_to_scan.append(targets_path)
+        
+    # If standard format files not found, fallback to globbing csvs (Legacy support or flexible)
+    if not files_to_scan:
+        files_to_scan = sorted(path.glob("sample_*.csv"))
+        if not files_to_scan:
+             logger.warning(f"No facts.csv/targets.csv or sample_*.csv files found in {data_path}")
+             return schema
 
-    # Scan all files to ensure global consistency
-    logger.info(f"Found {len(files)} files to scan for schema.")
-    for file_path in files:
-        with open(file_path, "r") as f:
+    logger.info(f"Scanning {len(files_to_scan)} files for schema.")
+
+    for file_path in files_to_scan:
+        with open(file_path, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             for row in reader:
-                fact_type = row["fact_type"]
-                if fact_type == "membership":
-                    schema.add_class(row["object"])
-                elif fact_type == "triple":
-                    schema.add_relation(row["predicate"])
+                # Standard Format: subject, predicate, object
+                # Legacy: subject, predicate, object, val, fact_type...
+
+                s = row.get("subject")
+                p = row.get("predicate")
+                o = row.get("object")
+                
+                if not p: continue # boiler plate safety
+
+                if p == "rdf:type":
+                    schema.add_class(o)
+                else:
+                    schema.add_relation(p)
 
     logger.info(f"Scanned schema from {data_path}: {len(schema.classes)} classes, {len(schema.relations)} relations.")
     return schema
