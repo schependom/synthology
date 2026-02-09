@@ -191,6 +191,7 @@ data/ont/out-csv/
 outputs/
 
 .agent/
+presentatie.tex
 
 logs/
 # lightning_logs/
