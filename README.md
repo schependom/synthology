@@ -186,29 +186,28 @@ Each split (`train`, `val`, `test`) contains:
 
 Below, I describe how to generate the [`reldata`](https://github.com/phohenecker/reldata) Family Tree dataset based on the ASP solver by [Patrick Hohenecker](https://github.com/phohenecker/family-tree-data-gen).
 
-To generate the Family Tree dataset using the ASP solver:
+**Quick Start (generates and converts to standard format):**
+```bash
+uv run invoke gen-ft-asp
+```
 
-1.  **Generate Raw Data**:
-    ```bash
-    uv run invoke gen-ft-asp
-    # configs/asp_generator/config.yaml
-    # configs/asp_generator/dataset/family_tree.yaml
-    ```
-    This generates raw `reldata` output in `data/asp/out-reldata`.
+This command generates raw `reldata` output in `data/asp/out-reldata` and then automatically converts it to the standard format (`facts.csv` and `targets.csv`) in `data/asp/family_tree/{train,val,test}`.
 
-    Alternatively, you can run the ASP generator directly:
+**Step-by-Step (for more control):**
 
+1.  **Generate Raw Data Only**:
     ```bash
     uv run --package asp_generator python apps/asp_generator/src/asp_generator/create_data.py
     ```
+    This generates raw `reldata` output in `data/asp/out-reldata` without converting.
 
-    To tweak the generation parameters, please refer to the [configuration section](#custom-configurations)
-
-2.  **Convert to Standard Format**:
+2.  **Convert to Standard Format** (separate step):
     ```bash
-    uv run --package asp_generator python apps/asp_generator/src/asp_generator/convert_to_csv.py
+    uv run invoke convert-reldata
     ```
-    This converts and merges the data into `data/asp/family_tree/{train,val,test}` containing `facts.csv` and `targets.csv`.
+    This converts existing data in `data/asp/out-reldata` to the standard format.
+
+To tweak the generation parameters, please refer to the [configuration section](#custom-configurations).
 
 ### Ontology-based generator
 
