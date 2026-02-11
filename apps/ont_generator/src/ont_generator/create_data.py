@@ -530,9 +530,10 @@ class KGEDatasetGenerator:
                 "n_neg_mems": 0,
                 "n_base_facts": 0,
                 "n_inferred_facts": 0,
-                "n_neg_base_facts": 0,
-                "n_neg_inferred_facts": 0,
-                "n_neg_propagated_facts": 0,
+                "n_neg_base_source": 0,
+                "n_neg_inferred_shallow": 0,
+                "n_neg_inferred_deep": 0,
+                "n_neg_unknown": 0,
             }
             for kg in samples:
                 stats["n_individuals"] += len(kg.individuals)
@@ -550,11 +551,13 @@ class KGEDatasetGenerator:
                         stats["n_neg_triples"] += 1
                         source = t.metadata.get("source_type", "unknown")
                         if source == "base":
-                            stats["n_neg_base_facts"] += 1
+                            stats["n_neg_base_source"] += 1
                         elif source == "inferred":
-                            stats["n_neg_inferred_facts"] += 1
+                            stats["n_neg_inferred_shallow"] += 1
                         elif source == "propagated_inferred":
-                            stats["n_neg_propagated_facts"] += 1
+                            stats["n_neg_inferred_deep"] += 1
+                        else:
+                            stats["n_neg_unknown"] += 1
 
                 for m in kg.memberships:
                     if m.is_member:
@@ -567,15 +570,21 @@ class KGEDatasetGenerator:
                         stats["n_neg_mems"] += 1
                         source = m.metadata.get("source_type", "unknown")
                         if source == "base":
-                            stats["n_neg_base_facts"] += 1
+                            stats["n_neg_base_source"] += 1
                         elif source == "inferred":
-                            stats["n_neg_inferred_facts"] += 1
+                            stats["n_neg_inferred_shallow"] += 1
+                        elif source == "propagated_inferred":
+                            stats["n_neg_inferred_deep"] += 1
+                        else:
+                            stats["n_neg_unknown"] += 1
 
             # Averages
             if stats["n_samples"] > 0:
                 for key in list(stats.keys()):
                     if key != "n_samples":
-                        stats[f"avg_{key[2:]}"] = stats[key] / stats["n_samples"]
+                        # Remove "n_" prefix for avg key
+                        avg_key_name = key[2:]
+                        stats[f"avg_{avg_key_name}"] = stats[key] / stats["n_samples"]
             return stats
 
         train_stats = get_stats(train_samples)
@@ -695,46 +704,28 @@ class KGEDatasetGenerator:
         print("DATASET STATISTICS")
         print(f"{'=' * 80}")
 
-        print("\nTRAINING SET:")
-        print(f"  Samples:           {train_stats.get('n_samples', 0)}")
-        print(f"  Avg individuals:   {train_stats.get('avg_individuals', 0):.1f}")
-        print(f"  Avg triples:       {train_stats.get('avg_triples', 0):.1f}")
-        print(f"    - Positive:      {train_stats.get('avg_pos_triples', 0):.1f}")
-        print(f"    - Negative:      {train_stats.get('avg_neg_triples', 0):.1f}")
-        print(f"  Avg memberships:   {train_stats.get('avg_memberships', 0):.1f}")
-        print(f"    - Positive:      {train_stats.get('avg_pos_mems', 0):.1f}")
-        print(f"    - Negative:      {train_stats.get('avg_neg_mems', 0):.1f}")
-        print("  Fact Types (Pos):")
-        print(f"    - Base Facts:    {train_stats.get('avg_base_facts', 0):.1f}")
-        print(f"    - Inferred:      {train_stats.get('avg_inferred_facts', 0):.1f}")
-        print("  Fact Types (Neg):")
-        print(f"    - Base Facts:    {train_stats.get('avg_neg_base_facts', 0):.1f}")
-        print(f"    - Inferred:      {train_stats.get('avg_neg_inferred_facts', 0):.1f}")
-        print(f"    - Propagated:    {train_stats.get('avg_neg_propagated_facts', 0):.1f}")
+        def print_split_stats(name: str, stats: dict):
+            print(f"\n{name} SET:")
+            print(f"  Samples:           {stats.get('n_samples', 0)}")
+            print(f"  Avg individuals:   {stats.get('avg_individuals', 0):.1f}")
+            print(f"  Avg triples:       {stats.get('avg_triples', 0):.1f}")
+            print(f"    - Positive:      {stats.get('avg_pos_triples', 0):.1f}")
+            print(f"    - Negative:      {stats.get('avg_neg_triples', 0):.1f}")
+            print(f"  Avg memberships:   {stats.get('avg_memberships', 0):.1f}")
+            print(f"    - Positive:      {stats.get('avg_pos_mems', 0):.1f}")
+            print(f"    - Negative:      {stats.get('avg_neg_mems', 0):.1f}")
+            print("  Fact Types (Pos):")
+            print(f"    - Base Facts:    {stats.get('avg_base_facts', 0):.1f}")
+            print(f"    - Inferred:      {stats.get('avg_inferred_facts', 0):.1f}")
+            print("  Negative Logic (Avg per sample):")
+            print(f"    - Base Fact Corruption:      {stats.get('avg_neg_base_source', 0):.1f} (Direct corruption of base facts)")
+            print(f"    - Inferred Fact (Shallow):   {stats.get('avg_neg_inferred_shallow', 0):.1f} (Direct corruption of inferred facts)")
+            print(f"    - Inferred Fact (Deep/Prop): {stats.get('avg_neg_inferred_deep', 0):.1f} (Propagated consequences)")
+            print(f"    - Unknown/Other:             {stats.get('avg_neg_unknown', 0):.1f}")
 
-        print("\nVAL SET:")
-        print(f"  Samples:           {val_stats.get('n_samples', 0)}")
-        print(f"  Avg individuals:   {val_stats.get('avg_individuals', 0):.1f}")
-        print(f"  Avg triples:       {val_stats.get('avg_triples', 0):.1f}")
-        print(f"    - Positive:      {val_stats.get('avg_pos_triples', 0):.1f}")
-        print(f"    - Negative:      {val_stats.get('avg_neg_triples', 0):.1f}")
-
-        print("\nTEST SET:")
-        print(f"  Samples:           {test_stats.get('n_samples', 0)}")
-        print(f"  Avg individuals:   {test_stats.get('avg_individuals', 0):.1f}")
-        print(f"  Avg triples:       {test_stats.get('avg_triples', 0):.1f}")
-        print(f"    - Positive:      {test_stats.get('avg_pos_triples', 0):.1f}")
-        print(f"    - Negative:      {test_stats.get('avg_neg_triples', 0):.1f}")
-        print(f"  Avg memberships:   {test_stats.get('avg_memberships', 0):.1f}")
-        print(f"    - Positive:      {test_stats.get('avg_pos_mems', 0):.1f}")
-        print(f"    - Negative:      {test_stats.get('avg_neg_mems', 0):.1f}")
-        print("  Fact Types (Pos):")
-        print(f"    - Base Facts:    {test_stats.get('avg_base_facts', 0):.1f}")
-        print(f"    - Inferred:      {test_stats.get('avg_inferred_facts', 0):.1f}")
-        print("  Fact Types (Neg):")
-        print(f"    - Base Facts:    {test_stats.get('avg_neg_base_facts', 0):.1f}")
-        print(f"    - Inferred:      {test_stats.get('avg_neg_inferred_facts', 0):.1f}")
-        print(f"    - Propagated:    {test_stats.get('avg_neg_propagated_facts', 0):.1f}")
+        print_split_stats("TRAINING", train_stats)
+        print_split_stats("VAL", val_stats)
+        print_split_stats("TEST", test_stats)
 
         print(f"{'=' * 80}\n")
 
