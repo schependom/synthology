@@ -283,6 +283,10 @@ class RRNSystem(pl.LightningModule):
         neg_hits = []
 
         for pred_idx, group in grouped_triples.items():
+            if pred_idx == -1:
+                # Skip class membership triples (handled separately)
+                continue
+
             s_indices = [t.subject.index for t in group]
             o_indices = [t.object.index for t in group]
 
@@ -382,6 +386,10 @@ class RRNSystem(pl.LightningModule):
 
         # For each predicate (negative AND positive), compute loss separately
         for pred_idx, triples_list in grouped.items():
+            if pred_idx == -1:
+                # Skip class membership triples (handled separately)
+                continue
+
             s_indices = [t.subject.index for t in triples_list]
             o_indices = [t.object.index for t in triples_list]
 

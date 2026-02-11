@@ -46,3 +46,11 @@ callbacks:
     monitor: "val_loss"
     save_top_k: 1
     mode: "min"
+
+logger:
+  _target_: pytorch_lightning.loggers.WandbLogger
+  project: "${oc.env:WANDB_PROJECT, 'rrn-experiments'}"
+  entity: "${oc.env:WANDB_ENTITY, null}"
+  log_model: true
+  save_dir: "${log_dir}"
+  offline: false

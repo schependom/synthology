@@ -10,8 +10,13 @@ import warnings
 
 import hydra
 import pytorch_lightning as pl
+from dotenv import load_dotenv
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
+from pytorch_lightning.callbacks import RichModelSummary, RichProgressBar
+
+# Load environment variables from .env file
+load_dotenv()
 from pytorch_lightning.callbacks import RichModelSummary, RichProgressBar
 
 from .dataloading.datamodule import RRNDataModule
@@ -71,12 +76,18 @@ def train(cfg: DictConfig) -> None:
     # Determine max_epochs
     max_epochs = cfg.max_epochs if cfg.max_epochs is not None else 100
 
+    # Initialize Logger
+    pl_logger = True
+    if "logger" in cfg:
+        logger.info(f"Instantiating logger <{cfg.logger._target_}>")
+        pl_logger = hydra.utils.instantiate(cfg.logger)
+
     trainer = pl.Trainer(
         accelerator="auto",
         devices=1,  # num of GPUs
         max_epochs=max_epochs,
         callbacks=callbacks,
-        logger=True,
+        logger=pl_logger,
         default_root_dir=cfg.log_dir,
         precision="16-mixed" if cfg.get("use_amp", False) else 32,
         # num_nodes=cfg.get("num_nodes", 1), # for multi-node training
