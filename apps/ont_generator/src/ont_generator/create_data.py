@@ -57,6 +57,7 @@ class KGEDatasetGenerator:
         self.individual_reuse_prob = cfg.generator.individual_reuse_prob
         self.export_proofs = cfg.export_proofs
         self.output_dir = cfg.dataset.output_dir
+        self.proof_output_dir = cfg.get("proof_output_path", os.path.join(self.output_dir, "proofs")) if self.export_proofs else None
 
         self.min_proof_roots = cfg.generator.get("min_proof_roots", 5)
         self.max_proof_roots = cfg.generator.get("max_proof_roots", 15)
@@ -399,7 +400,7 @@ class KGEDatasetGenerator:
             ratio=self.neg_ratio,
             corrupt_base_facts=self.neg_corrupt_base_facts,
             export_proofs=self.export_proofs,
-            output_dir=self.output_dir,
+            output_dir=self.proof_output_dir,
         )
 
         return kg
@@ -774,40 +775,6 @@ def save_dataset_to_csv(
     logger.success(f"Dataset CSVs saved to {output_dir}")
 
 
-def save_explanations(
-    samples: List[KnowledgeGraph], output_dir: str, filename: str = "negatives_explanations.csv"
-) -> None:
-    """
-    Save explanations for negative samples to a separate CSV.
-    Format: sample_id, subject, predicate, object, explanation
-    """
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-    file_path = output_path / filename
-
-    logger.info(f"Saving negative explanations to {file_path}")
-
-    with open(file_path, "w", encoding="utf-8") as f:
-        # Header
-        f.write("sample_id,subject,predicate,object,explanation\n")
-
-        count = 0
-        for idx, kg in enumerate(samples):
-            sample_id = f"sample_{idx:05d}"
-
-            for t in kg.triples:
-                if not t.positive and "explanation" in t.metadata:
-                    # Escape CSV fields
-                    expl = t.metadata["explanation"].replace('"', '""')
-                    subj = getattr(t.subject, "name", str(t.subject))
-                    pred = getattr(t.predicate, "name", str(t.predicate))
-                    obj = getattr(t.object, "name", str(t.object))
-
-                    f.write(f'{sample_id},{subj},{pred},{obj},"{expl}"\n')
-                    count += 1
-
-    logger.success(f"Saved {count} negative explanations.")
-
 
 def save_standard_dataset(samples: List[KnowledgeGraph], output_base_dir: str) -> None:
     """
@@ -920,6 +887,12 @@ REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../..")
 def main(cfg: DictConfig):
     """Main entry point for dataset generation."""
 
+    # Add file sink for logging
+    output_dir = cfg.dataset.output_dir
+    os.makedirs(output_dir, exist_ok=True)
+    log_path = os.path.join(output_dir, "generation.log")
+    logger.add(log_path, mode="w", format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}")
+
     logger.info(f"Running Ontology Knowledge Graph Generator with configuration:\n{OmegaConf.to_yaml(cfg)}")
 
     # Initialize generator
@@ -947,9 +920,7 @@ def main(cfg: DictConfig):
     save_dataset_to_csv(val_samples, f"{output_dir}/val", prefix="val_sample")
     save_dataset_to_csv(test_samples, f"{output_dir}/test", prefix="test_sample")
 
-    save_explanations(val_samples, f"{output_dir}/val")
-    save_explanations(train_samples, f"{output_dir}/train")
-    save_explanations(test_samples, f"{output_dir}/test")
+
 
     logger.success("Ontology-based Knowledge Graph Dataset generation complete!")
 

@@ -14,12 +14,12 @@ AUTHOR
     Vincent Van Schependom
 """
 
-import logging
 import os
 import random
 from collections import defaultdict
 from typing import Dict, List, Optional, Set
 
+from loguru import logger
 from omegaconf import DictConfig
 
 from synthology.data_structures import (
@@ -35,8 +35,6 @@ from synthology.data_structures import (
     Triple,
     Var,
 )
-
-logger = logging.getLogger(__name__)
 
 
 class NegativeSampler:
@@ -129,28 +127,14 @@ class NegativeSampler:
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
 
-        if strategy != "mixed":
-            # For single strategies, we can just count the number of negatives added
-            # But we need to know how many were actually added.
-            # The methods return the KG, so we can check the difference in length.
-            initial_len = len(kg.triples)
-
         if strategy == "random":
-            kg = self._random_corruption(kg, ratio)
-            self.strategy_usage["random"] += len(kg.triples) - initial_len
-            return kg
+            return self._random_corruption(kg, ratio)
         elif strategy == "constrained":
-            kg = self._constrained_corruption(kg, ratio)
-            self.strategy_usage["constrained"] += len(kg.triples) - initial_len
-            return kg
+            return self._constrained_corruption(kg, ratio)
         elif strategy == "proof_based":
-            kg = self._proof_based_corruption(kg, ratio, corrupt_base_facts, export_proofs, output_dir)
-            self.strategy_usage["proof_based"] += len(kg.triples) - initial_len
-            return kg
+            return self._proof_based_corruption(kg, ratio, corrupt_base_facts, export_proofs, output_dir)
         elif strategy == "type_aware":
-            kg = self._type_aware_corruption(kg, ratio)
-            self.strategy_usage["type_aware"] += len(kg.triples) - initial_len
-            return kg
+            return self._type_aware_corruption(kg, ratio)
         elif strategy == "mixed":
             return self._mixed_corruption(kg, ratio, corrupt_base_facts)
         else:
@@ -175,6 +159,7 @@ class NegativeSampler:
 
             if neg_triple and self.is_valid_negative(neg_triple):
                 negative_triples.append(neg_triple)
+                self.strategy_usage["random"] += 1
 
         kg.triples.extend(negative_triples)
 
@@ -255,6 +240,7 @@ class NegativeSampler:
 
             if self.is_valid_negative(neg_triple):
                 negative_triples.append(neg_triple)
+                self.strategy_usage["constrained"] += 1
 
         kg.triples.extend(negative_triples)
 
@@ -387,9 +373,6 @@ class NegativeSampler:
 
                 if neg_triple:
                     neg_triple.metadata["source_type"] = "inferred"  # Explicitly inferred since we target goal
-                    neg_triple.metadata["explanation"] = self._generate_explanation(
-                        pos_triple, neg_triple, "Corrupted Goal (Leaf)"
-                    )
             else:
                 # Corrupt a base fact from the proof
                 # This creates a negative that would break the inference chain
@@ -416,32 +399,27 @@ class NegativeSampler:
                             base_triple, kg.individuals, original_triple=base_triple
                         )
 
-                    if neg_triple:
-                        neg_triple.metadata["source_type"] = "base"  # Explicitly base since we target base fact
-                        neg_triple.metadata["explanation"] = self._generate_explanation(
-                            base_triple, neg_triple, f"Corrupted Base Fact in proof for {pos_triple}"
-                        )
-
-                    propagated_exported = False
-
-                    # PROPAGATION: Try to derive the falsified goal
-                    # We use _create_propagated_proof which is recursive and handles deep chains correctly.
-
-                    # 1. Identify what changed
                     changed_term = None
                     new_term = None
+                    propagated_exported = False
 
-                    if neg_triple.subject != base_triple.subject:
-                        changed_term = base_triple.subject
-                        new_term = neg_triple.subject
-                    elif neg_triple.object != base_triple.object:
-                        changed_term = base_triple.object
-                        new_term = neg_triple.object
+                    if neg_triple:
+                        neg_triple.metadata["source_type"] = "base"  # Explicitly base since we target base fact
+
+                        if neg_triple.subject != base_triple.subject:
+                            changed_term = base_triple.subject
+                            new_term = neg_triple.subject
+                        elif neg_triple.object != base_triple.object:
+                            changed_term = base_triple.object
+                            new_term = neg_triple.object
+                        else:
+                            if self.verbose:
+                                logger.debug(
+                                    f"Propagation failed: Corruption did not change subject or object? {base_triple} => {neg_triple}"
+                                )
                     else:
                         if self.verbose:
-                            logger.debug(
-                                f"Propagation failed: Corruption did not change subject or object? {base_triple} => {neg_triple}"
-                            )
+                            logger.debug("Corruption failed for base triple.")
 
                     if changed_term and new_term:
                         term_mapping = {changed_term: new_term}
@@ -474,12 +452,6 @@ class NegativeSampler:
                                        proofs=[],
                                        metadata={
                                             "source_type": "propagated_inferred",
-                                            "explanation": (
-                                                 f"Propagated from corrupted base fact "
-                                                 f"({base_triple.subject.name} {base_triple.predicate.name} {base_triple.object.name} "
-                                                 f"-> {neg_triple.subject.name} {neg_triple.predicate.name} {neg_triple.object.name}) "
-                                                 f"via Rule {proof.rule.name if proof.rule else 'Unknown'}"
-                                            ),
                                        },
                                   )
 
@@ -507,6 +479,8 @@ class NegativeSampler:
                                                  format="pdf",
                                                  title="Counterfactual Proof (False Pattern)",
                                                  root_label="FALSE CONCLUSION (DERIVED)",
+                                                 corruption_method="proof_based",
+                                                 fact_type="propagated_inferred",
                                             )
                                             exported_propagated_count += 1
                                             propagated_exported = True
@@ -549,13 +523,20 @@ class NegativeSampler:
                         # Save visualization
                         filename = f"corrupted_proof_{len(negative_triples)}_{pos_triple.subject.name}_{pos_triple.predicate.name}_{pos_triple.object.name}"
                         full_path = os.path.join(output_dir, filename)
+                        if self.verbose:
+                            logger.info(f"Saving corrupted proof to {full_path}")
                         corrupted_proof.save_visualization(
-                            full_path, format="pdf", root_label="ORIGINAL GOAL (Unsupported)"
+                            full_path,
+                            format="pdf",
+                            root_label="ORIGINAL GOAL (Unsupported)",
+                            corruption_method="proof_based",
+                            fact_type="inferred" if corrupted_proof.rule else "base",
                         )
                         exported_corrupted_count += 1
 
             if neg_triple and self.is_valid_negative(neg_triple):
                 negative_triples.append(neg_triple)
+                self.strategy_usage["proof_based"] += 1
 
         kg.triples.extend(negative_triples)
         return kg
@@ -565,7 +546,8 @@ class NegativeSampler:
         Strategy 4: Type-aware corruption.
 
         Only corrupts with individuals of the same types to create semantically valid
-        but factually incorrect negatives.
+        but factually incorrect negatives. Falls back to constrained (domain/range)
+        or random corruption if no exact-type match exists.
 
         Example:
             If hasParent(Person1, Person2), only corrupt with other Persons.
@@ -588,6 +570,8 @@ class NegativeSampler:
                 break
 
             pos_triple = random.choice(positive_triples)
+            neg_triple = None
+            used_strategy = "type_aware"
 
             if random.random() < 0.5:
                 # Corrupt subject with same-type individual
@@ -605,7 +589,15 @@ class NegativeSampler:
                         metadata={"source_type": "base" if pos_triple.is_base_fact else "inferred"},
                     )
                 else:
-                    continue
+                    # Fallback: try constrained (domain-based)
+                    neg_triple = self._corrupt_triple_constrained(pos_triple, kg.individuals, ind_classes)
+                    if neg_triple:
+                        used_strategy = "type_aware_fallback_constrained"
+                    else:
+                        # Fallback: random
+                        neg_triple = self._corrupt_triple_random(pos_triple, kg.individuals, original_triple=pos_triple)
+                        if neg_triple:
+                            used_strategy = "type_aware_fallback_random"
             else:
                 # Corrupt object with same-type individual
                 obj_classes = frozenset(ind_classes.get(pos_triple.object, set()))
@@ -622,10 +614,19 @@ class NegativeSampler:
                         metadata={"source_type": "base" if pos_triple.is_base_fact else "inferred"},
                     )
                 else:
-                    continue
+                    # Fallback: try constrained (range-based)
+                    neg_triple = self._corrupt_triple_constrained(pos_triple, kg.individuals, ind_classes)
+                    if neg_triple:
+                        used_strategy = "type_aware_fallback_constrained"
+                    else:
+                        # Fallback: random
+                        neg_triple = self._corrupt_triple_random(pos_triple, kg.individuals, original_triple=pos_triple)
+                        if neg_triple:
+                            used_strategy = "type_aware_fallback_random"
 
-            if self.is_valid_negative(neg_triple):
+            if neg_triple and self.is_valid_negative(neg_triple):
                 negative_triples.append(neg_triple)
+                self.strategy_usage[used_strategy] += 1
 
         kg.triples.extend(negative_triples)
         return kg
@@ -879,25 +880,7 @@ class NegativeSampler:
                 metadata["source_type"] = "base" if original_triple.is_base_fact else "inferred"
             return Triple(triple.subject, triple.predicate, new_obj, positive=False, proofs=[], metadata=metadata)
 
-    def _generate_explanation(self, original: Triple, corrupted: Triple, context: str) -> str:
-        """Helper to generate a human-readable explanation of the corruption."""
 
-        def get_name(term):
-            return getattr(term, "name", str(term))
-
-        orig_s, orig_p, orig_o = get_name(original.subject), get_name(original.predicate), get_name(original.object)
-        curr_s, curr_p, curr_o = get_name(corrupted.subject), get_name(corrupted.predicate), get_name(corrupted.object)
-
-        diff = []
-        if orig_s != curr_s:
-            diff.append(f"Subject: {orig_s} -> {curr_s}")
-        if orig_p != curr_p:
-            diff.append(f"Predicate: {orig_p} -> {curr_p}")
-        if orig_o != curr_o:
-            diff.append(f"Object: {orig_o} -> {curr_o}")
-
-        diff_str = ", ".join(diff)
-        return f"{context}: {diff_str}"
 
     def _corrupt_membership_random(
         self, membership: Membership, classes: List[Class], original_membership: Optional[Membership] = None

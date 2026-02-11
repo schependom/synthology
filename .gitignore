@@ -198,3 +198,6 @@ logs/
 checkpoints/
 
 visualizations/
+
+**/graphs/
+**/proofs/

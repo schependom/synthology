@@ -1088,12 +1088,25 @@ class Proof:
         # If not found or not changed, return self
         return self
 
+    def depth(self) -> int:
+        """Return the depth (number of hops) of this proof tree.
+
+        A base fact has depth 0. A rule application over base facts has depth 1, etc.
+        """
+        if self.is_base_fact():
+            return 0
+        if not self.sub_proofs:
+            return 0
+        return 1 + max(sp.depth() for sp in self.sub_proofs)
+
     def save_visualization(
         self,
         filepath: str,
         format: str = "pdf",
         title: Optional[str] = None,
         root_label: Optional[str] = None,
+        corruption_method: Optional[str] = None,
+        fact_type: Optional[str] = None,
     ) -> None:
         """
         Save proof tree visualization to file.
@@ -1103,25 +1116,33 @@ class Proof:
             format: Output format ("pdf", "png", "svg")
             title: Optional title for the graph
             root_label: Optional custom label for the root node
+            corruption_method: Optional label for the corruption strategy used
+            fact_type: Optional label for the fact type (base/inferred/propagated)
         """
 
-        dot = self._create_graphviz(root_label=root_label)
+        dot = self._create_graphviz(
+            root_label=root_label,
+            corruption_method=corruption_method,
+            fact_type=fact_type,
+        )
 
         if title:
             dot.attr(label=title, labelloc="t", fontsize="16", fontname="FiraCode-Bold")
 
         try:
             dot.render(filepath, format=format, cleanup=True)
-            # print(f"✓ Saved proof visualization to: {filepath}.{format}")
-            # Save .dot file for verification
-            # dot.save(filepath + ".dot")
         except Exception as e:
             print(f"✗ Failed to render graph: {e}")
             # Save .dot file as fallback
             dot.save(filepath + ".dot")
             print(f"  Saved .dot file to: {filepath}.dot")
 
-    def _create_graphviz(self, root_label: Optional[str] = None) -> Any:
+    def _create_graphviz(
+        self,
+        root_label: Optional[str] = None,
+        corruption_method: Optional[str] = None,
+        fact_type: Optional[str] = None,
+    ) -> Any:
         """
         Create a Graphviz graph object for this proof tree.
 
@@ -1137,6 +1158,16 @@ class Proof:
         dot.attr(splines="ortho")
         dot.attr(nodesep="0.6", ranksep="0.8")
         dot.attr("node", shape="plain", fontname="FiraCode")
+
+        # Pre-compute metadata for the root node
+        proof_depth = self.depth()
+        root_metadata_parts = []
+        if corruption_method:
+            root_metadata_parts.append(f"Strategy: {corruption_method}")
+        if fact_type:
+            root_metadata_parts.append(f"Fact Type: {fact_type}")
+        root_metadata_parts.append(f"Hops: {proof_depth}")
+        root_metadata_html = " &bull; ".join(root_metadata_parts)
 
         # Track node IDs
         node_counter = [0]  # Use list for mutable counter in closure
@@ -1260,6 +1291,10 @@ class Proof:
             if proof.recursive_use_counts:
                 rec_info = ", ".join([f"{name}:{count}" for name, count in proof.recursive_use_counts])
                 label += f'<TR><TD BGCOLOR="#FFF3E0"><FONT POINT-SIZE="8">Recursion: {rec_info}</FONT></TD></TR>'
+
+            # Add metadata footer on root node
+            if proof == self and root_metadata_html:
+                label += f'<TR><TD BGCOLOR="#ECEFF1"><FONT POINT-SIZE="9" COLOR="#37474F"><I>{root_metadata_html}</I></FONT></TD></TR>'
 
             label += "</TABLE>>"
 
