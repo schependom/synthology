@@ -25,12 +25,12 @@
 #    Base Properties (Primitive)
 #################################################################
 
-:parentOf rdf:type owl:ObjectProperty ;
+:parentOf rdf:type owl:ObjectProperty, owl:IrreflexiveProperty ;
     rdfs:domain :Person ;
     rdfs:range :Person ;
     rdf:type owl:AsymmetricProperty . # From constraint :- parentOf(X,Y), parentOf(Y,X)
 
-:childOf rdf:type owl:ObjectProperty ;
+:childOf rdf:type owl:ObjectProperty, owl:IrreflexiveProperty ;
     owl:inverseOf :parentOf .
 
 #################################################################
@@ -43,50 +43,50 @@
     owl:propertyChainAxiom ( :childOf :parentOf ) .
 
 # --- Grandparents  ---
-:grandparentOf rdf:type owl:ObjectProperty ;
+:grandparentOf rdf:type owl:ObjectProperty, owl:IrreflexiveProperty ;
     owl:propertyChainAxiom ( :parentOf :parentOf ) .
 
-:grandchildOf rdf:type owl:ObjectProperty ;
+:grandchildOf rdf:type owl:ObjectProperty, owl:IrreflexiveProperty ;
     owl:inverseOf :grandparentOf .
 
 # --- Great Grandparents ---
-:greatGrandparentOf rdf:type owl:ObjectProperty ;
+:greatGrandparentOf rdf:type owl:ObjectProperty, owl:IrreflexiveProperty ;
     owl:propertyChainAxiom ( :parentOf :grandparentOf ) .
 
-:greatGrandchildOf rdf:type owl:ObjectProperty ;
+:greatGrandchildOf rdf:type owl:ObjectProperty, owl:IrreflexiveProperty ;
     owl:inverseOf :greatGrandparentOf .
 
 # --- Aunt/Uncle ---
 # auntUncleOf(X, Y) :- siblingOf(X, Z), parentOf(Z, Y).
-:auntUncleOf rdf:type owl:ObjectProperty ;
+:auntUncleOf rdf:type owl:ObjectProperty, owl:IrreflexiveProperty ;
     owl:propertyChainAxiom ( :siblingOf :parentOf ) .
 
-:nieceNephewOf rdf:type owl:ObjectProperty ;
+:nieceNephewOf rdf:type owl:ObjectProperty, owl:IrreflexiveProperty ;
     owl:inverseOf :auntUncleOf .
 
 # --- Great Aunt/Uncle ---
 # greatAuntUncleOf(X, Y) :- siblingOf(X, Z), grandparentOf(Z, Y).
-:greatAuntUncleOf rdf:type owl:ObjectProperty ;
+:greatAuntUncleOf rdf:type owl:ObjectProperty, owl:IrreflexiveProperty ;
     owl:propertyChainAxiom ( :siblingOf :grandparentOf ) .
 
 # --- Second Aunt/Uncle  ---
 # secondAuntUncleOf(X, Y) :- parentOf(Z, X), greatAuntUncleOf(Z, Y).
-:secondAuntUncleOf rdf:type owl:ObjectProperty ;
+:secondAuntUncleOf rdf:type owl:ObjectProperty, owl:IrreflexiveProperty ;
     owl:propertyChainAxiom ( :childOf :greatAuntUncleOf ) .
 
 # --- Cousins ---
 # cousinOf(X, Y) :- parentOf(Z, X), auntUncleOf(Z, Y).
-:cousinOf rdf:type owl:ObjectProperty, owl:SymmetricProperty ;
+:cousinOf rdf:type owl:ObjectProperty, owl:SymmetricProperty, owl:IrreflexiveProperty ;
     owl:propertyChainAxiom ( :childOf :auntUncleOf ) .
 
 # --- Second Cousins ---
 # secondCousinOf(X, Y) :- parentOf(Z, X), secondAuntUncleOf(Z, Y).
-:secondCousinOf rdf:type owl:ObjectProperty, owl:SymmetricProperty ;
+:secondCousinOf rdf:type owl:ObjectProperty, owl:SymmetricProperty, owl:IrreflexiveProperty ;
     owl:propertyChainAxiom ( :childOf :secondAuntUncleOf ) .
 
 # --- First Cousin Once Removed ---
 # firstCousinOnceRemovedOf(X, Y) :- cousinOf(Y, Z), parentOf(Z, X).
-:firstCousinOnceRemovedOf rdf:type owl:ObjectProperty ;
+:firstCousinOnceRemovedOf rdf:type owl:ObjectProperty, owl:IrreflexiveProperty ;
     owl:propertyChainAxiom ( :childOf :cousinOf ) .
 
 #################################################################

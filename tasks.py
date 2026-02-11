@@ -94,12 +94,44 @@ def gen_ft_ont_single(ctx: Context, args=""):
 
 
 @task
-def train_rrn(ctx: Context, args=""):
+def visualize_proofs(ctx: Context, args=""):
+    """
+    Generates a small dataset with all negative sampling strategies
+    and exports proof tree visualizations for manual inspection.
+    Output goes to visualizations/proofs/ and visualizations/graphs/.
+    """
+
+    print("\nGenerating proof visualizations (small dataset, mixed strategy).")
+    cmd = "export LOGURU_COLORIZE=1 && "
+    cmd += "uv run --package ont_generator python -m ont_generator.create_data --config-name=config_visualize"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
+@task
+def train_rrn_ont(ctx: Context, args=""):
     """Trains RRN based on default configurations in configs/rrn/"""
 
-    print("\nTraining RRN on Ontology-based generated family tree datasets.")
+    print("\nRunning RRN training with Ontology-based dataset.")
+
     cmd = "export PYTHONUNBUFFERED=1 && " # Ensure logs are unbuffered
-    cmd += "uv run --package rrn python -m rrn.train"
+    cmd += "export LOGURU_COLORIZE=1 && " # Ensure logs are colored
+    cmd += "uv run --package rrn python -m rrn.train data/dataset=ont"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
+@task
+def train_rrn_asp(ctx: Context, args=""):
+    """Trains RRN based on default configurations in configs/rrn/"""
+
+    print("\nRunning RRN training with ASP dataset.")
+
+    cmd = "export PYTHONUNBUFFERED=1 && " # Ensure logs are unbuffered
+    cmd += "export LOGURU_COLORIZE=1 && " # Ensure logs are colored
+    cmd += "uv run --package rrn python -m rrn.train data/dataset=asp"
     if args:
         cmd += f" {args}"
     ctx.run(cmd)

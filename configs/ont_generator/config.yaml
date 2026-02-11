@@ -5,9 +5,9 @@ ontology:
   path: "data/ont/family.ttl"
 
 dataset: # asp uses 72% train, 8% val, 20% test by default
-  n_train: 72
-  n_test: 20
-  n_val: 8
+  n_train: 2000
+  n_test: 200
+  n_val: 200
   min_individuals: 1
   max_individuals: 1000
   min_rules: 1
@@ -23,11 +23,11 @@ generator:
   max_recursion: 3
   global_max_depth: 10
   max_proofs_per_atom: 5
-  individual_pool_size: 50
+  individual_pool_size: 60
   individual_reuse_prob: 0.7
   use_signature_sampling: true
   min_proof_roots: 5
-  max_proof_roots: 15
+  max_proof_roots: 20
   always_generate_base_facts: false
 
 negative_sampling:

@@ -23,8 +23,8 @@ def preprocess_knowledge_graph(
     """
 
     # Base fact triples and all triples
-    base_triples = [t for t in kg.triples if not t.is_inferred]
-    inferred_triples = [t for t in kg.triples if t.is_inferred]
+    base_triples = [t for t in kg.triples if t.is_base_fact]
+    inferred_triples = [t for t in kg.triples if not t.is_base_fact]
     all_triples = kg.triples
 
     # Base fact memberships and all memberships
@@ -61,7 +61,7 @@ def preprocess_knowledge_graph(
             all_membership_vec[class_idx] = membership_value
 
             # Only set in base membership vector
-            if not membership.is_inferred:
+            if membership.is_base_fact:
                 base_membership_vec[class_idx] = membership_value
             else:
                 inferred_membership_vec[class_idx] = membership_value

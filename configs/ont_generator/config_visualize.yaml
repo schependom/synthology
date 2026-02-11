@@ -1,0 +1,43 @@
+defaults:
+  - _self_
+
+ontology:
+  path: "data/ont/family.ttl"
+
+graph_output_path: "data/ont/visualize/graphs/" 
+proof_output_path: "data/ont/visualize/proofs/"
+
+dataset:
+  n_train: 5
+  n_test: 2
+  n_val: 2
+  min_individuals: 1
+  max_individuals: 1000
+  min_rules: 1
+  max_rules: 5
+  min_proofs_per_rule: 3
+  output_dir: "data/ont/visualize"
+  seed: 42
+
+export_proofs: true
+export_graphs: true
+
+generator:
+  max_recursion: 3
+  global_max_depth: 8
+  max_proofs_per_atom: 3
+  individual_pool_size: 50
+  individual_reuse_prob: 0.7
+  use_signature_sampling: true
+  min_proof_roots: 5
+  max_proof_roots: 10
+  always_generate_base_facts: false
+
+negative_sampling:
+  # Force proof_based strategy to ensure we generate proof visualizations
+  strategy: "proof_based"
+  ratio: 1.0
+  corrupt_base_facts: true
+
+logging:
+  level: DEBUG

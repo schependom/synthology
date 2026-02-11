@@ -136,17 +136,27 @@ class Membership:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     @property
-    def is_inferred(self) -> bool:
-        """A fact is inferred if it has at least one derived proof."""
-        if not self.proofs:
-            return False
-        # Check if any proof is a derived proof (not a base fact leaf)
-        return any(p.rule is not None for p in self.proofs)
-
-    @property
     def is_base_fact(self) -> bool:
-        """A fact is a base fact if it has no proofs or only a base proof."""
-        return not self.is_inferred
+        """
+        A fact is a base fact if it has no proofs or only a base proof.
+        Consequently, a fact is inferred if it has at least one derived proof.
+        """
+        if not self.proofs:
+            return True
+        # Check if any proof is a derived proof (not a base fact leaf)
+        # If any proof has a rule, it is inferred, so it is NOT a base fact
+        # If any proof has a rule, it is inferred, so it is NOT a base fact
+        return not any(p.rule is not None for p in self.proofs)
+
+    def get_hops(self) -> int:
+        """
+        Returns the number of logical hops needed to derive this fact.
+        Base fact = 0.
+        Inferred fact = max depth of its proof trees.
+        """
+        if self.is_base_fact:
+            return 0
+        return max((p.get_depth() for p in self.proofs), default=0)
 
     def __hash__(self):
         # A fact is defined by its content
@@ -157,7 +167,7 @@ class Membership:
         return Atom(self.individual, RDF.type, self.cls)
 
     def __repr__(self) -> str:
-        status = "Inferred" if self.is_inferred else "Base"
+        status = "Base" if self.is_base_fact else "Inferred"
         if self.is_member:
             return f"<{self.individual}, memberOf, {self.cls}> [{status}]"
         else:
@@ -183,16 +193,24 @@ class Triple:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     @property
-    def is_inferred(self) -> bool:
-        """A fact is inferred if it has at least one derived proof."""
-        if not self.proofs:
-            return False
-        return any(p.rule is not None for p in self.proofs)
-
-    @property
     def is_base_fact(self) -> bool:
-        """A fact is a base fact if it has no proofs or only a base proof."""
-        return not self.is_inferred
+        """
+        A fact is a base fact if it has no proofs or only a base proof.
+        Consequently, a fact is inferred if it has at least one derived proof.
+        """
+        if not self.proofs:
+            return True
+        return not any(p.rule is not None for p in self.proofs)
+
+    def get_hops(self) -> int:
+        """
+        Returns the number of logical hops needed to derive this fact.
+        Base fact = 0.
+        Inferred fact = max depth of its proof trees.
+        """
+        if self.is_base_fact:
+            return 0
+        return max((p.get_depth() for p in self.proofs), default=0)
 
     def __hash__(self):
         # A fact is defined by its content
@@ -203,7 +221,7 @@ class Triple:
         return Atom(self.subject, self.predicate, self.object)
 
     def __repr__(self) -> str:
-        status = "Inferred" if self.is_inferred else "Base"
+        status = "Base" if self.is_base_fact else "Inferred"
         if self.positive:
             return f"<{self.subject}, {self.predicate}, {self.object}> [{status}]"
         else:
@@ -225,16 +243,24 @@ class AttributeTriple:
     proofs: List["Proof"] = field(default_factory=list)
 
     @property
-    def is_inferred(self) -> bool:
-        """A fact is inferred if it has at least one derived proof."""
-        if not self.proofs:
-            return False
-        return any(p.rule is not None for p in self.proofs)
-
-    @property
     def is_base_fact(self) -> bool:
-        """A fact is a base fact if it has no proofs or only a base proof."""
-        return not self.is_inferred
+        """
+        A fact is a base fact if it has no proofs or only a base proof.
+        Consequently, a fact is inferred if it has at least one derived proof.
+        """
+        if not self.proofs:
+            return True
+        return not any(p.rule is not None for p in self.proofs)
+
+    def get_hops(self) -> int:
+        """
+        Returns the number of logical hops needed to derive this fact.
+        Base fact = 0.
+        Inferred fact = max depth of its proof trees.
+        """
+        if self.is_base_fact:
+            return 0
+        return max((p.get_depth() for p in self.proofs), default=0)
 
     def __hash__(self):
         # A fact is defined by its content
@@ -245,7 +271,7 @@ class AttributeTriple:
         return Atom(self.subject, self.predicate, self.value)
 
     def __repr__(self) -> str:
-        status = "Inferred" if self.is_inferred else "Base"
+        status = "Base" if self.is_base_fact else "Inferred"
         return f"<{self.subject}, {self.predicate}, {self.value}> [{status}]"
 
 
@@ -315,7 +341,7 @@ class KnowledgeGraph:
                     "object": membership.cls.name,
                     "label": "1" if membership.is_member else "0",
                     "fact_type": "membership",
-                    "is_inferred": "1" if membership.is_inferred else "0",
+                    "is_base_fact": "1" if membership.is_base_fact else "0",
                 }
             )
 
@@ -328,7 +354,7 @@ class KnowledgeGraph:
                     "object": triple.object.name,
                     "label": "1" if triple.positive else "0",
                     "fact_type": "triple",
-                    "is_inferred": "1" if triple.is_inferred else "0",
+                    "is_base_fact": "1" if triple.is_base_fact else "0",
                 }
             )
 
@@ -341,17 +367,113 @@ class KnowledgeGraph:
                     "object": str(attr_triple.value),  # Convert literal to string
                     "label": "1",  # Attributes are always positive
                     "fact_type": "attribute",
-                    "is_inferred": "1" if attr_triple.is_inferred else "0",
+                    "is_base_fact": "1" if attr_triple.is_base_fact else "0",
                 }
             )
 
         # Write to CSV
         with open(file_path, "w", newline="", encoding="utf-8") as f:
             if rows:
-                fieldnames = ["subject", "predicate", "object", "label", "fact_type", "is_inferred"]
+                fieldnames = ["subject", "predicate", "object", "label", "fact_type", "is_base_fact"]
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerows(rows)
+
+    def to_standard_rows(self, sample_id: str) -> List[Dict[str, Any]]:
+        """
+        Converts the KnowledgeGraph to a list of dictionaries in the Standard Format.
+
+        Columns:
+            sample_id, subject, predicate, object, label, truth_value, type, hops, corruption_method
+
+        Args:
+            sample_id (str): The ID of the sample (e.g., "101").
+
+        Returns:
+            List[Dict[str, Any]]: List of rows.
+        """
+        rows = []
+
+        def get_type_str(fact_obj, is_positive):
+            if fact_obj.is_base_fact:
+                return "base_fact"
+            # For inferred facts, distiguish roots and intermediates if possible?
+            # Current implementation just marks them as inferred
+            type_str = "inf_root" if is_positive else "neg_inf_root"
+            
+            # Use metadata if available (e.g. from negative sampler)
+            if hasattr(fact_obj, "metadata") and "source_type" in fact_obj.metadata:
+                source = fact_obj.metadata["source_type"]
+                if source == "base": 
+                    # Negative created from base fact
+                     return "neg_base_fact" # Or just neg_inf_root with corruption? User spec says neg_inf_root
+                
+            return type_str
+
+        def get_truth_value(is_positive, corruption_method):
+             if is_positive:
+                 return "True"
+             # Negative
+             if corruption_method == "domain_violation":
+                 return "False"
+             # Default assumption for others (broken chain etc) under CWA
+             return "Unknown"
+
+        # Memberships
+        for m in self.memberships:
+            corruption = m.metadata.get("corruption_method", None)
+            # Infer corruption method if not explicit but is negative
+            if not m.is_member and corruption is None:
+                 # Check if domain/range related mechanism was used? 
+                 # For now leave None or "unknown"
+                 pass
+            
+            row = {
+                "sample_id": sample_id,
+                "subject": m.individual.name,
+                "predicate": "rdf:type",
+                "object": m.cls.name,
+                "label": 1 if m.is_member else 0,
+                "truth_value": get_truth_value(m.is_member, corruption),
+                "type": get_type_str(m, m.is_member),
+                "hops": m.get_hops(),
+                "corruption_method": corruption,
+            }
+            rows.append(row)
+
+        # Triples
+        for t in self.triples:
+             corruption = t.metadata.get("corruption_method", None)
+             
+             row = {
+                "sample_id": sample_id,
+                "subject": t.subject.name,
+                "predicate": t.predicate.name,
+                "object": t.object.name,
+                "label": 1 if t.positive else 0,
+                "truth_value": get_truth_value(t.positive, corruption),
+                "type": get_type_str(t, t.positive),
+                "hops": t.get_hops(),
+                "corruption_method": corruption,
+            }
+             rows.append(row)
+             
+        # Attributes
+        for at in self.attribute_triples:
+             row = {
+                "sample_id": sample_id,
+                "subject": at.subject.name,
+                "predicate": at.predicate.name,
+                "object": str(at.value),
+                "label": 1,
+                "truth_value": "True",
+                "type": "base_fact", # Attributes are usually base facts in this generator
+                "hops": at.get_hops(),
+                "corruption_method": None,
+            }
+             rows.append(row)
+
+        return rows
 
     @classmethod
     def from_csv(cls, file_path: str) -> "KnowledgeGraph":
@@ -432,12 +554,20 @@ class KnowledgeGraph:
                 object_name = row["object"]
                 label = row["label"] == "1"  # Convert to boolean
                 fact_type = row["fact_type"]
-                is_inferred = row.get("is_inferred", "0") == "1"
+                fact_type = row["fact_type"]
 
-                # Helper to create dummy proof if inferred
+                # Backward compatibility: Check for is_base_fact, fallback to inverting is_inferred
+                if "is_base_fact" in row:
+                    is_base_fact = row["is_base_fact"] == "1"
+                    is_inferred = not is_base_fact
+                else:
+                    is_inferred = row.get("is_inferred", "0") == "1"
+                    is_base_fact = not is_inferred
+
+                # Helper to create dummy proof if inferred (!is_base_fact)
                 proofs = []
-                if is_inferred:
-                    # Create a dummy proof so that .is_inferred property returns True
+                if not is_base_fact:
+                    # Create a dummy proof so that .is_base_fact property returns False
                     # We need a dummy rule and goal
                     dummy_rule = ExecutableRule(name="LOADED_FROM_CSV", conclusion=None, premises=[])
                     # Goal is not strictly needed for is_inferred check, but good for completeness
@@ -958,12 +1088,25 @@ class Proof:
         # If not found or not changed, return self
         return self
 
+    def depth(self) -> int:
+        """Return the depth (number of hops) of this proof tree.
+
+        A base fact has depth 0. A rule application over base facts has depth 1, etc.
+        """
+        if self.is_base_fact():
+            return 0
+        if not self.sub_proofs:
+            return 0
+        return 1 + max(sp.depth() for sp in self.sub_proofs)
+
     def save_visualization(
         self,
         filepath: str,
         format: str = "pdf",
         title: Optional[str] = None,
         root_label: Optional[str] = None,
+        corruption_method: Optional[str] = None,
+        fact_type: Optional[str] = None,
     ) -> None:
         """
         Save proof tree visualization to file.
@@ -973,25 +1116,33 @@ class Proof:
             format: Output format ("pdf", "png", "svg")
             title: Optional title for the graph
             root_label: Optional custom label for the root node
+            corruption_method: Optional label for the corruption strategy used
+            fact_type: Optional label for the fact type (base/inferred/propagated)
         """
 
-        dot = self._create_graphviz(root_label=root_label)
+        dot = self._create_graphviz(
+            root_label=root_label,
+            corruption_method=corruption_method,
+            fact_type=fact_type,
+        )
 
         if title:
             dot.attr(label=title, labelloc="t", fontsize="16", fontname="FiraCode-Bold")
 
         try:
             dot.render(filepath, format=format, cleanup=True)
-            # print(f"✓ Saved proof visualization to: {filepath}.{format}")
-            # Save .dot file for verification
-            # dot.save(filepath + ".dot")
         except Exception as e:
             print(f"✗ Failed to render graph: {e}")
             # Save .dot file as fallback
             dot.save(filepath + ".dot")
             print(f"  Saved .dot file to: {filepath}.dot")
 
-    def _create_graphviz(self, root_label: Optional[str] = None) -> Any:
+    def _create_graphviz(
+        self,
+        root_label: Optional[str] = None,
+        corruption_method: Optional[str] = None,
+        fact_type: Optional[str] = None,
+    ) -> Any:
         """
         Create a Graphviz graph object for this proof tree.
 
@@ -1007,6 +1158,16 @@ class Proof:
         dot.attr(splines="ortho")
         dot.attr(nodesep="0.6", ranksep="0.8")
         dot.attr("node", shape="plain", fontname="FiraCode")
+
+        # Pre-compute metadata for the root node
+        proof_depth = self.depth()
+        root_metadata_parts = []
+        if corruption_method:
+            root_metadata_parts.append(f"Strategy: {corruption_method}")
+        if fact_type:
+            root_metadata_parts.append(f"Fact Type: {fact_type}")
+        root_metadata_parts.append(f"Hops: {proof_depth}")
+        root_metadata_html = " &bull; ".join(root_metadata_parts)
 
         # Track node IDs
         node_counter = [0]  # Use list for mutable counter in closure
@@ -1035,20 +1196,20 @@ class Proof:
                     border_color = "#C62828"  # Dark red
                     type_label = root_label
                 elif proof == self and root_label:
-                    header_color = "#FFEBEE"  # Light red
-                    border_color = "#EF9A9A"  # Lighter red
-                    # If it's a "Broken" proof where the link is severed (Grandparent case)
-                    if root_label == "BROKEN PROOF (UNKNOWN)":
-                         type_label = root_label
-                         # Use grey/neutral color to indicate it's not "False" but "Unknown"
-                         header_color = "#F5F5F5"
-                         border_color = "#9E9E9E"
-                    else:
-                         type_label = root_label
+                     # ... (keep existing root label logic) ...
+                     header_color = "#FFEBEE"
+                     border_color = "#EF9A9A"
+                     if root_label == "BROKEN PROOF (UNKNOWN)":
+                          type_label = root_label
+                          header_color = "#F5F5F5"
+                          border_color = "#9E9E9E"
+                     else:
+                          type_label = root_label
                 elif proof.is_base_fact():
-                    header_color = "#FFEBEE"  # Light red
-                    border_color = "#EF9A9A"  # Lighter red
-                    type_label = "BASE FACT"
+                    # This is a "Phantom" fact - collateral damage
+                    header_color = "#FFF3E0"  # Light orange
+                    border_color = "#EF6C00"  # Dark orange
+                    type_label = "BROKEN LINK (COLLATERAL)"
                 else:
                     header_color = "#FFEBEE"  # Light red
                     border_color = "#EF9A9A"  # Lighter red
@@ -1074,9 +1235,13 @@ class Proof:
             goal_html = self._format_atom_html(proof.goal)
 
             # Add reference to original fact if corrupted
-            if proof.is_corrupted_leaf and proof.original_goal:
-                original_html = self._format_atom_html(proof.original_goal)
-                goal_html = f"{goal_html}<BR/><FONT POINT-SIZE='10' COLOR='#C62828'>(was: {original_html})</FONT>"
+            if proof.is_corrupted_leaf:
+                # Add tilde to predicate for corrupted leaf
+                goal_html = self._format_atom_html(proof.goal, is_negated=True)
+                
+                if proof.original_goal:
+                    original_html = self._format_atom_html(proof.original_goal)
+                    goal_html = f"{goal_html}<BR/><FONT POINT-SIZE='10' COLOR='#C62828'>(was: {original_html})</FONT>"
 
             if not proof.is_valid and not proof.is_corrupted_leaf:
                 # If this is a derived negative fact (propagated), don't cross out
@@ -1127,6 +1292,10 @@ class Proof:
                 rec_info = ", ".join([f"{name}:{count}" for name, count in proof.recursive_use_counts])
                 label += f'<TR><TD BGCOLOR="#FFF3E0"><FONT POINT-SIZE="8">Recursion: {rec_info}</FONT></TD></TR>'
 
+            # Add metadata footer on root node
+            if proof == self and root_metadata_html:
+                label += f'<TR><TD BGCOLOR="#ECEFF1"><FONT POINT-SIZE="9" COLOR="#37474F"><I>{root_metadata_html}</I></FONT></TD></TR>'
+
             label += "</TABLE>>"
 
             # Add node to graph
@@ -1158,7 +1327,7 @@ class Proof:
 
         return dot
 
-    def _format_atom_html(self, atom: Atom) -> str:
+    def _format_atom_html(self, atom: Atom, is_negated: bool = False) -> str:
         """Format an atom with HTML tags for bold Subject/Object."""
         s = self._format_term(atom.subject)
         p = self._format_term(atom.predicate)
@@ -1167,6 +1336,9 @@ class Proof:
         # Beautify RDF Type
         if p == "rdf:type":
             p = '<FONT COLOR="#666666">rdf:type</FONT>'
+
+        if is_negated:
+             p = f"~{p}"
 
         return f"<B>{s}</B> {p} <B>{o}</B>"
 

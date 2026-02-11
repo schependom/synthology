@@ -12,6 +12,7 @@ AUTHOR
     Vincent Van Schependom
 """
 
+import csv
 import os
 import random
 from collections import defaultdict
@@ -56,6 +57,7 @@ class KGEDatasetGenerator:
         self.individual_reuse_prob = cfg.generator.individual_reuse_prob
         self.export_proofs = cfg.export_proofs
         self.output_dir = cfg.dataset.output_dir
+        self.proof_output_dir = cfg.get("proof_output_path", os.path.join(self.output_dir, "proofs")) if self.export_proofs else None
 
         self.min_proof_roots = cfg.generator.get("min_proof_roots", 5)
         self.max_proof_roots = cfg.generator.get("max_proof_roots", 15)
@@ -189,6 +191,14 @@ class KGEDatasetGenerator:
 
         # Print summary
         self._print_dataset_summary(train_samples, val_samples, test_samples)
+
+        # Print summary
+        self._print_dataset_summary(train_samples, val_samples, test_samples)
+
+        # Save in Standard Format
+        save_standard_dataset(train_samples, os.path.join(self.output_dir, "train"))
+        save_standard_dataset(val_samples, os.path.join(self.output_dir, "val"))
+        save_standard_dataset(test_samples, os.path.join(self.output_dir, "test"))
 
         return train_samples, val_samples, test_samples
 
@@ -390,7 +400,7 @@ class KGEDatasetGenerator:
             ratio=self.neg_ratio,
             corrupt_base_facts=self.neg_corrupt_base_facts,
             export_proofs=self.export_proofs,
-            output_dir=self.output_dir,
+            output_dir=self.proof_output_dir,
         )
 
         return kg
@@ -765,39 +775,64 @@ def save_dataset_to_csv(
     logger.success(f"Dataset CSVs saved to {output_dir}")
 
 
-def save_explanations(
-    samples: List[KnowledgeGraph], output_dir: str, filename: str = "negatives_explanations.csv"
-) -> None:
+
+def save_standard_dataset(samples: List[KnowledgeGraph], output_base_dir: str) -> None:
     """
-    Save explanations for negative samples to a separate CSV.
-    Format: sample_id, subject, predicate, object, explanation
+    Saves the dataset in the Standard Format:
+    - facts.csv: Base facts (positives, hops=0)
+    - targets.csv: Everything else (queries, negatives, inferred)
+
+    Args:
+        samples (List[KnowledgeGraph]): List of samples to save.
+        output_base_dir (str): output directory (e.g. data/train).
     """
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-    file_path = output_path / filename
+    path = Path(output_base_dir)
+    path.mkdir(parents=True, exist_ok=True)
 
-    logger.info(f"Saving negative explanations to {file_path}")
+    facts_rows = []
+    targets_rows = []
 
-    with open(file_path, "w", encoding="utf-8") as f:
-        # Header
-        f.write("sample_id,subject,predicate,object,explanation\n")
+    for idx, kg in enumerate(samples):
+        # Sample ID is 1000 + idx to avoid 0-indexing issues if any
+        sample_id = str(1000 + idx)
+        
+        all_rows = kg.to_standard_rows(sample_id)
+        
+        for row in all_rows:
+            # FACTS: Only Positive Base Facts
+            if row["type"] == "base_fact" and row["label"] == 1:
+                # Minimal columns for facts.csv: sample_id, subject, predicate, object
+                facts_rows.append({
+                    "sample_id": row["sample_id"],
+                    "subject": row["subject"],
+                    "predicate": row["predicate"],
+                    "object": row["object"]
+                })
+                # Base facts are ALSO targets (trivial logic)
+                targets_rows.append(row)
+            else:
+                # Everything else is a target
+                targets_rows.append(row)
 
-        count = 0
-        for idx, kg in enumerate(samples):
-            sample_id = f"sample_{idx:05d}"
+    # Write facts.csv
+    facts_path = path / "facts.csv"
+    if facts_rows:
+        with open(facts_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=["sample_id", "subject", "predicate", "object"])
+            writer.writeheader()
+            writer.writerows(facts_rows)
+    
+    # Write targets.csv
+    targets_path = path / "targets.csv"
+    if targets_rows:
+         # dynamic fieldnames based on row keys
+        keys = list(targets_rows[0].keys())
+        with open(targets_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=keys)
+            writer.writeheader()
+            writer.writerows(targets_rows)
 
-            for t in kg.triples:
-                if not t.positive and "explanation" in t.metadata:
-                    # Escape CSV fields
-                    expl = t.metadata["explanation"].replace('"', '""')
-                    subj = getattr(t.subject, "name", str(t.subject))
-                    pred = getattr(t.predicate, "name", str(t.predicate))
-                    obj = getattr(t.object, "name", str(t.object))
-
-                    f.write(f'{sample_id},{subj},{pred},{obj},"{expl}"\n')
-                    count += 1
-
-    logger.success(f"Saved {count} negative explanations.")
+    logger.success(f"Saved standard dataset to {output_base_dir} ({len(facts_rows)} facts, {len(targets_rows)} targets)")
 
 
 def load_dataset_from_csv(
@@ -852,6 +887,12 @@ REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../..")
 def main(cfg: DictConfig):
     """Main entry point for dataset generation."""
 
+    # Add file sink for logging
+    output_dir = cfg.dataset.output_dir
+    os.makedirs(output_dir, exist_ok=True)
+    log_path = os.path.join(output_dir, "generation.log")
+    logger.add(log_path, mode="w", format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}")
+
     logger.info(f"Running Ontology Knowledge Graph Generator with configuration:\n{OmegaConf.to_yaml(cfg)}")
 
     # Initialize generator
@@ -879,9 +920,7 @@ def main(cfg: DictConfig):
     save_dataset_to_csv(val_samples, f"{output_dir}/val", prefix="val_sample")
     save_dataset_to_csv(test_samples, f"{output_dir}/test", prefix="test_sample")
 
-    save_explanations(val_samples, f"{output_dir}/val")
-    save_explanations(train_samples, f"{output_dir}/train")
-    save_explanations(test_samples, f"{output_dir}/test")
+
 
     logger.success("Ontology-based Knowledge Graph Dataset generation complete!")
 

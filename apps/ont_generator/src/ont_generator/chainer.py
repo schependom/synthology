@@ -115,11 +115,13 @@ class BackwardChainer:
         Creates mappings:
         - disjoint_classes: Dict[Class, Set[Class]] - maps each class to classes it's disjoint with
         - irreflexive_properties: Set[Relation] - set of properties that cannot be reflexive
+        - asymmetric_properties: Set[Relation] - set of properties where P(X,Y) forbids P(Y,X)
         - functional_properties: Set[Relation] - set of properties that must have unique values
         """
         self.disjoint_classes: Dict[Class, Set[Class]] = defaultdict(set)
         self.disjoint_class_names: Dict[str, Set[str]] = defaultdict(set)
         self.irreflexive_properties: Set[Relation] = set()
+        self.asymmetric_properties: Set[Relation] = set()
         self.functional_properties: Set[Relation] = set()
 
         for constraint in self.constraints:
@@ -142,6 +144,14 @@ class BackwardChainer:
                     if isinstance(prop, Relation):
                         self.irreflexive_properties.add(prop)
 
+            elif constraint.constraint_type == OWL.AsymmetricProperty:
+                # constraint.terms = [Property, Var('X'), Var('Y')]
+                # Represents: (X P Y) and (Y P X) cannot both hold
+                if len(constraint.terms) >= 1:
+                    prop = constraint.terms[0]
+                    if isinstance(prop, Relation):
+                        self.asymmetric_properties.add(prop)
+
             elif constraint.constraint_type == OWL.FunctionalProperty:
                 # constraint.terms = [Property, Var('X')]
                 # Represents: X can have at most one value for Property
@@ -154,6 +164,7 @@ class BackwardChainer:
             logger.debug("Constraint indexing complete:")
             logger.debug(f"  Disjoint class pairs: {sum(len(v) for v in self.disjoint_classes.values()) // 2}")
             logger.debug(f"  Irreflexive properties: {len(self.irreflexive_properties)}")
+            logger.debug(f"  Asymmetric properties: {len(self.asymmetric_properties)}")
             logger.debug(f"  Functional properties: {len(self.functional_properties)}")
 
     def _get_atom_key(self, atom: Atom) -> Optional[Tuple]:
@@ -433,7 +444,8 @@ class BackwardChainer:
         This method verifies:
         1. DisjointWith: No individual belongs to two disjoint classes
         2. IrreflexiveProperty: No reflexive triples for irreflexive properties
-        3. FunctionalProperty: Each subject has at most one value for functional properties
+        3. AsymmetricProperty: No P(X,Y) and P(Y,X) for asymmetric properties
+        4. FunctionalProperty: Each subject has at most one value for functional properties
 
         ----------------
         Consider a proof tree that derives:
@@ -496,6 +508,23 @@ class BackwardChainer:
                                 f"CONSTRAINT VIOLATION: {atom} violates irreflexive property {atom.predicate.name}"
                             )
                         return False
+
+        # ------------------------- CHECK ASYMMETRIC PROPERTIES ------------------------- #
+        # For asymmetric properties, if P(X,Y) exists, P(Y,X) must not exist
+        asymmetric_triples: Dict[Relation, Set[Tuple[Individual, Individual]]] = defaultdict(set)
+        for atom in collected_atoms:
+            if isinstance(atom.predicate, Relation) and atom.predicate in self.asymmetric_properties:
+                if isinstance(atom.subject, Individual) and isinstance(atom.object, Individual):
+                    # Check if the reverse triple already exists
+                    if (atom.object, atom.subject) in asymmetric_triples[atom.predicate]:
+                        if self.verbose:
+                            logger.debug(
+                                f"  ✗ CONSTRAINT VIOLATION: {atom.predicate.name}({atom.subject.name}, {atom.object.name}) "
+                                f"and {atom.predicate.name}({atom.object.name}, {atom.subject.name}) "
+                                f"both exist, violating asymmetry"
+                            )
+                        return False
+                    asymmetric_triples[atom.predicate].add((atom.subject, atom.object))
 
         # ------------------------- CHECK FUNCTIONAL PROPERTIES ------------------------- #
         for (subject, predicate), objects in property_values.items():
@@ -1084,6 +1113,18 @@ class BackwardChainer:
                         # Violation!
                         return False
 
+                # Check Asymmetric: look for reverse triple in the same rule
+                if isinstance(ground_atom.predicate, Relation) and ground_atom.predicate in self.asymmetric_properties:
+                    for other_atom in [rule.conclusion] + rule.premises:
+                        other_ground = other_atom.substitute(subst)
+                        if other_ground.is_ground() and other_ground != ground_atom:
+                            if (
+                                other_ground.predicate == ground_atom.predicate
+                                and other_ground.subject == ground_atom.object
+                                and other_ground.object == ground_atom.subject
+                            ):
+                                return False
+
                 # Check FunctionalProperty (within the rule scope)
                 if isinstance(ground_atom.predicate, Relation) and ground_atom.predicate in self.functional_properties:
                     # We need to check if we have multiple values for the same subject/predicate in this rule
@@ -1112,42 +1153,48 @@ class BackwardChainer:
         """
         Tries to get an individual that doesn't violate constraints when added to substitution.
 
-        Checks:
-        1. Domain/Range constraints against previously committed types (prevent invalid reuse)
-        2. Rule-local constraints (Irreflexive, Functional) via _is_substitution_valid
+        Optimization: Uses forward-checking strategy.
+        Instead of picking random individuals and hoping they work, we:
+        1. Identify candidates from pool that satisfy basic type constraints (domain/range/disjointness).
+        2. Pick from valid candidates.
+        3. Verify complex rule-local constraints (Irreflexive, Functional).
         """
         required_classes = self._get_required_classes(var, rule)
 
-        # Try to reuse first
-        for _ in range(10):  # Try 10 times to reuse
-            ind = self._get_individual(reuse=True)
+        # Strategy 1: Attempt Reuse
+        # Filter pool for candidates that satisfy "static" constraints (Types/Disjointness)
+        # We only do this check if we typically reuse individuals
+        if self.individual_pool and random.random() < self.individual_reuse_prob:
+            # OPTIMIZATION: Filter first, then select
+            # This avoids the wasteful "generate-and-fail" loop
+            candidates = [
+                ind
+                for ind in self.individual_pool
+                if self._is_individual_compatible(ind, required_classes)
+            ]
 
-            # Check 1: Domain/Range consistency with committed types
-            if not self._is_individual_compatible(ind, required_classes):
-                continue
+            if candidates:
+                # Shuffle to ensure randomness
+                random.shuffle(candidates)
 
-            # Check 2: Rule-local constraints
-            temp_subst = current_subst.copy()
-            temp_subst[var] = ind
+                # Try up to 10 candidates for the more expensive/complex checks
+                for ind in candidates[:10]:
+                    # Check 2: Rule-local constraints (Substitution consistency)
+                    temp_subst = current_subst.copy()
+                    temp_subst[var] = ind
 
-            # Check 3: Irreflexive property check
-            for atom in [rule.conclusion] + rule.premises:
-                ground_atom = atom.substitute(temp_subst)
-                if (
-                    isinstance(ground_atom.predicate, Relation)
-                    and ground_atom.predicate in self.irreflexive_properties
-                    and ground_atom.subject == ground_atom.object
-                ):
-                    break  # Violation, try next candidate
-            else:
-                # No violation found, return this individual
-                return ind
+                    # Check 3: Irreflexive property check (Linear scan of rule atoms)
+                    # We can rely on _is_substitution_valid for this, but the separate check
+                    # in the original code might have been for early exit.
+                    # Let's use the robust _is_substitution_valid
+                    if self._is_substitution_valid(temp_subst, rule):
+                        return ind
 
-            if self._is_substitution_valid(temp_subst, rule):
-                return ind
-
-        # If reuse fails, force a new individual (reuse=False)
-        # A new individual is unlikely to violate constraints with existing ones
+        # Strategy 2: Create New Individual
+        # If reuse failed or no candidates were compatible, create a new one.
+        # A fresh individual has no committed types, so it (almost) satisfies everything
+        # except potentially rule-local constraints (e.g. if rule says atom(X, prop, X) and prop is irreflexive)
+        # But for a NEW individual X, it can't equal any other term in the rule unless we explicitly bind it so.
         return self._get_individual(reuse=False)
 
     def _get_required_classes(self, var: Var, rule: ExecutableRule) -> Set[str]:

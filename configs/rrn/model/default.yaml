@@ -1,5 +1,5 @@
-embedding_size: 100
+embedding_size: 128
 iterations: 10
-hidden_size: 128
+hidden_size: null  # auto: avg(input_size, output_size) as in the paper
 num_hidden_layers: 1
 activation: relu

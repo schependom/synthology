@@ -1,5 +1,5 @@
 defaults:
-  - dataset: asp
+  - dataset: ont
   - _self_
 
 num_workers: 4

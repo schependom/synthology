@@ -118,7 +118,7 @@ class Validator:
 
     def check_constraints(self, kg: KnowledgeGraph) -> List[str]:
         """
-        Check ontology constraints (disjointness, functional, irreflexive).
+        Check ontology constraints (disjointness, functional, irreflexive, asymmetric).
         """
         errors = []
 
@@ -157,7 +157,24 @@ class Validator:
                             f"Constraint Violation: Irreflexive property {prop_name} relates {t.subject.name} to itself"
                         )
 
-            # 3. Functional Property
+            # 3. Asymmetric Property
+            elif constraint.constraint_type == OWL.AsymmetricProperty:
+                # terms: [Property, Var('X'), Var('Y')]
+                prop_name = constraint.terms[0].name
+
+                # Build set of (subject, object) pairs for this property
+                triple_pairs = set()
+                for t in triples_by_pred[prop_name]:
+                    pair = (t.subject.name, t.object.name)
+                    reverse = (t.object.name, t.subject.name)
+                    if reverse in triple_pairs:
+                        errors.append(
+                            f"Constraint Violation: Asymmetric property {prop_name} has both "
+                            f"{prop_name}({pair[0]}, {pair[1]}) and {prop_name}({reverse[0]}, {reverse[1]})"
+                        )
+                    triple_pairs.add(pair)
+
+            # 4. Functional Property
             elif constraint.constraint_type == OWL.FunctionalProperty:
                 # terms: [Property, Var('X'), Var('Y')]
                 prop_name = constraint.terms[0].name

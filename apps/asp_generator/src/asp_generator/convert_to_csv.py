@@ -1,3 +1,6 @@
+
+import csv
+import glob
 import multiprocessing
 import os
 import random
@@ -5,7 +8,7 @@ import shutil
 import sys
 from concurrent import futures
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 
 import hydra
 from loguru import logger
@@ -37,13 +40,13 @@ if str(src_path) not in sys.path:
     sys.path.append(str(src_path))
 
 
-def _process_and_save_task(args: Tuple[str, str, str]) -> bool:
+def _process_and_save_task(args: Tuple[str, str, str, str]) -> bool:
     """
-    Worker task: Read -> Convert -> Write to Disk immediately.
+    Worker task: Read -> Convert -> Write temp CSVs.
     Args:
-        args: Tuple of (input_dir_str, output_filepath_str, basename)
+        args: Tuple of (input_dir_str, temp_output_dir_str, basename, sample_id)
     """
-    input_dir, output_filepath, basename = args
+    input_dir, temp_output_dir, basename, sample_id = args
     try:
         # Read
         rd_kg = kg_reader.KgReader.read(input_dir, basename)
@@ -51,17 +54,55 @@ def _process_and_save_task(args: Tuple[str, str, str]) -> bool:
         # Convert
         if rd_kg:
             kg = convert_reldata_kg(rd_kg)
+            
+            # Get standard rows
+            rows = kg.to_standard_rows(sample_id)
+            
+            facts_rows = []
+            targets_rows = []
+            
+            for row in rows:
+                # FACTS: Only Positive Base Facts usually, but let's follow ont_generator logic
+                if row["type"] == "base_fact" and row["label"] == 1:
+                     # Minimal columns for facts.csv
+                    min_row = {
+                        "sample_id": row["sample_id"],
+                        "subject": row["subject"],
+                        "predicate": row["predicate"],
+                        "object": row["object"]
+                    }
+                    facts_rows.append(min_row)
+                    # Base facts are ALSO targets
+                    targets_rows.append(row)
+                else:
+                    targets_rows.append(row)
 
-            # Write
-            # Ensure parent dir exists (redundancy for safety)
-            Path(output_filepath).parent.mkdir(parents=True, exist_ok=True)
-
-            kg.to_csv(output_filepath)
+            # Write temp files
+            temp_path = Path(temp_output_dir)
+            temp_path.mkdir(parents=True, exist_ok=True)
+            
+            facts_file = temp_path / f"{sample_id}_facts.csv"
+            targets_file = temp_path / f"{sample_id}_targets.csv"
+            
+            if facts_rows:
+                with open(facts_file, "w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=["sample_id", "subject", "predicate", "object"])
+                    writer.writeheader()
+                    writer.writerows(facts_rows)
+            
+            if targets_rows:
+                with open(targets_file, "w", newline="", encoding="utf-8") as f:
+                    keys = list(targets_rows[0].keys())
+                    writer = csv.DictWriter(f, fieldnames=keys)
+                    writer.writeheader()
+                    writer.writerows(targets_rows)
+                    
             return True
 
     except Exception as e:
-        # Use simple print for worker errors to avoid Logging lock contention
         sys.stderr.write(f"Worker Error [{basename}]: {e}\n")
+        import traceback
+        traceback.print_exc()
         return False
 
     return False
@@ -183,8 +224,46 @@ def convert_reldata_kg(rd_kg) -> KnowledgeGraph:
         attribute_triples=s_attr_triples,
     )
 
+def merge_csvs(temp_dir: Path, output_dir: Path):
+    """Merges temp CSVs into single facts.csv and targets.csv"""
+    logger.info(f"Merging temp CSVs from {temp_dir} to {output_dir}...")
+    
+    # Merge facts
+    all_facts_files = sorted(temp_dir.glob("*_facts.csv"))
+    if all_facts_files:
+        facts_out = output_dir / "facts.csv"
+        with open(facts_out, "w", newline="", encoding="utf-8") as outfile:
+            # Write header from first file
+            with open(all_facts_files[0], "r", encoding="utf-8") as f:
+                header = f.readline()
+                outfile.write(header)
+            
+            # Copy data
+            for fname in all_facts_files:
+                with open(fname, "r", encoding="utf-8") as infile:
+                    next(infile) # skip header
+                    shutil.copyfileobj(infile, outfile)
+                    
+    # Merge targets
+    all_targets_files = sorted(temp_dir.glob("*_targets.csv"))
+    if all_targets_files:
+        targets_out = output_dir / "targets.csv"
+        with open(targets_out, "w", newline="", encoding="utf-8") as outfile:
+             # Write header from first file
+            with open(all_targets_files[0], "r", encoding="utf-8") as f:
+                header = f.readline()
+                outfile.write(header)
+                
+            # Copy data
+            for fname in all_targets_files:
+                with open(fname, "r", encoding="utf-8") as infile:
+                    next(infile)
+                    shutil.copyfileobj(infile, outfile)
 
-REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../../..")
+    logger.success(f"Merged {len(all_facts_files)} facts files and {len(all_targets_files)} targets files.")
+
+
+REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../..")
 
 
 @hydra.main(version_base=None, config_path=f"{REPO_ROOT}/configs/asp_generator", config_name="config")
@@ -245,44 +324,58 @@ def main(cfg: DictConfig):
 
     train_names = train_val_names[val_count:]
     val_names = train_val_names[:val_count]
-
+    
+    # IDs offset for each split to ensure uniqueness if needed, 
+    # though sample_id is string so "train_0" vs "test_0" would contain uniqueness info if we used prefix.
+    # But RRN expects integer-like sample_ids usually?
+    # standard format: sample_id column.
+    # We will use 100000 series for ASP to avoid collision with others?
+    # Or just simple incrementing.
+    
     logger.info(f"Splitting data plan: Train={len(train_names)}, Val={len(val_names)}, Test={len(test_names)}")
 
-    # Create Tasks
-    tasks = []
+    # Process each split
+    
+    def process_split(split_names, split_dir, start_id):
+        if not split_names:
+            return
+            
+        temp_dir = split_dir / "temp"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        tasks = []
+        for idx, bn in enumerate(split_names):
+            sid = str(start_id + idx)
+            tasks.append((str(input_path), str(temp_dir), bn, sid))
+            
+        # Process in Parallel
+        num_workers = max(1, multiprocessing.cpu_count() - 2)
+        logger.info(f"Processing {len(tasks)} samples for {split_dir.name} with {num_workers} workers...")
+        
+        success_count = 0
+        with futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
+            future_to_task = {executor.submit(_process_and_save_task, task): task for task in tasks}
+            
+            for future in futures.as_completed(future_to_task):
+                try:
+                    if future.result():
+                        success_count += 1
+                    if success_count % 100 == 0:
+                        logger.info(f"Progress: {success_count}/{len(tasks)} converted.")
+                except Exception as exc:
+                    logger.error(f"Task generated exception: {exc}")
 
-    def add_tasks(names_list, dest_dir):
-        for idx, bn in enumerate(names_list):
-            out_file = dest_dir / f"sample_{idx:05d}.csv"
-            # Store strings to keep task pickle size tiny
-            tasks.append((str(input_path), str(out_file), bn))
+        # Merge
+        merge_csvs(temp_dir, split_dir)
+        
+        # Cleanup
+        shutil.rmtree(temp_dir)
 
-    add_tasks(train_names, train_dir)
-    add_tasks(val_names, val_dir)
-    add_tasks(test_names, test_dir)
+    process_split(train_names, train_dir, start_id=100000)
+    process_split(val_names, val_dir, start_id=200000)
+    process_split(test_names, test_dir, start_id=300000)
 
-    # Process in Parallel
-    num_workers = max(1, multiprocessing.cpu_count() - 2)  # Leave 2 cores for OS/UI
-    logger.info(f"Processing {len(tasks)} samples with {num_workers} workers...")
-
-    success_count = 0
-
-    # This prevents the UI from looking "hung" while waiting for the first chunk
-    with futures.ProcessPoolExecutor(max_workers=num_workers) as executor:
-        future_to_file = {executor.submit(_process_and_save_task, task): task[2] for task in tasks}
-
-        for future in futures.as_completed(future_to_file):
-            basename = future_to_file[future]
-            try:
-                result = future.result()
-                if result:
-                    success_count += 1
-                if success_count % 100 == 0:
-                    logger.info(f"Progress: {success_count}/{len(tasks)} converted.")
-            except Exception as exc:
-                logger.error(f"Sample {basename} generated an exception: {exc}")
-
-    logger.success(f"CSV conversion complete. Successfully converted {success_count}/{len(tasks)} `reldata` samples.")
+    logger.success(f"CSV conversion complete.")
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@ AUTHOR
     Vincent Van Schependom
 """
 
-import logging
+
 import os
 import sys
 from collections import defaultdict
@@ -464,10 +464,13 @@ def main(cfg: DictConfig):
     For train/test split generation, use create_data.py instead.
     This script is for verification and testing on small ontologies.
     """
-    logger.info(f"Running Ontology Knowledge Graph Generator with configuration:\n{OmegaConf.to_yaml(cfg)}")
+    # Add file sink for logging
+    output_dir = cfg.dataset.output_dir
+    os.makedirs(output_dir, exist_ok=True)
+    log_path = os.path.join(output_dir, "generation.log")
+    logger.add(log_path, mode="w", format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}")
 
-    if cfg.logging.level:
-        logging.basicConfig(level=getattr(logging, cfg.logging.level))
+    logger.info(f"Running Ontology Knowledge Graph Generator with configuration:\n{OmegaConf.to_yaml(cfg)}")
 
     try:
         # Initialize generator

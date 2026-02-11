@@ -565,6 +565,7 @@ class OntologyParser:
         - owl:TransitiveProperty:   P(X,Y) ∧ P(Y,Z) → P(X,Z)
         - owl:ReflexiveProperty:    P(X,X) for all X in domain
         - owl:IrreflexiveProperty:  NOT P(X,X)                      [constraint]
+        - owl:AsymmetricProperty:   NOT (P(X,Y) ∧ P(Y,X))           [constraint]
         - owl:FunctionalProperty:   P(X,Y1) ∧ P(X,Y2) → Y1 = Y2     [constraint]
 
         Args:
@@ -634,6 +635,19 @@ class OntologyParser:
                 name=f"owl_irreflexive_{prop.name}",
                 constraint_type=OWL.IrreflexiveProperty,
                 terms=[prop, self.X],  # Represents that (X P X) is forbidden
+            )
+            self.constraints.append(constraint)
+
+        # ----------------------- ASYMMETRIC PROPERTY (CONSTRAINT) -------------------- #
+
+        elif o == OWL.AsymmetricProperty:
+            # This forbids P(X,Y) and P(Y,X) simultaneously.
+            # Example: "parentOf" is asymmetric (if A is parent of B, B cannot be parent of A).
+            prop = self._get_term(s)
+            constraint = Constraint(
+                name=f"owl_asymmetric_{prop.name}",
+                constraint_type=OWL.AsymmetricProperty,
+                terms=[prop, self.X, self.Y],  # Represents that (X P Y) ∧ (Y P X) is forbidden
             )
             self.constraints.append(constraint)
 
