@@ -1,0 +1,125 @@
+@prefix : <http://example.org/countries#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xml: <http://www.w3.org/XML/1998/namespace> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@base <http://example.org/countries> .
+
+<http://example.org/countries> rdf:type owl:Ontology .
+
+#################################################################
+#    Classes
+#################################################################
+
+# ~region(X) :- country(X).
+# ~subregion(X) :- country(X).
+:Country rdf:type owl:Class ;
+    owl:disjointWith :Region, :Subregion .
+
+# ~country(X) :- region(X).
+# ~subregion(X) :- region(X).
+:Region rdf:type owl:Class ;
+    owl:disjointWith :Subregion .
+
+# ~country(X) :- subregion(X).
+# ~region(X) :- subregion(X).
+:Subregion rdf:type owl:Class .
+
+#################################################################
+#    Base Properties (Primitive)
+#################################################################
+
+# --- Located In ---
+# locatedIn(C, R) :- locatedIn(C, S), locatedIn(S, R).
+:locatedIn rdf:type owl:ObjectProperty, owl:TransitiveProperty ;
+    owl:propertyChainAxiom ( :locatedIn :locatedIn ) .
+
+# --- Neighbor Of ---
+# neighborOf(C2, C1) :- neighborOf(C1, C2).
+:neighborOf rdf:type owl:ObjectProperty, owl:SymmetricProperty, owl:IrreflexiveProperty .
+
+#################################################################
+#    Domain and Range Constraints
+#################################################################
+
+# --- Located In Type Inference ---
+# country(C) :- locatedIn(C, S), subregion(S).
+# country(C) :- locatedIn(C, S), locatedIn(S, R).
+# Note: Countries can be located in either Subregions or Regions
+:locatedIn rdfs:domain [ rdf:type owl:Class ;
+    owl:unionOf ( :Country :Subregion )
+] ;
+rdfs:range [ rdf:type owl:Class ;
+    owl:unionOf ( :Region :Subregion )
+] .
+
+# --- Neighbor Of Type Inference ---
+# country(C) :- neighborOf(C, _).
+# country(C) :- neighborOf(_, C).
+:neighborOf rdfs:domain :Country ;
+    rdfs:range :Country .
+
+#################################################################
+#    Property Restrictions and Constraints
+#################################################################
+
+# --- Located In Restrictions ---
+
+# Every country is located in at most one subregion
+# ~locatedIn(C, S2) :- locatedIn(C, S1), subregion(S1), subregion(S2), S1!=S2.
+:Country rdfs:subClassOf [
+    rdf:type owl:Restriction ;
+    owl:onProperty :locatedIn ;
+    owl:maxQualifiedCardinality "1"^^xsd:nonNegativeInteger ;
+    owl:onClass :Subregion
+] .
+
+# Every country/subregion is located in at most one region
+# ~locatedIn(X, R2) :- locatedIn(X, R1), region(R1), region(R2), R1!=R2.
+:Country rdfs:subClassOf [
+    rdf:type owl:Restriction ;
+    owl:onProperty :locatedIn ;
+    owl:maxQualifiedCardinality "1"^^xsd:nonNegativeInteger ;
+    owl:onClass :Region
+] .
+
+:Subregion rdfs:subClassOf [
+    rdf:type owl:Restriction ;
+    owl:onProperty :locatedIn ;
+    owl:maxQualifiedCardinality "1"^^xsd:nonNegativeInteger ;
+    owl:onClass :Region
+] .
+
+# --- Neighbor Of Restrictions ---
+
+# Regions cannot be neighbors (only countries)
+# :- neighborOf(R, _), region(R).
+# :- neighborOf(_, R), region(R).
+:Region rdfs:subClassOf [
+    rdf:type owl:Restriction ;
+    owl:onProperty :neighborOf ;
+    owl:maxCardinality "0"^^xsd:nonNegativeInteger
+] .
+
+# Subregions cannot be neighbors (only countries)
+# :- neighborOf(S, _), subregion(S).
+# :- neighborOf(_, S), subregion(S).
+:Subregion rdfs:subClassOf [
+    rdf:type owl:Restriction ;
+    owl:onProperty :neighborOf ;
+    owl:maxCardinality "0"^^xsd:nonNegativeInteger
+] .
+
+#################################################################
+#    Additional Constraints 
+#################################################################
+
+# The following ASP constraints cannot be fully expressed in OWL 2 RL!
+
+# No country in one region is located in another region's subregions:
+# ~locatedIn(C, S) :- locatedIn(C, R1), locatedIn(S, R2), country(C), region(R1), subregion(S), R1!=R2.
+
+# All neighborOf relations are specified explicitly (closed world assumption):
+# ~neighborOf(C1, C2) :- country(C1), country(C2), C1!=C2, not neighborOf(C1, C2).
+# This represents a closed world assumption incompatible with OWL's open world semantics.

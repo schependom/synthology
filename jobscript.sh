@@ -28,9 +28,11 @@
 
 
 # Activate venv
+set -e
 echo "Activating virtual environment"
 module load python3/3.9.19
 module load cuda/11.7
+source .env
 source ${REPO}/.venv/bin/activate
 
 
