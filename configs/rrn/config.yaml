@@ -25,9 +25,9 @@ use_amp: true # Enable Automatic Mixed Precision (which uses float16 where appro
 num_nodes: 1
 verbose: true
 log_dir: "./logs"
-max_epochs: 1000
+max_epochs: 200
 do_test: true
-test_base_facts: true
+test_base_facts: true # Whether to test on base facts (i.e., facts seen during training) or only on novel facts
 loss_function:
   _target_: torch.nn.BCEWithLogitsLoss
 metrics:
