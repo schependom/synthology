@@ -904,12 +904,14 @@ def main(cfg: DictConfig):
         min_proofs_per_rule=cfg.dataset.min_proofs_per_rule,
     )
 
-    # Save to CSV
+    # Save to CSV (Individual Samples) - Optional
     output_dir = cfg.dataset.output_dir
 
-    save_dataset_to_csv(train_samples, f"{output_dir}/train", prefix="train_sample")
-    save_dataset_to_csv(val_samples, f"{output_dir}/val", prefix="val_sample")
-    save_dataset_to_csv(test_samples, f"{output_dir}/test", prefix="test_sample")
+    if cfg.dataset.get("save_individual_samples", False):
+        logger.info("Saving individual sample CSVs...")
+        save_dataset_to_csv(train_samples, f"{output_dir}/train", prefix="train_sample")
+        save_dataset_to_csv(val_samples, f"{output_dir}/val", prefix="val_sample")
+        save_dataset_to_csv(test_samples, f"{output_dir}/test", prefix="test_sample")
 
 
 
