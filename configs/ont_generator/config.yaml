@@ -15,6 +15,7 @@ dataset: # asp uses 72% train, 8% val, 20% test by default
   min_proofs_per_rule: 5
   output_dir: "data/ont/family_tree"
   seed: 23
+  save_individual_samples: false
 
 export_proofs: false
 export_graphs: false

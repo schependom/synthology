@@ -45,6 +45,7 @@ callbacks:
     filename: "best-checkpoint"
     monitor: "val_loss"
     save_top_k: 1
+    save_last: true
     mode: "min"
 
 logger:
