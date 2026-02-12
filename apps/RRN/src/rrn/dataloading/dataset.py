@@ -192,6 +192,8 @@ class RRNDataset(Dataset):
                          )
                          m.metadata = meta 
                          
+                         ind.classes.append(m)  # Link membership to individual
+
                          # Handle is_base_fact logic
                          fact_type = meta.get("type", "base_fact")
                          if fact_type != "base_fact":
