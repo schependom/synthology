@@ -154,6 +154,10 @@ class Membership:
         Base fact = 0.
         Inferred fact = max depth of its proof trees.
         """
+        # If loaded from dataset, trust metadata
+        if hasattr(self, "metadata") and "hops" in self.metadata:
+            return int(self.metadata["hops"])
+
         if self.is_base_fact:
             return 0
         return max((p.get_depth() for p in self.proofs), default=0)
@@ -208,6 +212,10 @@ class Triple:
         Base fact = 0.
         Inferred fact = max depth of its proof trees.
         """
+        # If loaded from dataset, trust metadata
+        if hasattr(self, "metadata") and "hops" in self.metadata:
+            return int(self.metadata["hops"])
+
         if self.is_base_fact:
             return 0
         return max((p.get_depth() for p in self.proofs), default=0)

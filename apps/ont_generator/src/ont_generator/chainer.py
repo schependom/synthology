@@ -940,6 +940,12 @@ class BackwardChainer:
         matching_rules = self.rules_by_head.get(key, []) if key is not None else []
 
         # Try each matching rule
+        # Shuffle rules to ensure diverse exploration (avoid getting stuck in first-defined rule)
+        if matching_rules:
+            # Create a copy to avoid in-place shuffle affecting other calls if list was shared
+            matching_rules = list(matching_rules)
+            random.shuffle(matching_rules)
+
         for original_rule in matching_rules:
             # Check recursion limits
             if original_rule.name in self.recursive_rules:
