@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import pytorch_lightning as pl
 import torch
@@ -173,7 +173,8 @@ class RRNSystem(pl.LightningModule):
         )
 
         # 3. Evaluate Metrics
-        class_metrics = self._evaluate_classes(embeddings, target_memberships)
+        individuals = batch.get("individuals", None)
+        class_metrics = self._evaluate_classes(embeddings, target_memberships, individuals)
         triple_metrics = self._evaluate_triples(embeddings, target_triples)
 
         # 4. Log everything
@@ -212,7 +213,8 @@ class RRNSystem(pl.LightningModule):
         embeddings = self(base_triples, base_memberships)
 
         # 4. Evaluate Class Predictions
-        class_metrics = self._evaluate_classes(embeddings=embeddings, membership_labels=target_memberships)
+        individuals = batch.get("individuals", None)
+        class_metrics = self._evaluate_classes(embeddings=embeddings, membership_labels=target_memberships, individuals=individuals)
 
         # 5. Evaluate Relation Predictions
         triple_metrics = self._evaluate_triples(embeddings=embeddings, triples=target_triples)
@@ -229,6 +231,7 @@ class RRNSystem(pl.LightningModule):
         self,
         embeddings: torch.Tensor,
         membership_labels: List[List[int]],
+        individuals: Optional[List[Any]] = None,
     ) -> Dict[str, float]:
         """
         Helper: Evaluates class membership predictions.
@@ -246,6 +249,26 @@ class RRNSystem(pl.LightningModule):
         # Calculate hits
         scores = (cls_pred == cls_targets).float()
 
+        # New: Hops Bucketing
+        hops_hits = defaultdict(list)
+        
+        if individuals:
+            # We need to map (ind_idx, cls_idx) to hops
+            # Iterate through individuals and their sparse memberships
+            for i, ind in enumerate(individuals):
+                # Ensure ind has classes attribute
+                if not hasattr(ind, "classes"): continue
+                
+                for mem in ind.classes:
+                    cls_idx = mem.cls.index
+                    # Check if this membership was evaluated (i.e. not masked out/unknown)
+                    if cls_targets[i, cls_idx] != 0.5:
+                        hops = int(mem.metadata.get("hops", 0)) if hasattr(mem, "metadata") else 0
+                        bucket = min(hops, 3)
+                        hit = scores[i, cls_idx].item()
+                        hops_hits[bucket].append(hit)
+
+
         # Create masks
         pos_mask = cls_targets == 1.0
         neg_mask = cls_targets == 0.0
@@ -261,6 +284,7 @@ class RRNSystem(pl.LightningModule):
             "acc_all": all_known_scores.mean().item() if all_known_scores.numel() > 0 else float("nan"),
             "acc_pos": positive_scores.mean().item() if positive_scores.numel() > 0 else float("nan"),
             "acc_neg": negative_scores.mean().item() if negative_scores.numel() > 0 else float("nan"),
+            **{f"acc_hops_{k}": sum(v) / len(v) for k, v in hops_hits.items()},
         }
 
     def _evaluate_triples(
@@ -272,6 +296,9 @@ class RRNSystem(pl.LightningModule):
         Helper: Evaluates relation predictions using batched processing.
         """
         device = self.device
+
+        # for buckets
+        hops_hits = defaultdict(list)
 
         # Group triples by predicate
         grouped_triples = defaultdict(list)
@@ -318,15 +345,24 @@ class RRNSystem(pl.LightningModule):
             if is_negative.any():
                 neg_hits.append(hits[is_negative])
 
+            # Bucketize by hops
+            for i, t in enumerate(group):
+                 # Extract hops from metadata (default 0 for explicitly stated/base facts)
+                 hops = int(t.metadata.get("hops", 0)) if hasattr(t, "metadata") else 0
+                 # Treat hops >= 3 as bucket 3
+                 bucket = min(hops, 3)
+                 hops_hits[bucket].append(hits[i].item())
+
         # Aggregate results
         all_hits_t = torch.cat(all_hits) if all_hits else torch.tensor([], device=device)
         pos_hits_t = torch.cat(pos_hits) if pos_hits else torch.tensor([], device=device)
         neg_hits_t = torch.cat(neg_hits) if neg_hits else torch.tensor([], device=device)
 
         return {
-            "acc_all": all_hits_t.mean().item() if all_hits_t.numel() > 0 else float("nan"),
-            "acc_pos": pos_hits_t.mean().item() if pos_hits_t.numel() > 0 else float("nan"),
-            "acc_neg": neg_hits_t.mean().item() if neg_hits_t.numel() > 0 else float("nan"),
+            "acc_all": torch.cat(all_hits).mean().item() if all_hits else float("nan"),
+            "acc_pos": torch.cat(pos_hits).mean().item() if pos_hits else float("nan"),
+            "acc_neg": torch.cat(neg_hits).mean().item() if neg_hits else float("nan"),
+            **{f"acc_hops_{k}": sum(v) / len(v) for k, v in hops_hits.items()},
         }
 
     def _compute_loss(

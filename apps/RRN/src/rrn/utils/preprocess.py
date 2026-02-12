@@ -80,4 +80,5 @@ def preprocess_knowledge_graph(
         "inferred_memberships": inferred_memberships,
         "all_triples": all_triples,
         "all_memberships": all_memberships,
+        "individuals": kg.individuals,
     }
