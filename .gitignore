@@ -201,3 +201,5 @@ visualizations/
 
 **/graphs/
 **/proofs/
+
+gpu_*.*
