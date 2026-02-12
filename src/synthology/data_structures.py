@@ -395,7 +395,7 @@ class KnowledgeGraph:
         rows = []
 
         def get_type_str(fact_obj, is_positive):
-            if fact_obj.is_base_fact:
+            if is_positive and fact_obj.is_base_fact:
                 return "base_fact"
             # For inferred facts, distiguish roots and intermediates if possible?
             # Current implementation just marks them as inferred
