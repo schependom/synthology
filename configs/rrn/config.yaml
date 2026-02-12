@@ -27,7 +27,7 @@ verbose: true
 log_dir: "./logs"
 max_epochs: 200
 do_test: true
-test_base_facts: true # Whether to test on base facts (i.e., facts seen during training) or only on novel facts
+test_base_facts: false # Whether to test on base facts (i.e., facts seen during training) or only on novel facts
 loss_function:
   _target_: torch.nn.BCEWithLogitsLoss
 metrics:
