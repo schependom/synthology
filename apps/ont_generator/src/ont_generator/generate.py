@@ -268,6 +268,10 @@ class KGenerator:
             proof_generator = self.chainer.generate_proof_trees(rule_name)
 
             for proof in proof_generator:
+                # Re-check constraints (some proofs might be invalidated by previous proofs in this batch)
+                if not self.chainer.check_proof(proof):
+                    continue
+
                 self.chainer.register_proof(proof)
                 all_proofs.append(proof)
 

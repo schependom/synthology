@@ -184,12 +184,14 @@ class RRNSystem(pl.LightningModule):
         self.log("val/relation_loss", val_rel_loss, on_step=False, on_epoch=True, batch_size=1)
 
         for key, value in class_metrics.items():
-            self.log(f"val/class_{key}", value, on_step=False, on_epoch=True, prog_bar=(key == "acc_all"), batch_size=1)
+            if not math.isnan(value):
+                self.log(f"val/class_{key}", value, on_step=False, on_epoch=True, prog_bar=(key == "acc_all"), batch_size=1)
 
         for key, value in triple_metrics.items():
-            self.log(
-                f"val/triple_{key}", value, on_step=False, on_epoch=True, prog_bar=(key == "acc_all"), batch_size=1
-            )
+            if not math.isnan(value):
+                self.log(
+                    f"val/triple_{key}", value, on_step=False, on_epoch=True, prog_bar=(key == "acc_all"), batch_size=1
+                )
 
         return val_loss
 
@@ -222,10 +224,12 @@ class RRNSystem(pl.LightningModule):
         # 6. Logging
         # Lightning automatically accumulates these over the epoch
         for key, value in class_metrics.items():
-            self.log(f"test/class_{key}", value, on_step=False, on_epoch=True, batch_size=1)
+            if not math.isnan(value):
+                self.log(f"test/class_{key}", value, on_step=False, on_epoch=True, batch_size=1)
 
         for key, value in triple_metrics.items():
-            self.log(f"test/triple_{key}", value, on_step=False, on_epoch=True, batch_size=1)
+            if not math.isnan(value):
+                self.log(f"test/triple_{key}", value, on_step=False, on_epoch=True, batch_size=1)
 
     def _evaluate_classes(
         self,

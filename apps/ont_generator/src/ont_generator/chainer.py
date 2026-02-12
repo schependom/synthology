@@ -481,19 +481,50 @@ class BackwardChainer:
             # Collect relation triples
             elif isinstance(atom.predicate, Relation) and isinstance(atom.subject, Individual):
                 property_values[(atom.subject, atom.predicate)].add(atom.object)
+                
+                # Inferred types are now handled by current_proof_types loop below
+
+        # Helper to get all types for an individual from the current proof
+        # merging explicit memberships and inferred domain/range types
+        current_proof_types: Dict[Individual, Set[str]] = defaultdict(set)
+        
+        for atom in collected_atoms:
+            if atom.predicate == RDF.type and isinstance(atom.object, Class):
+                if isinstance(atom.subject, Individual):
+                     current_proof_types[atom.subject].add(atom.object.name)
+            
+            elif isinstance(atom.predicate, Relation):
+                if isinstance(atom.subject, Individual):
+                     domains = self.domains.get(atom.predicate.name, set())
+                     current_proof_types[atom.subject].update(domains)
+                
+                if isinstance(atom.object, Individual):
+                     ranges = self.ranges.get(atom.predicate.name, set())
+                     current_proof_types[atom.object].update(ranges)
 
         # ------------------------- CHECK DISJOINT CLASSES ------------------------- #
 
-        for individual, classes in individual_classes.items():
-            for cls in classes:
-                disjoint_with = self.disjoint_classes.get(cls, set())
+        # ------------------------- CHECK DISJOINT CLASSES ------------------------- #
+
+        # ------------------------- CHECK DISJOINT CLASSES ------------------------- #
+
+        for individual, proof_types in current_proof_types.items():
+            # Get already committed types for this individual (if any)
+            committed_types = self.committed_individual_types.get(individual, set())
+
+            # Combine current proof types with committed types
+            all_types = proof_types | committed_types
+
+            for type_name in all_types:
+                disjoint_with = self.disjoint_class_names.get(type_name, set())
+
                 # Check if individual belongs to any disjoint class
-                violation = classes & disjoint_with
+                violation = all_types & disjoint_with
                 if violation:
                     if self.verbose:
                         logger.debug(
                             f"  ✗ CONSTRAINT VIOLATION: {individual.name} cannot be both "
-                            f"{cls.name} and {next(iter(violation)).name} (disjoint classes)"
+                            f"{type_name} and {next(iter(violation))} (disjoint classes)"
                         )
                     return False
 
@@ -813,6 +844,14 @@ class BackwardChainer:
                     ranges = self.ranges.get(atom.predicate.name, set())
                     self.committed_individual_types[atom.object].update(ranges)
 
+    def check_proof(self, proof: Proof) -> bool:
+        """
+        Public method to check if a proof satisfies all constraints.
+        Useful for re-validating proofs after committed types have changed.
+        """
+        atoms = self._collect_all_atoms(proof)
+        return self._check_constraints(atoms)
+
     def _find_proofs_recursive(
         self,
         goal_atom: Atom,
@@ -954,6 +993,22 @@ class BackwardChainer:
             if subst is None:
                 if self.verbose:
                     logger.debug(f"Unification between {goal_atom} and {rule.conclusion} failed for rule {rule.name}")
+                continue
+
+            # Check if the bound values satisfy the constraints of the new rule
+            constraints_violated = False
+            for var, term in subst.items():
+                if isinstance(term, Individual):
+                    required = self._get_required_classes(var, rule)
+                    if not self._is_individual_compatible(term, required):
+                        if self.verbose:
+                            logger.debug(
+                                f"Skipping {rule.name}: Bound individual {term.name} incompatible with requirements {required}"
+                            )
+                        constraints_violated = True
+                        break
+
+            if constraints_violated:
                 continue
 
             # Create a new substitution dict for this rule's scope

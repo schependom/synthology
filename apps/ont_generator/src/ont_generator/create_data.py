@@ -118,6 +118,12 @@ class KGEDatasetGenerator:
                 f"{len(self.schema_attributes)} attributes"
             )
             logger.info(f"Constraints: {len(self.generator.parser.constraints)}")
+            
+        # Classify rules by complexity
+        self.simple_rules = [r for r in self.rules if len(r.premises) == 1]
+        self.complex_rules = [r for r in self.rules if len(r.premises) > 1]
+        if self.verbose:
+            logger.info(f"Rule Complexity: {len(self.simple_rules)} simple, {len(self.complex_rules)} complex")
 
     def generate_dataset(
         self,
@@ -192,9 +198,6 @@ class KGEDatasetGenerator:
         # Print summary
         self._print_dataset_summary(train_samples, val_samples, test_samples)
 
-        # Print summary
-        self._print_dataset_summary(train_samples, val_samples, test_samples)
-
         # Save in Standard Format
         save_standard_dataset(train_samples, os.path.join(self.output_dir, "train"))
         save_standard_dataset(val_samples, os.path.join(self.output_dir, "val"))
@@ -230,7 +233,7 @@ class KGEDatasetGenerator:
         """
         samples = []
         failed_attempts = 0
-        max_failed_attempts = n_samples * 10  # TODO: tune
+        max_failed_attempts = n_samples * 10 if n_samples > 0 else 0  # TODO: tune
 
         print("=" * 80)
         pbar = tqdm(total=n_samples, desc=f"Generating {sample_type} samples")
@@ -316,9 +319,27 @@ class KGEDatasetGenerator:
         current_recursion = random.randint(1, self.max_recursion_cap)
         self.generator.chainer.max_recursion_depth = current_recursion
 
-        # VARIANCE STRATEGY 2: Rule selection
+        # VARIANCE STRATEGY 2: Rule selection (Stratified)
         n_rules = random.randint(min_rules, min(max_rules, len(self.rules)))
-        selected_rules = random.sample(self.rules, n_rules)
+        
+        selected_rules = []
+        
+        # If possible, force at least one complex rule (for depth > 1)
+        # but only if recursion depth allows it and we have complex rules
+        if current_recursion > 1 and self.complex_rules:
+             # Force 1 complex rule
+             selected_rules.append(random.choice(self.complex_rules))
+             # Fill rest with random mix
+             remaining_count = n_rules - 1
+             if remaining_count > 0:
+                 remaining_pool = [r for r in self.rules if r not in selected_rules]
+                 if remaining_count <= len(remaining_pool):
+                    selected_rules.extend(random.sample(remaining_pool, remaining_count))
+                 else:
+                    selected_rules.extend(remaining_pool)
+        else:
+            # Pure random selection
+            selected_rules = random.sample(self.rules, n_rules)
 
         # Track rule usage
         if sample_type == "TRAIN":
@@ -392,6 +413,37 @@ class KGEDatasetGenerator:
 
         # Complete schema (apply domain/range rules)
         self._complete_schema(kg)
+
+        # VALIDATION: Check for complexity (inferred facts and depth)
+        
+        # Count inferred facts (triples + memberships)
+        n_inferred = 0
+        max_depth = 0
+        
+        for t in kg.triples:
+            if not t.is_base_fact:
+                n_inferred += 1
+                max_depth = max(max_depth, t.get_hops())
+                
+        for m in kg.memberships:
+            if not m.is_base_fact:
+                n_inferred += 1
+                max_depth = max(max_depth, m.get_hops())
+        
+        # Reject if no inferred facts (unless we explicitly allowed only base facts, which is rare for this task)
+        if n_inferred == 0:
+            if self.verbose:
+                logger.debug(f"  [DEBUG] Sample rejected: No inferred facts found.")
+            return None
+            
+        # Reject if depth is too shallow (only if configured for deep recursion)
+        # If max_recursion > 1, we expect at least depth 2 for better training data
+        if self.generator.chainer.max_recursion_depth > 1 and max_depth < 2:
+             # Allow some shallow samples (e.g. 20%) to keep variety, but prefer deep ones
+             if random.random() > 0.2:
+                if self.verbose:
+                    logger.debug(f"  [DEBUG] Sample rejected: Max depth {max_depth} too low (expected >= 2).")
+                return None
 
         # Add negatives via NegativeSampler
         kg = self.negative_sampler.add_negative_samples(
