@@ -2,7 +2,7 @@ defaults:
   - _self_
 
 ontology:
-  path: "data/ont/family.ttl"
+  path: "data/ont/input/family.ttl"
 
 dataset: # asp uses 72% train, 8% val, 20% test by default
   n_train: 2000
@@ -13,7 +13,7 @@ dataset: # asp uses 72% train, 8% val, 20% test by default
   min_rules: 1
   max_rules: 5
   min_proofs_per_rule: 5
-  output_dir: "data/ont/family_tree"
+  output_dir: "data/ont/output/family-tree"
   seed: 23
   save_individual_samples: false
 

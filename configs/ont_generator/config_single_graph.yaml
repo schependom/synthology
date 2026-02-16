@@ -2,13 +2,13 @@ defaults:
   - _self_
 
 ontology:
-  path: "data/ont/family.ttl"
+  path: "data/ont/input/family.ttl"
 
-graph_output_path: "visualizations/graphs/"
-proof_output_path: "visualizations/proofs/"
+graph_output_path: "data/ont/output/family-single/graphs/"
+proof_output_path: "data/ont/output/family-single/proofs/"
 
 dataset:
-  output_dir: "data/ont/toy"
+  output_dir: "data/ont/output/family-single"
   seed: 23
 
 export_proofs: true

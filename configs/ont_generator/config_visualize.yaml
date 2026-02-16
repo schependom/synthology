@@ -2,10 +2,10 @@ defaults:
   - _self_
 
 ontology:
-  path: "data/ont/family.ttl"
+  path: "data/ont/input/family.ttl"
 
-graph_output_path: "data/ont/visualize/graphs/" 
-proof_output_path: "data/ont/visualize/proofs/"
+graph_output_path: "data/ont/output/family-visualize/graphs/" 
+proof_output_path: "data/ont/output/family-visualize/proofs/"
 
 dataset:
   n_train: 5
@@ -16,7 +16,7 @@ dataset:
   min_rules: 1
   max_rules: 5
   min_proofs_per_rule: 3
-  output_dir: "data/ont/visualize"
+  output_dir: "data/ont/output/family-visualize"
   seed: 42
 
 export_proofs: true
