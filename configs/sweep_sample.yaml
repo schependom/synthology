@@ -1,0 +1,29 @@
+program: scripts/sweep_ont_rrn.py
+command:
+  - uv
+  - run
+  - python
+  - ${program}
+  - ${args}
+method: bayes
+metric:
+  name: val_loss
+  goal: minimize
+parameters:
+  # Generator Parameters (prefixed with gen.)
+  gen.dataset.n_train:
+    values: [1000, 2000, 5000]
+  gen.generator.max_recursion:
+    values: [2, 3, 4]
+  gen.negative_sampling.ratio:
+    distribution: uniform
+    min: 0.5
+    max: 2.0
+    
+  # RRN Parameters (prefixed with rrn.)
+  rrn.hyperparams.learning_rate:
+    distribution: log_uniform_values
+    min: 0.0001
+    max: 0.01
+  rrn.hyperparams.batch_size:
+    values: [32, 64, 128]

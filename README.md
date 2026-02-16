@@ -239,6 +239,49 @@ uv run invoke train-rrn
 #               hyperparams/    default.yaml
 ```
 
+## Hyperparameter Optimization (WandB Sweeps)
+
+You can run hyperparameter sweeps that span **both** the ontology data generation and the RRN model training. This allows you to find the optimal combination of dataset characteristics (e.g., complexity, size, negative sampling ratio) and model hyperparameters.
+
+A wrapper script `scripts/sweep_ont_rrn.py` handles the coordination between the generator and the model.
+
+1.  **Define your sweep configuration**:
+    Create a YAML file (e.g., `configs/my_sweep.yaml`) defining the parameters to tune. Use the prefix `gen.` for generator parameters and `rrn.` for RRN parameters.
+
+    Example (`configs/sweep_sample.yaml`):
+    ```yaml
+    program: scripts/sweep_ont_rrn.py
+    method: bayes
+    metric:
+      name: val_loss
+      goal: minimize
+    parameters:
+      # Generator Parameters
+      gen.dataset.n_train:
+        values: [1000, 2000]
+      gen.negative_sampling.ratio:
+        min: 0.5
+        max: 2.0
+      
+      # Model Parameters
+      rrn.hyperparams.learning_rate:
+        min: 0.0001
+        max: 0.01
+    ```
+
+2.  **Initialize the sweep**:
+    ```bash
+    uv run wandb sweep configs/sweep_sample.yaml
+    ```
+    This will output a sweep ID (e.g., `username/project/sweep_id`).
+
+3.  **Start the agent**:
+    ```bash
+    uv run wandb agent <SWEEP_ID>
+    ```
+
+The script automatically generates a temporary dataset for each run, trains the model on it, reports metrics to WandB, and cleans up the data afterwards.
+
 ## Full workflow
 
 1. Generate a dataset using either the ASP-based (default for now) or ontology-based generator (work in progress).
