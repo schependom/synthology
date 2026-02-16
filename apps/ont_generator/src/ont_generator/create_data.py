@@ -25,8 +25,13 @@ from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
+import ont_generator
+
 from ont_generator.generate import KGenerator, atoms_to_knowledge_graph, extract_proof_map
+from ont_generator.chainer import BackwardChainer, ExecutableRule
 from ont_generator.negative_sampler import NegativeSampler
+import sys
+
 from ont_generator.utils.validator import Validator
 from synthology.data_structures import KnowledgeGraph
 

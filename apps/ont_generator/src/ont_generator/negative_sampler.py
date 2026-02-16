@@ -21,6 +21,7 @@ from typing import Dict, List, Optional, Set
 
 from loguru import logger
 from omegaconf import DictConfig
+import sys
 
 from synthology.data_structures import (
     RDF,
@@ -68,6 +69,8 @@ class NegativeSampler:
         self.domains = domains or {}
         self.ranges = ranges or {}
         self.verbose = verbose
+        logger.error("DEBUG: NegativeSampler initialized!")
+
 
         # Optimization: Sets for fast lookup of existing facts
         self.existing_triples: Set[str] = set()
@@ -126,6 +129,8 @@ class NegativeSampler:
 
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
+
+        logger.error(f"DEBUG: add_negative_samples called with strategy={strategy}, corrupt_base_facts={corrupt_base_facts}")
 
         if strategy == "random":
             return self._random_corruption(kg, ratio)
@@ -357,51 +362,59 @@ class NegativeSampler:
             # Get base facts from this proof
             base_facts = proof.get_base_facts()
 
-            # Filter out RDF.type facts if we are in corrupt_base_facts mode
+            # Filter candidates to ensure we corrupt goal terms
+            candidate_corruptions = []
             if corrupt_base_facts:
-                base_facts = {bf for bf in base_facts if bf.predicate != RDF.type}
+                goal_terms = {proof.goal.subject, proof.goal.object}
+                for bf in base_facts:
+                    # Skip RDF type
+                    if bf.predicate == RDF.type:
+                        continue
+                        
+                    if bf.subject in goal_terms:
+                        candidate_corruptions.append((bf, "subject"))
+                    if bf.object in goal_terms:
+                        candidate_corruptions.append((bf, "object"))
+            
+            # If no candidates found (e.g. proof uses only intermediate vars or logic error), fall back
+            if not candidate_corruptions and corrupt_base_facts:
+                # Fallback: any base fact, random position
+                 real_base_facts = [bf for bf in base_facts if bf.predicate != RDF.type]
+                 for bf in real_base_facts:
+                      candidate_corruptions.append((bf, "subject"))
+                      candidate_corruptions.append((bf, "object"))
+            
+            if not candidate_corruptions:
+                 continue
 
-            neg_triple = None
-
-            if not base_facts or not corrupt_base_facts:
-                # Corrupt the goal instead
-                # Use constrained corruption if possible, or fallback to random
-                # Ideally we want type-safe corruption even for leaf goals?
-                neg_triple = self._corrupt_triple_constrained(pos_triple, kg.individuals, ind_classes)
-                if not neg_triple:
-                    neg_triple = self._corrupt_triple_random(pos_triple, kg.individuals, original_triple=pos_triple)
-
-                if neg_triple:
-                    neg_triple.metadata["source_type"] = "inferred"  # Explicitly inferred since we target goal
-            else:
-                # Corrupt a base fact from the proof
-                # This creates a negative that would break the inference chain
-                base_fact = random.choice(list(base_facts))
-
-                # Find corresponding triple in KG
+            max_corruption_attempts = 5
+            for corruption_attempt in range(max_corruption_attempts):
+                base_fact, target_pos = random.choice(candidate_corruptions)
+                
+                # Find the triple in KG for this atom
                 matching_triples = [
-                    t
-                    for t in kg.triples
-                    if (
-                        t.subject.name == base_fact.subject.name
-                        and t.predicate.name == base_fact.predicate.name
-                        and t.object.name == base_fact.object.name
-                        and t.positive
-                    )
+                    t for t in kg.triples 
+                    if t.predicate.name == base_fact.predicate.name 
+                    and t.subject.name == base_fact.subject.name
+                    and t.object.name == base_fact.object.name
                 ]
-
+                
                 if matching_triples:
+                    # print(f"DEBUG: Found {len(matching_triples)} matching base triples for {base_fact}")
                     base_triple = matching_triples[0]
-                    # Try constrained corruption first
-                    neg_triple = self._corrupt_triple_constrained(base_triple, kg.individuals, ind_classes)
-                    if not neg_triple:
-                        neg_triple = self._corrupt_triple_random(
-                            base_triple, kg.individuals, original_triple=base_triple
-                        )
-
+                    
+                    neg_triple = None
                     changed_term = None
                     new_term = None
-                    propagated_exported = False
+                    
+                    if target_pos == "subject":
+                        neg_triple = self._corrupt_subject(base_triple, kg.individuals)
+                        changed_term = base_triple.subject
+                        new_term = neg_triple.subject if neg_triple else None
+                    else:
+                        neg_triple = self._corrupt_object(base_triple, kg.individuals)
+                        changed_term = base_triple.object
+                        new_term = neg_triple.object if neg_triple else None
 
                     if neg_triple:
                         neg_triple.metadata["source_type"] = "base"  # Explicitly base since we target base fact
@@ -414,92 +427,100 @@ class NegativeSampler:
                             new_term = neg_triple.object
                         else:
                             if self.verbose:
-                                logger.debug(
-                                    f"Propagation failed: Corruption did not change subject or object? {base_triple} => {neg_triple}"
-                                )
+                                logger.debug(f"Propagation failed: Corruption did not change subject or object? {base_triple} => {neg_triple}")
+                            continue # Retry
                     else:
                         if self.verbose:
                             logger.debug("Corruption failed for base triple.")
+                        continue # Retry
+                    neg_base_atom = Atom(
+                        predicate=neg_triple.predicate,
+                        subject=neg_triple.subject,
+                        object=neg_triple.object,
+                    )
+                    
+                    term_mapping = {changed_term: new_term}
 
-                    if changed_term and new_term:
-                        term_mapping = {changed_term: new_term}
+                    # Generate the propagated proof (recursive)
+                    propagated_proof = self._create_propagated_proof(
+                         proof,
+                         base_fact,
+                         neg_base_atom,
+                         term_mapping
+                    )
+                    
+                    if propagated_proof and propagated_proof.goal:
+                        new_goal_atom = propagated_proof.goal
                         
-                        # Create atom from corrupted negative triple
-                        neg_base_atom = Atom(
-                            predicate=neg_triple.predicate,
-                            subject=neg_triple.subject,
-                            object=neg_triple.object,
-                        )
+                        # Create Triple from the new goal atom
+                        if isinstance(new_goal_atom.predicate, Relation):
+                            neg_goal = Triple(
+                                subject=new_goal_atom.subject,
+                                predicate=new_goal_atom.predicate,
+                                object=new_goal_atom.object,
+                                positive=False,
+                                proofs=[],
+                                metadata={
+                                    "source_type": "propagated_inferred",
+                                },
+                            )
 
-                        # Generate the propagated proof (recursive)
-                        propagated_proof = self._create_propagated_proof(
-                             proof,
-                             base_fact,
-                             neg_base_atom,
-                             term_mapping
-                        )
+                            # Check if this new goal contradicts existing facts
+                            # Safe-guard: explicitly check against original positive triple
+                            if (
+                                neg_goal.subject.name == pos_triple.subject.name
+                                and neg_goal.predicate.name == pos_triple.predicate.name
+                                and neg_goal.object.name == pos_triple.object.name
+                            ):
+                                if self.verbose:
+                                    logger.debug(
+                                        "Propagation failed: Derived goal is identical to original positive triple. Retrying..."
+                                    )
+                                # Retry - the corruption didn't propagate to the goal
+                                # Check if we should log failure
+                                continue
+                            
+                            elif self.is_valid_negative(neg_goal):
+                                # We successfully derived a valid negative goal!
+                                negative_triples.append(neg_goal)
 
-                        if propagated_proof and propagated_proof.goal:
-                             new_goal_atom = propagated_proof.goal
-                             
-                             # Create Triple from the new goal atom
-                             if isinstance(new_goal_atom.predicate, Relation):
-                                  neg_goal = Triple(
-                                       subject=new_goal_atom.subject,
-                                       predicate=new_goal_atom.predicate,
-                                       object=new_goal_atom.object,
-                                       positive=False,
-                                       proofs=[],
-                                       metadata={
-                                            "source_type": "propagated_inferred",
-                                       },
-                                  )
-
-                                  # Check if this new goal contradicts existing facts
-                                  # Safe-guard: explicitly check against original positive triple
-                                  if (
-                                       neg_goal.subject.name == pos_triple.subject.name
-                                       and neg_goal.predicate.name == pos_triple.predicate.name
-                                       and neg_goal.object.name == pos_triple.object.name
-                                  ):
-                                       if self.verbose:
-                                            logger.debug(
-                                                 "Propagation failed: Derived goal is identical to original positive triple."
-                                            )
-                                  elif self.is_valid_negative(neg_goal):
-                                       # We successfully derived a valid negative goal!
-                                       negative_triples.append(neg_goal)
-
-                                       # VISUALIZATION: Export the propagated proof
-                                       if export_proofs and output_dir and exported_propagated_count < MAX_EXPORTS:
-                                            filename = f"propagated_proof_{len(negative_triples)}_{neg_goal.subject.name}_{neg_goal.predicate.name}_{neg_goal.object.name}"
-                                            full_path = os.path.join(output_dir, filename)
-                                            propagated_proof.save_visualization(
-                                                 full_path,
-                                                 format="pdf",
-                                                 title="Counterfactual Proof (False Pattern)",
-                                                 root_label="FALSE CONCLUSION (DERIVED)",
-                                                 corruption_method="proof_based",
-                                                 fact_type="propagated_inferred",
-                                            )
-                                            exported_propagated_count += 1
-                                            propagated_exported = True
-                                  else:
-                                       if self.verbose:
-                                            logger.debug(
-                                                 f"Propagation failed: Derived goal {neg_goal} contradicts existing positive fact."
-                                            )
-                             else:
-                                  if self.verbose:
-                                       logger.debug(
-                                            f"Propagation failed: Derived goal predicate {new_goal_atom.predicate} is not a Relation."
-                                       )
+                                # VISUALIZATION: Export the propagated proof
+                                if export_proofs and output_dir and exported_propagated_count < MAX_EXPORTS:
+                                    filename = f"propagated_proof_{len(negative_triples)}_{neg_goal.subject.name}_{neg_goal.predicate.name}_{neg_goal.object.name}"
+                                    full_path = os.path.join(output_dir, filename)
+                                    propagated_proof.save_visualization(
+                                        full_path,
+                                        format="pdf",
+                                        title="Counterfactual Proof (False Pattern)",
+                                        root_label="FALSE CONCLUSION (DERIVED)",
+                                        corruption_method="proof_based",
+                                        fact_type="propagated_inferred",
+                                    )
+                                    exported_propagated_count += 1
+                                    propagated_exported = True
+                                
+                                # Success! Break the retry loop
+                                break
+                            else:
+                                if self.verbose:
+                                    logger.debug(
+                                            f"Propagation failed: Derived goal {neg_goal} contradicts existing positive fact."
+                                    )
                         else:
-                             if self.verbose:
-                                  logger.debug("Propagation failed: _create_propagated_proof returned None or no goal.")
+                            if self.verbose:
+                                logger.debug(
+                                        f"Propagation failed: Derived goal predicate {new_goal_atom.predicate} is not a Relation."
+                                )
                     else:
-                        if self.verbose:
-                             logger.debug("Propagation failed: Could not determine changed term.")
+                         if self.verbose:
+                              logger.debug("Propagation failed: _create_propagated_proof returned None or no goal.")
+                    
+                    # If we exhausted retries without success, we might still have a 'neg_triple' (base corruption)
+                    # We can use that as a fallback if we didn't get a propagated one? 
+                    # The original code would use 'neg_triple' if available. 
+                    # But notice the original code had 'neg_triple' scope outside. Here we have it inside loop.
+                    # Let's just ensure if we succeeded (break), we are good.
+
 
                     # If we have a negative triple (base fact corruption) and we want to export proofs
                     # Only export corrupted proof if we didn't export a propagated one (avoid redundancy)
@@ -880,6 +901,22 @@ class NegativeSampler:
                 metadata["source_type"] = "base" if original_triple.is_base_fact else "inferred"
             return Triple(triple.subject, triple.predicate, new_obj, positive=False, proofs=[], metadata=metadata)
 
+    def _corrupt_subject(self, triple: Triple, individuals: List[Individual]) -> Optional[Triple]:
+        """Corrupt the subject of a triple."""
+        candidates = [i for i in individuals if i != triple.subject]
+        if not candidates:
+            return None
+        new_subj = random.choice(candidates)
+        return Triple(new_subj, triple.predicate, triple.object, positive=False, proofs=[], metadata={"source_type": "base"})
+
+    def _corrupt_object(self, triple: Triple, individuals: List[Individual]) -> Optional[Triple]:
+        """Corrupt the object of a triple."""
+        candidates = [i for i in individuals if i != triple.object]
+        if not candidates:
+            return None
+        new_obj = random.choice(candidates)
+        return Triple(triple.subject, triple.predicate, new_obj, positive=False, proofs=[], metadata={"source_type": "base"})
+
 
 
     def _corrupt_membership_random(
@@ -907,7 +944,6 @@ class NegativeSampler:
         """
         Recursively reconstructs a proof tree with corrupted values.
         """
-        # Base case: this is the leaf we want to corrupt
         # Base case: this is the leaf we want to corrupt
         if original_proof.is_base_fact():
             if original_proof.goal == original_base_fact:
@@ -972,13 +1008,20 @@ class NegativeSampler:
             # 2. Update Substitutions
             new_substs = {}
             substs_changed = False
+            
+            # print("DEBUG_P: Checking substitutions...", file=sys.stdout, flush=True)
+            # for term in term_mapping:
+            #      print(f"DEBUG_P: Term mapping key: {term} (type: {type(term)}) hash={hash(term)}", file=sys.stdout, flush=True)
+
             for var, term in original_proof.substitutions.items():
                 if term in term_mapping:
+                    # print(f"DEBUG_P: MATCH! {term} -> {term_mapping[term]}", file=sys.stdout, flush=True)
                     new_substs[var] = term_mapping[term]
                     substs_changed = True
                 else:
+                    # print(f"DEBUG_P: NO MATCH for {term} (type: {type(term)}) hash={hash(term)}", file=sys.stdout, flush=True)
                     new_substs[var] = term
-
+            
             if changed or substs_changed:
                 # 3. Recalculate Goal
                 # We need to apply the new substitutions to the rule conclusion.
