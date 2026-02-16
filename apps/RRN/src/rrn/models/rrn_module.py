@@ -90,11 +90,11 @@ class RRNSystem(pl.LightningModule):
                 )
             )
 
-    def forward(self, triples: List[Triple], memberships: List[List[int]]):
+    def forward(self, grouped_triples: Dict[int, Dict[str, torch.Tensor]], memberships: List[List[int]]):
         """
         Forward pass through the RRN to generate embeddings.
         """
-        return self.rrn(triples, memberships)
+        return self.rrn(grouped_triples, memberships)
 
     def configure_optimizers(self):
         """
@@ -123,7 +123,7 @@ class RRNSystem(pl.LightningModule):
         """
 
         # Unpack data
-        base_triples = batch["base_triples"]
+        base_grouped = batch["base_grouped"]
         base_memberships = batch["base_memberships"]
 
         # ! CRUCIAL: We compute loss on ALL triples and ALL memberships
@@ -133,7 +133,7 @@ class RRNSystem(pl.LightningModule):
 
         # 1. RRN Forward pass (Message Passing)
         #    Only uses base facts to generate embeddings
-        embeddings = self(base_triples, base_memberships)
+        embeddings = self(base_grouped, base_memberships)
 
         # 2. MLP Predictions & Loss Calculation
         total_loss, class_loss, relation_loss = self._compute_loss(
@@ -152,7 +152,7 @@ class RRNSystem(pl.LightningModule):
         Single validation step for a Knowledge Graph.
         """
         # Unpack Data
-        base_triples = batch["base_triples"]
+        base_grouped = batch["base_grouped"]
         base_memberships = batch["base_memberships"]
 
         # In validation, we typically want to measure performance on ALL known facts
@@ -165,7 +165,7 @@ class RRNSystem(pl.LightningModule):
             target_memberships = batch["inferred_memberships"]
 
         # 1. RRN Forward pass (using base facts)
-        embeddings = self(base_triples, base_memberships)
+        embeddings = self(base_grouped, base_memberships)
 
         # 2. Compute Loss (validation loss)
         val_loss, val_class_loss, val_rel_loss = self._compute_loss(
@@ -201,7 +201,7 @@ class RRNSystem(pl.LightningModule):
         Replicates logic from the original test.py.
         """
         # Unpack Data
-        base_triples = batch["base_triples"]
+        base_grouped = batch["base_grouped"]
         base_memberships = batch["base_memberships"]
 
         if self.cfg.get("test_base_facts", True):
@@ -212,7 +212,7 @@ class RRNSystem(pl.LightningModule):
             target_memberships = batch["inferred_memberships"]
 
         # 3. RRN Inference (Always using BASE facts)
-        embeddings = self(base_triples, base_memberships)
+        embeddings = self(base_grouped, base_memberships)
 
         # 4. Evaluate Class Predictions
         individuals = batch.get("individuals", None)

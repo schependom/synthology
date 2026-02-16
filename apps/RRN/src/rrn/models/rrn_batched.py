@@ -36,7 +36,7 @@ NOTATION
 from collections import defaultdict
 
 # Typing
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 
 import torch
 import torch.nn as nn
@@ -318,13 +318,20 @@ class RRN(nn.Module):
 
     def forward(
         self,
-        triples: List[Triple],
+        grouped_triples: Dict[int, Dict[str, torch.Tensor]],
         # memberships -> for each individual (first list): -1,0,1 for each class (second list)
         memberships: List[List[int]],
         embedding_m: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Performs iterative updating using a batched sum-of-updates approach.
+        
+        Args:
+            grouped_triples: Dictionary of pre-grouped triples indices.
+                             Key: layer_idx (relation index)
+                             Value: {"s": LongTensor, "o": LongTensor}
+            memberships: List of class memberships for each individual.
+            embedding_m: Optional initial embeddings.
         """
 
         # Get current device from the model parameters (works with Lightning)
@@ -379,77 +386,64 @@ class RRN(nn.Module):
             #   -> same shape as embedding_m
             update_accumulator = torch.zeros_like(updated_embedding_m, device=device)
 
-            # ------------------ CREATE BATCHES PER (NEGATED) PREDICATE ------------------ #
-
-            # Group all triples by their update layer.
-            # We have three update layer types: (classes, positive relations, negative relations)
-            # But classes are already handled above.
-            grouped_triples = defaultdict(lambda: {"s_idx": [], "o_idx": []})
-            # This is a dict of dicts:
-            #   key: layer index
-            #   value: dict with    keys:   "s_idx" and "o_idx"
-            #                       values: lists of subject and object indices respectively
-            # Because of the lambda,
-            # keys that do not exist yet will be initialized with empty lists.
-
-            # Iterate over all triples and add them to the group dict
-            for triple in triples:
-                p_idx = triple.predicate.index
-
-                if triple.positive:
-                    # Positive relation update layer
-                    layer_idx = p_idx + 1
-                else:
-                    # Negative relation update layer
-                    layer_idx = p_idx + self._relation_count + 1
-
-                # Append subject and object indices to the appropriate lists
-                grouped_triples[layer_idx]["s_idx"].append(triple.subject.index)
-                grouped_triples[layer_idx]["o_idx"].append(triple.object.index)
-
             # ---------------------- LOOP OVER (NEGATED) PREDICATES ---------------------- #
 
             # Iterate over each update layer and perform batched updates.
-            #
-            #   ->  This means that for every distinct relation type (and its negation),
-            #       we gather all embedding deltas and apply them in a single operation.
-            #
-            #   ->  Denote the batch size for the layer as Br
-            #       (number of triples with that relation type).
+            # Using pre-grouped indices.
             #
             #   ->  1 BATCH = 1 PREDICATE TYPE (either positive or negated)
             #
+            #   Let 'layer_idx' correspond to a specific relation update module UR_k
+            #   Let 'data' contain the subject indices S and object indices O for all triples
+            #   mapped to this relation type.
+            #
+            #   S = [s_1, s_2, ..., s_Br]^T
+            #   O = [o_1, o_2, ..., o_Br]^T
+            #   where Br is the number of triples for this relation.
+            #
             for layer_idx, data in grouped_triples.items():
-                # Lists of subject and object indices for this layer (i.e. relation type)
-                s_idx_batch = data["s_idx"]
-                o_idx_batch = data["o_idx"]
+                
+                # Get indices tensors and move to device
+                # s_idx_tensor and o_idx_tensor are used for scattering updates back to the accumulator.
+                # Shape: (Br x 1)
+                s_idx_tensor = data["s"].to(device).unsqueeze(1) 
+                o_idx_tensor = data["o"].to(device).unsqueeze(1) 
 
-                # Create long tensors
-                s_idx_tensor = torch.tensor(s_idx_batch, dtype=torch.long, device=device).unsqueeze(1)
-                o_idx_tensor = torch.tensor(o_idx_batch, dtype=torch.long, device=device).unsqueeze(1)
-                # unsqueeze to make it (Br x 1) = ('number of triples' x 1)
+                # Get the indices for gathering embeddings.
+                # data["s"] is a 1D LongTensor of size (Br)
+                s_idx = data["s"].to(device)
+                o_idx = data["o"].to(device)
+                
+                # GATHER EMBEDDINGS
+                #
+                #   E_S = E[S]  = [e_{s_1}, ..., e_{s_Br}]^T    (Size: Br x d)
+                #   E_O = E[O]  = [e_{o_1}, ..., e_{o_Br}]^T    (Size: Br x d)
+                #
+                e_s_batch = updated_embedding_m[s_idx, :]
+                e_o_batch = updated_embedding_m[o_idx, :]
 
-                # Get the embeddings for the subjects and objects
-                #  that appear in relations of this specific (negated) predicate.
-                e_s_batch = updated_embedding_m[s_idx_batch, :]
-                e_o_batch = updated_embedding_m[o_idx_batch, :]
-
-                # Compute gated update terms for all triples in this batch
+                # COMPUTE UPDATES
+                #
+                #   Compute update terms for all triples in this batch simultaneously.
+                #
+                #   U_S, U_O = UR_k(E_S, E_O)
+                #
+                #   U_S = [u_{s_1}, ..., u_{s_Br}]^T
+                #   U_O = [u_{o_1}, ..., u_{o_Br}]^T
+                #
                 update_term_s_batch, update_term_o_batch = self.layers[layer_idx](e_s_batch, e_o_batch)
 
-                # Add updates to the accumulator matrix
-                # using scatter_add to add each update term to the correct entity index.
+                # ACCUMULATE UPDATES
+                #
+                #   Add the computed updates to the accumulator matrix.
+                #   Since an entity can appear multiple times in S or O (involved in multiple triples),
+                #   we use scatter_add_ to sum up all contributions.
+                #
+                #   Accumulator[s_i] += u_{s_i}
+                #   Accumulator[o_i] += u_{o_i}
+                #
                 update_accumulator.scatter_add_(0, s_idx_tensor.expand_as(update_term_s_batch), update_term_s_batch)
                 update_accumulator.scatter_add_(0, o_idx_tensor.expand_as(update_term_o_batch), update_term_o_batch)
-
-                # scatter_add_:
-                #   - dim=0: along the rows (entity dimension)
-                #   - index: indices where to add the updates
-                #   - src: the update terms to add
-
-                # expand_as:
-                #   - because index needs to have the same shape as src,
-                #     we expand the (Br x 1) index tensor to (Br x d)
 
             # Apply the final aggregated update
             #   (this is the replacement of the for-loop in the original RRN)

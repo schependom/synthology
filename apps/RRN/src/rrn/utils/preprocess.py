@@ -73,12 +73,86 @@ def preprocess_knowledge_graph(
         inferred_memberships.append(inferred_membership_vec)
         all_memberships.append(all_membership_vec)
 
+    # Group triples by predicate for efficient batching
+    base_grouped = group_triples_to_tensors(base_triples, len(kg.relations))
+    inferred_grouped = group_triples_to_tensors(inferred_triples, len(kg.relations))
+    all_grouped = group_triples_to_tensors(all_triples, len(kg.relations))
+
     return {
         "base_triples": base_triples,
+        "base_grouped": base_grouped,
         "base_memberships": base_memberships,
         "inferred_triples": inferred_triples,
+        "inferred_grouped": inferred_grouped,
         "inferred_memberships": inferred_memberships,
         "all_triples": all_triples,
+        "all_grouped": all_grouped,
         "all_memberships": all_memberships,
         "individuals": kg.individuals,
     }
+
+def group_triples_to_tensors(triples: List, relation_count: int) -> dict:
+    """
+    Groups triples by their predicate index and converts to PyTorch tensors for efficient batching.
+
+    CONTEXT:
+        In the RRN, relation updates are performed in batches where each batch corresponds to
+        a specific relation type r (or its negation \neg r).
+        
+        Instead of iterating over triples one-by-one, we group all triples <s, r, o>
+        that share the same relation r into a single bucket. This allows us to gather
+        the embeddings for all s and all o simultaneously and apply the specific
+        update function for r in one vectorized operation.
+
+    MAPPING TO LAYERS:
+        The RRN model defines a sequence of update layers:
+            Layer 0:                Class Update
+            Layer 1..R:             Positive Relation Updates (for r_1 ... r_R)
+            Layer R+1..2R:          Negative Relation Updates (for \neg r_1 ... \neg r_R)
+        
+        Therefore, a triple <s, r_k, o> maps to:
+            - Layer k+1             if it is a positive fact
+            - Layer k+R+1           if it is a negative fact (negated relation)
+
+    OUTPUT STRUCTURE:
+        The output is a dictionary mapping the Layer Index to the indices of subjects and objects:
+        {
+            layer_idx: {
+                "s": LongTensor([s_1, s_2, ..., s_{Br}]),   # Indices of subjects
+                "o": LongTensor([o_1, o_2, ..., o_{Br}])    # Indices of objects
+            },
+            ...
+        }
+        where Br is the batch size (number of triples) for that specific relation.
+    """
+    import torch
+    from collections import defaultdict
+
+    # Grouping structure
+    grouped = defaultdict(lambda: {"s_idx": [], "o_idx": []})
+    
+    for triple in triples:
+        p_idx = triple.predicate.index
+        
+        # Determine layer index (logic from rrn_batched.py)
+        if triple.positive:
+            # Positive relation update layer
+            # Layer index = k + 1 (since layer 0 is class update)
+            layer_idx = p_idx + 1
+        else:
+            # Negative relation update layer
+            # Layer index = k + R + 1
+            layer_idx = p_idx + relation_count + 1
+            
+        grouped[layer_idx]["s_idx"].append(triple.subject.index)
+        grouped[layer_idx]["o_idx"].append(triple.object.index)
+
+    # Convert to tensors
+    tensor_grouped = {}
+    for layer_idx, data in grouped.items():
+        tensor_grouped[layer_idx] = {
+            "s": torch.tensor(data["s_idx"], dtype=torch.long),
+            "o": torch.tensor(data["o_idx"], dtype=torch.long)
+        }
+    
+    return tensor_grouped
