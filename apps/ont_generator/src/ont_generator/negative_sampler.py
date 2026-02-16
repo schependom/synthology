@@ -69,7 +69,6 @@ class NegativeSampler:
         self.domains = domains or {}
         self.ranges = ranges or {}
         self.verbose = verbose
-        logger.error("DEBUG: NegativeSampler initialized!")
 
 
         # Optimization: Sets for fast lookup of existing facts
@@ -129,8 +128,6 @@ class NegativeSampler:
 
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
-
-        logger.error(f"DEBUG: add_negative_samples called with strategy={strategy}, corrupt_base_facts={corrupt_base_facts}")
 
         if strategy == "random":
             return self._random_corruption(kg, ratio)
@@ -1008,18 +1005,12 @@ class NegativeSampler:
             # 2. Update Substitutions
             new_substs = {}
             substs_changed = False
-            
-            # print("DEBUG_P: Checking substitutions...", file=sys.stdout, flush=True)
-            # for term in term_mapping:
-            #      print(f"DEBUG_P: Term mapping key: {term} (type: {type(term)}) hash={hash(term)}", file=sys.stdout, flush=True)
 
             for var, term in original_proof.substitutions.items():
                 if term in term_mapping:
-                    # print(f"DEBUG_P: MATCH! {term} -> {term_mapping[term]}", file=sys.stdout, flush=True)
                     new_substs[var] = term_mapping[term]
                     substs_changed = True
                 else:
-                    # print(f"DEBUG_P: NO MATCH for {term} (type: {type(term)}) hash={hash(term)}", file=sys.stdout, flush=True)
                     new_substs[var] = term
             
             if changed or substs_changed:

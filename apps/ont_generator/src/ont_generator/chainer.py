@@ -1029,6 +1029,7 @@ class BackwardChainer:
                 unbound_vars.update(p.get_variables())
 
             # Handle functional properties and generate individuals
+            generation_failed = False
             for var in unbound_vars:
                 if var not in rule_subst:
                     needs_functional_value = False
@@ -1050,12 +1051,22 @@ class BackwardChainer:
                         rule_subst[var] = self._functional_property_values[functional_key]
                     else:
                         # CREATE NEW: Either not functional, or first time for this (subject, property)
-                        new_ind = self._get_valid_individual(var, rule_subst, rule)
-                        rule_subst[var] = new_ind
+                        try:
+                            new_ind = self._get_valid_individual(var, rule_subst, rule)
+                            if new_ind is None:
+                                generation_failed = True
+                                break
+                            rule_subst[var] = new_ind
+                        except ValueError:
+                             generation_failed = True
+                             break
 
                         # STORE for future reuse if functional
                         if needs_functional_value and functional_key:
                             self._functional_property_values[functional_key] = new_ind
+            
+            if generation_failed:
+                continue
 
             # Final grounding of premises
             ground_premises = [p.substitute(rule_subst) for p in premises_with_bound_vars]
@@ -1210,7 +1221,7 @@ class BackwardChainer:
 
         return True
 
-    def _get_valid_individual(self, var: Var, current_subst: Dict[Var, Term], rule: ExecutableRule) -> Term:
+    def _get_valid_individual(self, var: Var, current_subst: Dict[Var, Term], rule: ExecutableRule) -> Optional[Term]:
         """
         Tries to get an individual that doesn't violate constraints when added to substitution.
 
@@ -1221,6 +1232,14 @@ class BackwardChainer:
         3. Verify complex rule-local constraints (Irreflexive, Functional).
         """
         required_classes = self._get_required_classes(var, rule)
+        
+        # Check if requirements themselves are contradictory (e.g. required to be both Male and Female)
+        for req_cls in required_classes:
+            disjoint_with = self.disjoint_class_names.get(req_cls, set())
+            if not required_classes.isdisjoint(disjoint_with):
+                if self.verbose:
+                    logger.debug(f"Contradictory requirements for {var}: {required_classes}")
+                return None
 
         # Strategy 1: Attempt Reuse
         # Filter pool for candidates that satisfy "static" constraints (Types/Disjointness)
