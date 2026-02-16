@@ -17,7 +17,7 @@ dataset:
   max_rules: 5
   min_proofs_per_rule: 3
   output_dir: "data/ont/output/family-visualize"
-  seed: 42
+  seed: 23
 
 export_proofs: true
 export_graphs: true
@@ -34,7 +34,6 @@ generator:
   always_generate_base_facts: false
 
 negative_sampling:
-  # Force proof_based strategy to ensure we generate proof visualizations
   strategy: "proof_based"
   ratio: 1.0
   corrupt_base_facts: true
