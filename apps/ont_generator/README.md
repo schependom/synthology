@@ -1,15 +1,6 @@
 # Ontology Knowledge Graph Generator (ont_generator)
 
-This application generates synthetic knowledge graphs (KGs) from OWL 2 RL ontologies using backward-chaining reasoning. It is designed to create high-quality training and testing datasets for Knowledge Graph Embedding (KGE) models.
-
-## Features
-
-- **Ontology-Driven Generation**: Generates data that respects the schema and logic of a provided `.ttl` ontology.
-- **Backward Chaining Reasoning**: Infers new facts based on ontology rules, ensuring logical consistency.
-- **Inductive Split**: Generates independent "Train" and "Test" graphs with disjoint sets of individuals (e.g., `train_Ind_0` vs `test_Ind_0`) to test inductive generalization.
-- **Negative Sampling**: Supports multiple strategies (`random`, `constrained`, `type_aware`, `proof_based`) to generate challenging negative triples.
-- **Explainability**: Can export proof trees for positive facts and explanations for hard negative samples.
-- **Validation**: Automatically validates generated graphs against ontology constraints (disjointness, domains, ranges, etc.).
+This application generates synthetic knowledge graphs (KGs) from OWL 2 RL ontologies using backward-chaining reasoning. It is designed to create high-quality training and testing datasets for Neuro-Symbolic Link Prediction.
 
 ## Installation
 

@@ -18,6 +18,20 @@ class TestOntologyParser:
                 parser = OntologyParser("dummy.ttl")
         return parser
 
+    def test_parse_auto_detect_format_xml(self, mock_graph):
+        """Test that the parser auto-detects XML format from the file extension."""
+        with patch("ont_generator.parse.Graph", return_value=mock_graph):
+            with patch.object(mock_graph, "parse") as mock_parse:
+                OntologyParser("dummy.xml")
+                mock_parse.assert_called_once_with("dummy.xml", format="xml")
+
+    def test_parse_auto_detect_format_unknown(self, mock_graph):
+        """Test that the parser falls back to parsing without a format string if unknown."""
+        with patch("ont_generator.parse.Graph", return_value=mock_graph):
+            with patch.object(mock_graph, "parse") as mock_parse:
+                OntologyParser("dummy.unknown_extension")
+                mock_parse.assert_called_once_with("dummy.unknown_extension")
+
     def test_discover_schema(self, parser):
         """Test that schema elements are correctly discovered from the graph."""
         # Add some schema definitions to the graph manually

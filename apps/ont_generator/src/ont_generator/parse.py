@@ -47,7 +47,12 @@ class OntologyParser:
         # Load the RDF graph
         self.graph = Graph()
         try:
-            self.graph.parse(ontology_file, format="turtle")
+            import rdflib.util
+            fmt = rdflib.util.guess_format(ontology_file)
+            if fmt:
+                self.graph.parse(ontology_file, format=fmt)
+            else:
+                self.graph.parse(ontology_file)
         except Exception as e:
             print(f"Error parsing ontology file: {e}")
             raise
