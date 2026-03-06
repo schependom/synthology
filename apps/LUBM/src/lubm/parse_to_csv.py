@@ -2,6 +2,7 @@ import os
 import csv
 import urllib.parse
 from pathlib import Path
+import random
 
 import hydra
 from loguru import logger
@@ -38,17 +39,16 @@ def parse_uri(uri: str) -> str:
     return uri
 
 
-def parse_lubm_directory(raw_dir: Path, output_dir: Path):
+def parse_lubm_directory(raw_dir: Path, output_dir: Path, split_ratios: dict):
     """
     Parses all .ttl files in a given LUBM raw directory and exports 
-    them as facts.csv and targets.csv in standard format.
+    them as facts.csv and targets.csv in standard format, split into
+    train, val, and test subdirectories.
     """
     if not raw_dir.exists():
         logger.error(f"Cannot find raw directory {raw_dir}")
         return
 
-    output_dir.mkdir(parents=True, exist_ok=True)
-    
     # RRN expects arbitrary sample IDs for independent KGs. 
     # Use 500000+ to avoid collision with ASP (100000+) and ONT generators.
     sample_id = 500000 + int(raw_dir.name.split("_")[-1])
@@ -59,8 +59,6 @@ def parse_lubm_directory(raw_dir: Path, output_dir: Path):
     ttl_files = list(raw_dir.glob("*.ttl"))
     logger.info(f"Parsing {len(ttl_files)} TTL files in {raw_dir}...")
 
-    # We use a single Graph across all TTL files in a particular size configuration 
-    # (e.g. lubm_1, lubm_5) to consolidate knowledge. LUBM produces consolidated graphs.
     combined_graph = rdflib.Graph()
     for ttl in ttl_files:
         try:
@@ -75,12 +73,9 @@ def parse_lubm_directory(raw_dir: Path, output_dir: Path):
         p_clean = parse_uri(predicate)
         o_clean = parse_uri(obj)
         
-        # We only care about object properties or type assignments
         if isinstance(obj, rdflib.Literal):
-            # Skip literal properties like 'name' to keep KG strictly relational
             continue
             
-        # Re-map standard rdf:type since it's commonly used by RRN as rdf:type
         if p_clean == "type":
             p_clean = "rdf:type"
 
@@ -106,23 +101,47 @@ def parse_lubm_directory(raw_dir: Path, output_dir: Path):
         facts_rows.append(fact)
         targets_rows.append(target)
 
-    # Write facts.csv
-    facts_path = output_dir / "facts.csv"
-    if facts_rows:
+    # Combine facts and targets for shuffled splitting
+    combined = list(zip(facts_rows, targets_rows))
+    random.seed(42)  # Replicable splits
+    random.shuffle(combined)
+    
+    total = len(combined)
+    train_ratio = split_ratios.get('train', 0.8)
+    val_ratio = split_ratios.get('val', 0.1)
+    test_ratio = split_ratios.get('test', 0.1)
+    
+    total_ratio = train_ratio + val_ratio + test_ratio
+    train_idx = int(total * (train_ratio / total_ratio))
+    val_idx = train_idx + int(total * (val_ratio / total_ratio))
+    
+    splits = {
+        "train": combined[:train_idx],
+        "val": combined[train_idx:val_idx],
+        "test": combined[val_idx:]
+    }
+    
+    for split_name, split_data in splits.items():
+        if not split_data:
+            continue
+            
+        split_facts, split_targets = zip(*split_data)
+        split_dir = output_dir / split_name
+        split_dir.mkdir(parents=True, exist_ok=True)
+        
+        facts_path = split_dir / "facts.csv"
         with open(facts_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=["sample_id", "subject", "predicate", "object"])
             writer.writeheader()
-            writer.writerows(facts_rows)
+            writer.writerows(split_facts)
 
-    # Write targets.csv
-    targets_path = output_dir / "targets.csv"
-    if targets_rows:
+        targets_path = split_dir / "targets.csv"
         with open(targets_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=["sample_id", "subject", "predicate", "object", "label", "truth_value", "type", "hops", "corruption_method"])
             writer.writeheader()
-            writer.writerows(targets_rows)
-
-    logger.success(f"Generated {len(facts_rows)} facts in {output_dir}")
+            writer.writerows(split_targets)
+            
+        logger.success(f"Generated {len(split_facts)} facts in {split_dir}")
 
 
 REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../..")
@@ -140,6 +159,7 @@ def main(cfg: DictConfig):
         return
 
     dataset_configs = cfg.dataset.sizes
+    split_ratios = cfg.dataset.get("split", {"train": 0.8, "val": 0.1, "test": 0.1})
     
     for univ_count in dataset_configs:
         size_label = f"lubm_{univ_count}"
@@ -150,8 +170,8 @@ def main(cfg: DictConfig):
             continue
             
         output_dir = base_dir / size_label # data/lubm/lubm_1
-        logger.info(f"Processing CSV output for {size_label}...")
-        parse_lubm_directory(raw_ds, output_dir)
+        logger.info(f"Processing CSV output for {size_label} into train, val and test files...")
+        parse_lubm_directory(raw_ds, output_dir, split_ratios)
 
 
 if __name__ == "__main__":

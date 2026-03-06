@@ -17,6 +17,13 @@ dataset:
   # Output directory for the datasets (standard format parsed CSVs)
   output_dir: "data/lubm"
 
+  # Ratios for splitting the parsed triples into train/val/test sets
+  # Should sum to 1.0. If not, it will be normalized by the parser.
+  split:
+    train: 0.8
+    val: 0.1
+    test: 0.1
+
 generator:
   # The format of the output from the Java generator. 
   # TURTLE is required for the Python parser to read it accurately using rdflib.
