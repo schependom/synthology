@@ -138,6 +138,21 @@ def train_rrn_asp(ctx: Context, args=""):
 
 
 @task
+def train_rrn_lubm(ctx: Context, args=""):
+    """Trains RRN based on default configurations in configs/rrn/ using LUBM data"""
+
+    print("\nRunning RRN training with LUBM dataset.")
+
+    cmd = "export PYTHONUNBUFFERED=1 && " # Ensure logs are unbuffered
+    cmd += "export LOGURU_COLORIZE=1 && " # Ensure logs are colored
+    # Add LUBM tag to wandb correctly using Hydra dict syntax
+    cmd += "uv run --package rrn python -m rrn.train data/dataset=lubm +logger.tags=[LUBM]"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
+@task
 def gen_lubm(ctx: Context, args=""):
     """
     Generates LUBM datasets using the orchestrator script in apps/LUBM
@@ -148,6 +163,30 @@ def gen_lubm(ctx: Context, args=""):
     if args:
         cmd += f" {args}"
     ctx.run(cmd)
+
+
+@task
+def parse_lubm(ctx: Context, args=""):
+    """
+    Parses LUBM generated TTL data into RRN standard CSV format.
+    """
+    print("\nRunning LUBM CSV parser.")
+    cmd = "export LOGURU_COLORIZE=1 && "
+    cmd += "uv run --package lubm python -m lubm.parse_to_csv"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
+@task
+def pipeline_lubm(ctx: Context, args=""):
+    """
+    Runs the full LUBM pipeline sequentially: generation then parsing.
+    """
+    print("\nStarting full LUBM generation & parsing pipeline.")
+    gen_lubm(ctx, args)
+    parse_lubm(ctx, args)
+    print("\nLUBM pipeline completed successfully.")
 
 
 # Data version control with DVC+SSH

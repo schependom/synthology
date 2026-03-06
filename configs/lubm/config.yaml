@@ -1,0 +1,33 @@
+# ============================================================================== #
+# LUBM Pipeline Configuration
+# ============================================================================== #
+
+dataset:
+  # The name of the dataset format/folder that will be generated
+  name: "lubm"
+  
+  # List of dataset sizes (university counts) to generate sequentially.
+  # The LUBM generator creates synthetic data where the size is parameterized 
+  # by the number of universities. 1 univ ~= ~100k generated triples.
+  sizes:
+    - 1
+    # - 5
+    # - 10
+  
+  # Output directory for the datasets (standard format parsed CSVs)
+  output_dir: "data/lubm"
+
+generator:
+  # The format of the output from the Java generator. 
+  # TURTLE is required for the Python parser to read it accurately using rdflib.
+  format: "TURTLE"
+  
+  # Consolidation mode. 
+  # "Maximal" combines output graphs to reduce thousands of small files into a handful of larger ones.
+  # Highly recommended for Turtle format to prevent OS file limit errors.
+  consolidate: "Maximal"
+  
+  # Number of threads the Java generator should use for multi-threading.
+  # Increase based on your machine/HPC core count to vastly speed up large generations.
+  # Set to 0 to automatically detect and use all available CPU cores.
+  threads: 0
