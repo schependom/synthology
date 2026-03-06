@@ -49,7 +49,7 @@ class LogGraphArtifacts(pl.Callback):
             
             # Extract data
             individuals = batch.get("individuals", [])
-            base_triples = batch.get("base_triples", [])
+            base_grouped = batch.get("base_grouped", {})
             base_memberships = batch.get("base_memberships", [])
             all_triples = batch.get("all_triples", [])
             
@@ -61,7 +61,7 @@ class LogGraphArtifacts(pl.Callback):
             # 1. Run RRN to get embeddings
             # We use no_grad to avoid tracking gradients
             with torch.no_grad():
-                embeddings = pl_module(base_triples, base_memberships)
+                embeddings = pl_module(base_grouped, base_memberships)
             
             # We assume batch size 1 (one graph)
             sample_id = f"val_sample_{i}"
