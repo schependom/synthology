@@ -391,6 +391,23 @@ A standard test set is chosen at random, meaning it usually consists of "easy" 1
 
 We shall **publish** the hard test set(s) for reproducibility.
 
+## Development
+
+### `uv`
+
+Creating a new subproject:
+
+```uv
+uv init apps/my-new-app --package
+uv sync
+```
+
+Adding new dependencies only to a specific subproject:
+
+```uv
+uv add <dependency> --package my-new-app
+```
+
 ## Known issues
 
 ### 1. Python output buffering

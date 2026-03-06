@@ -60,6 +60,7 @@ members = [
     "apps/asp_generator",
     "apps/RRN",
     "apps/ont_generator",
+    "apps/LUBM",
 ]
 
 [tool.uv.sources]
