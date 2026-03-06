@@ -137,6 +137,19 @@ def train_rrn_asp(ctx: Context, args=""):
     ctx.run(cmd)
 
 
+@task
+def gen_lubm(ctx: Context, args=""):
+    """
+    Generates LUBM datasets using the orchestrator script in apps/LUBM
+    """
+    print("\nRunning LUBM generator orchestrator.")
+    cmd = "export LOGURU_COLORIZE=1 && "
+    cmd += "uv run --package lubm python -m lubm.orchestrator"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
 # Data version control with DVC+SSH
 #
 #   1. uv add dvc[ssh] --dev

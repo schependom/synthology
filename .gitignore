@@ -203,3 +203,6 @@ visualizations/
 **/proofs/
 
 gpu_*.*
+
+data/lubm/raw/*
+log.*

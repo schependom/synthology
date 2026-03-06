@@ -1773,6 +1773,16 @@ wheels = [
 name = "lubm"
 version = "0.1.0"
 source = { editable = "apps/LUBM" }
+dependencies = [
+    { name = "loguru" },
+    { name = "rdflib" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "loguru", specifier = ">=0.7.3" },
+    { name = "rdflib", specifier = ">=7.5.0" },
+]
 
 [[package]]
 name = "markdown"

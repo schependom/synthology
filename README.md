@@ -138,10 +138,6 @@ dlv: /path/to/dlv/executable # <- change this!
 # ...
 ```
 
-#### Development tools
-
-See the [Development](#development) section for instructions on setting up development tools like `ruff` and `ty` (using VS Code extensions is recommended).
-
 ### Windows
 
 For the easiest use, you should open the **devcontainer**, which I included in `.devcontainer/`, for example using VS Code:
@@ -407,6 +403,13 @@ Adding new dependencies only to a specific subproject:
 ```uv
 uv add <dependency> --package my-new-app
 ```
+
+## TODO
+
+- [ ] Add LUBM generator
+- [ ] Add experiments
+- [ ] Add `invoke` commands to reproduce experiments
+- [ ] Add LUBM java dependencies to devcontainer
 
 ## Known issues
 
