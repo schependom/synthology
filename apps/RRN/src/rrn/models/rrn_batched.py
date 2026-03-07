@@ -102,7 +102,7 @@ class RelationUpdateSubject(nn.Module):
         # Rewriting the term:
         #       e_s * e_o^T * w  ==  e_s * (e_o^T * w)
         #                        ==  e_s * (e_o \cdot w)
-        dot_product_ow = torch.sum(object_embeddings * self.w.unsqueeze(0), dim=1, keepdim=True)
+        dot_product_ow = torch.sum(object_embeddings * self.w.view(1, -1), dim=1, keepdim=True)
         interaction_term = subject_embeddings * dot_product_ow
 
         # Update direction
@@ -168,7 +168,7 @@ class RelationUpdateObject(nn.Module):
         # Rewriting the term:
         #       e_s * e_o^T * w  ==  e_s * (e_o^T * w)
         #                        ==  e_s * (e_o \cdot w)
-        dot_product_ow = torch.sum(object_embeddings * self.w.unsqueeze(0), dim=1, keepdim=True)
+        dot_product_ow = torch.sum(object_embeddings * self.w.view(1, -1), dim=1, keepdim=True)
         interaction_term = subject_embeddings * dot_product_ow
 
         # Update direction
