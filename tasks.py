@@ -166,6 +166,19 @@ def gen_lubm(ctx: Context, args=""):
 
 
 @task
+def gen_lubm_tbox(ctx: Context, args=""):
+    """
+    Downloads the LUBM TBox ontology and saves it to data/ont/input/lubm.ttl
+    """
+    print("\nDownloading LUBM TBox ontology.")
+    cmd = "export LOGURU_COLORIZE=1 && "
+    cmd += "uv run --package lubm python -m lubm.download_tbox"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
+@task
 def parse_lubm(ctx: Context, args=""):
     """
     Parses LUBM generated TTL data into RRN standard CSV format.
