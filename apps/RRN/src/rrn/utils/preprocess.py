@@ -134,6 +134,11 @@ def group_triples_to_tensors(triples: List, relation_count: int) -> dict:
     for triple in triples:
         p_idx = triple.predicate.index
         
+        # Ignore out-of-schema relations entirely (p_idx = -1)
+        # If not ignored, layer_idx becomes 0, which illegally invokes the ClassUpdate MLP layer!
+        if p_idx == -1:
+            continue
+            
         # Determine layer index (logic from rrn_batched.py)
         if triple.positive:
             # Positive relation update layer
