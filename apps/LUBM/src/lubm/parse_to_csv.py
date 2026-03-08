@@ -68,6 +68,10 @@ def parse_lubm_directory(raw_dir: Path, output_dir: Path, split_ratios: dict):
 
     logger.info(f"Parsed {len(combined_graph)} triples. Generating CSV rows...")
 
+    target_ratio = cfg.dataset.get("target_ratio", 0.0)
+    random.seed(42)  # Replicable splits
+
+    all_triples = []
     for subject, predicate, obj in combined_graph:
         s_clean = parse_uri(subject)
         p_clean = parse_uri(predicate)
@@ -78,35 +82,12 @@ def parse_lubm_directory(raw_dir: Path, output_dir: Path, split_ratios: dict):
             
         if p_clean == "type":
             p_clean = "rdf:type"
-
-        fact = {
-            "sample_id": str(sample_id),
-            "subject": s_clean,
-            "predicate": p_clean,
-            "object": o_clean
-        }
-
-        target = {
-            "sample_id": str(sample_id),
-            "subject": s_clean,
-            "predicate": p_clean,
-            "object": o_clean,
-            "label": 1,
-            "truth_value": "True",
-            "type": "base_fact",
-            "hops": 0,
-            "corruption_method": ""  # Blank for ground truth
-        }
-
-        facts_rows.append(fact)
-        targets_rows.append(target)
-
-    # Combine facts and targets for shuffled splitting
-    combined = list(zip(facts_rows, targets_rows))
-    random.seed(42)  # Replicable splits
-    random.shuffle(combined)
+            
+        all_triples.append((s_clean, p_clean, o_clean))
+        
+    random.shuffle(all_triples)
     
-    total = len(combined)
+    total = len(all_triples)
     train_ratio = split_ratios.get('train', 0.8)
     val_ratio = split_ratios.get('val', 0.1)
     test_ratio = split_ratios.get('test', 0.1)
@@ -116,16 +97,46 @@ def parse_lubm_directory(raw_dir: Path, output_dir: Path, split_ratios: dict):
     val_idx = train_idx + int(total * (val_ratio / total_ratio))
     
     splits = {
-        "train": combined[:train_idx],
-        "val": combined[train_idx:val_idx],
-        "test": combined[val_idx:]
+        "train": all_triples[:train_idx],
+        "val": all_triples[train_idx:val_idx],
+        "test": all_triples[val_idx:]
     }
     
-    for split_name, split_data in splits.items():
-        if not split_data:
+    for split_name, split_triples in splits.items():
+        if not split_triples:
             continue
             
-        split_facts, split_targets = zip(*split_data)
+        facts_rows = []
+        targets_rows = []
+        
+        for s, p, o in split_triples:
+            is_target_only = (random.random() < target_ratio)
+            fact_type = "inferred" if is_target_only else "base_fact"
+            
+            fact = {
+                "sample_id": str(sample_id),
+                "subject": s,
+                "predicate": p,
+                "object": o
+            }
+            target = {
+                "sample_id": str(sample_id),
+                "subject": s,
+                "predicate": p,
+                "object": o,
+                "label": 1,
+                "truth_value": "True",
+                "type": fact_type,
+                "hops": 0,
+                "corruption_method": ""
+            }
+            
+            if fact_type == "base_fact":
+                facts_rows.append(fact)
+                targets_rows.append(target)
+            else:
+                targets_rows.append(target)
+                
         split_dir = output_dir / split_name
         split_dir.mkdir(parents=True, exist_ok=True)
         
@@ -133,15 +144,15 @@ def parse_lubm_directory(raw_dir: Path, output_dir: Path, split_ratios: dict):
         with open(facts_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=["sample_id", "subject", "predicate", "object"])
             writer.writeheader()
-            writer.writerows(split_facts)
+            writer.writerows(facts_rows)
 
         targets_path = split_dir / "targets.csv"
         with open(targets_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=["sample_id", "subject", "predicate", "object", "label", "truth_value", "type", "hops", "corruption_method"])
             writer.writeheader()
-            writer.writerows(split_targets)
+            writer.writerows(targets_rows)
             
-        logger.success(f"Generated {len(split_facts)} facts in {split_dir}")
+        logger.success(f"Generated {len(facts_rows)} base facts and {len(targets_rows)} targets in {split_dir}")
 
 
 REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../..")

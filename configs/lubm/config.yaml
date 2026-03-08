@@ -10,7 +10,7 @@ dataset:
   # The LUBM generator creates synthetic data where the size is parameterized 
   # by the number of universities. 1 univ ~= ~100k generated triples.
   sizes:
-    - 1
+    - 100
     # - 5
     # - 10
   
@@ -23,6 +23,12 @@ dataset:
     train: 0.8
     val: 0.1
     test: 0.1
+
+  # Target Ratio for Link Prediction (Artificial Sparsity)
+  # Determines the percentage (0.0 to 1.0) of edges inside each split to be 
+  # held-out of the context graph (facts.csv) and used solely as prediction 
+  # targets (targets.csv). A value of 0.2 means 20% of edges are dropped.
+  target_ratio: 0.2
 
 generator:
   # The format of the output from the Java generator. 
