@@ -39,7 +39,7 @@ def parse_uri(uri: str) -> str:
     return uri
 
 
-def parse_lubm_directory(raw_dir: Path, output_dir: Path, split_ratios: dict):
+def parse_lubm_directory(raw_dir: Path, output_dir: Path, split_ratios: dict, target_ratio: float = 0.0):
     """
     Parses all .ttl files in a given LUBM raw directory and exports 
     them as facts.csv and targets.csv in standard format, split into
@@ -68,7 +68,6 @@ def parse_lubm_directory(raw_dir: Path, output_dir: Path, split_ratios: dict):
 
     logger.info(f"Parsed {len(combined_graph)} triples. Generating CSV rows...")
 
-    target_ratio = cfg.dataset.get("target_ratio", 0.0)
     random.seed(42)  # Replicable splits
 
     all_triples = []
@@ -181,8 +180,9 @@ def main(cfg: DictConfig):
             continue
             
         output_dir = base_dir / size_label # data/lubm/lubm_1
+        target_ratio = cfg.dataset.get("target_ratio", 0.0)
         logger.info(f"Processing CSV output for {size_label} into train, val and test files...")
-        parse_lubm_directory(raw_ds, output_dir, split_ratios)
+        parse_lubm_directory(raw_ds, output_dir, split_ratios, target_ratio)
 
 
 if __name__ == "__main__":
