@@ -483,8 +483,10 @@ class NegativeSampler:
 
                                 # VISUALIZATION: Export the propagated proof
                                 if export_proofs and output_dir and exported_propagated_count < MAX_EXPORTS:
+                                    neg_dir = os.path.join(output_dir, "negative")
+                                    os.makedirs(neg_dir, exist_ok=True)
                                     filename = f"propagated_proof_{len(negative_triples)}_{neg_goal.subject.name}_{neg_goal.predicate.name}_{neg_goal.object.name}"
-                                    full_path = os.path.join(output_dir, filename)
+                                    full_path = os.path.join(neg_dir, filename)
                                     propagated_proof.save_visualization(
                                         full_path,
                                         format="pdf",
@@ -528,6 +530,8 @@ class NegativeSampler:
                         and exported_corrupted_count < MAX_EXPORTS
                         and not propagated_exported
                     ):
+                        neg_dir = os.path.join(output_dir, "negative")
+                        os.makedirs(neg_dir, exist_ok=True)
                         # Create atom from negative triple
                         new_atom = Atom(
                             predicate=neg_triple.predicate,
@@ -540,7 +544,7 @@ class NegativeSampler:
 
                         # Save visualization
                         filename = f"corrupted_proof_{len(negative_triples)}_{pos_triple.subject.name}_{pos_triple.predicate.name}_{pos_triple.object.name}"
-                        full_path = os.path.join(output_dir, filename)
+                        full_path = os.path.join(neg_dir, filename)
                         if self.verbose:
                             logger.info(f"Saving corrupted proof to {full_path}")
                         corrupted_proof.save_visualization(

@@ -36,11 +36,13 @@ class Validator:
         domains: Dict[str, Set[str]],
         ranges: Dict[str, Set[str]],
         verbose: bool = False,
+        min_lcc_ratio: float = 0.8,
     ):
         self.constraints = constraints
         self.domains = domains
         self.ranges = ranges
         self.verbose = verbose
+        self.min_lcc_ratio = min_lcc_ratio
 
         # Registry of validation checks
         # Each check should return a list of error strings (empty if passed)
@@ -263,10 +265,10 @@ class Validator:
                 ratio = largest_cc_size / len(G.nodes)
 
                 # Check if LCC is too small (graph too fragmented)
-                # We want at least 80% of nodes to be in the main component for a healthy KG
-                if ratio < 0.8:
+                # We want at least min_lcc_ratio of nodes to be in the main component for a healthy KG
+                if ratio < self.min_lcc_ratio:
                     errors.append(
-                        f"Wrapper: Graph is fragmented (LCC covers {ratio:.1%} of {len(G.nodes)} nodes). Ideal > 80%"
+                        f"Wrapper: Graph is fragmented (LCC covers {ratio:.1%} of {len(G.nodes)} nodes). Ideal >= {self.min_lcc_ratio:.0%}"
                     )
 
         return errors

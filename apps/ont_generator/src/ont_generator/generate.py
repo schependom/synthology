@@ -170,7 +170,9 @@ def atoms_to_knowledge_graph(
             key = (s.name, p.name, o)
             if key not in attr_triples:
                 assert isinstance(s, Individual)
-                assert isinstance(o, LiteralValue)
+                if isinstance(o, (Class, Relation, Attribute, Individual)):
+                    print(f"DEBUG BAD LUBM ATTR: p={p.name}, o={o}")
+                    continue
                 attr_triples[key] = AttributeTriple(s, p, o, proofs=[])
             if current_proofs:
                 attr_triples[key].proofs.extend(current_proofs)

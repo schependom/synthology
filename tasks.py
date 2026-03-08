@@ -110,6 +110,22 @@ def visualize_proofs(ctx: Context, args=""):
 
 
 @task
+def visualize_lubm_proofs(ctx: Context, args=""):
+    """
+    Generates a few medium-sized datasets based on LUBM with all negative sampling strategies
+    and exports proof tree visualizations for manual inspection.
+    Output goes to data/ont/output/lubm-visualize/proofs/ and data/ont/output/lubm-visualize/graphs/.
+    """
+
+    print("\nGenerating LUBM proof visualizations (medium dataset, mixed strategy).")
+    cmd = "export LOGURU_COLORIZE=1 && "
+    cmd += "uv run --package ont_generator python -m ont_generator.create_data --config-name=config_lubm_visualize"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
+@task
 def train_rrn_ont(ctx: Context, args=""):
     """Trains RRN based on default configurations in configs/rrn/"""
 

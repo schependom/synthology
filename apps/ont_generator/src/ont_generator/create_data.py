@@ -96,6 +96,7 @@ class KGEDatasetGenerator:
             domains=self.generator.parser.domains,
             ranges=self.generator.parser.ranges,
             verbose=verbose,
+            min_lcc_ratio=cfg.generator.get("min_lcc_ratio", 0.8),
         )
 
         # Negative sampling config
@@ -393,6 +394,28 @@ class KGEDatasetGenerator:
                 for atom, proof_list in extracted_map.items():
                     sample_proof_map[atom].extend(proof_list)
                 atoms_found = True
+
+                # Export positive proofs if required
+                if self.export_proofs and self.proof_output_dir:
+                    pos_dir = os.path.join(self.proof_output_dir, "positive")
+                    os.makedirs(pos_dir, exist_ok=True)
+                    # Limit the number of exported proofs to prevent generating thousands of files
+                    # We can use a simple cap based on existing files or random sampling.
+                    # Here we just generate a unique filename
+                    import uuid
+                    uid = str(uuid.uuid4())[:8]
+                    filename = f"positive_proof_{rule.name}_{uid}"
+                    full_path = os.path.join(pos_dir, filename)
+                    # We will rely on MAX_EXPORTS later to cap negatives, so just save positives freely here
+                    # To prevent infinite growth, we might only save a fraction:
+                    if random.random() < 0.2:  # Save 20% of positive proofs to avoid cluttering
+                        proof.save_visualization(
+                            full_path,
+                            format="pdf",
+                            title=f"Positive Proof ({rule.name})",
+                            root_label="TRUE CONCLUSION",
+                            fact_type="inferred",
+                        )
 
         if not atoms_found:
             if self.verbose:
