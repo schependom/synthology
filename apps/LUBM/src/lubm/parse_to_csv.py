@@ -121,7 +121,14 @@ def parse_lubm_directory(raw_dir: Path, output_dir: Path, split_ratios: dict, ta
         facts_rows = []
         targets_rows = []
         
+        # --- Positive Targets ---
         for sid, sample_triples in split_samples:
+            
+            # Pre-compute all unique entities in this specific dataset for faster corruption
+            all_entities = list(set([t[0] for t in sample_triples] + [t[2] for t in sample_triples]))
+            
+            positive_targets = []
+            
             for s, p, o in sample_triples:
                 is_target_only = (random.random() < target_ratio)
                 fact_type = "inferred" if is_target_only else "base_fact"
@@ -144,11 +151,38 @@ def parse_lubm_directory(raw_dir: Path, output_dir: Path, split_ratios: dict, ta
                     "corruption_method": ""
                 }
             
-            if fact_type == "base_fact":
-                facts_rows.append(fact)
-                targets_rows.append(target)
-            else:
-                targets_rows.append(target)
+                if fact_type == "base_fact":
+                    facts_rows.append(fact)
+                    targets_rows.append(target)
+                else:
+                    positive_targets.append(target)
+                    targets_rows.append(target)
+            
+            # --- Negative Targets (Link Prediction Sparsity) ---
+            # Generate 1 negative sample per positive target to prevent class imbalance
+            # and to allow the model to actually learn from false links.
+            for pos_tgt in positive_targets:
+                # Randomly corrupt subject or object (basic negative sampling)
+                corrupt_object = random.choice([True, False])
+                corrupted_entity = random.choice(all_entities)
+                
+                # Ensure we don't accidentally recreate the positive fact
+                while corrupted_entity == (pos_tgt["object"] if corrupt_object else pos_tgt["subject"]):
+                    corrupted_entity = random.choice(all_entities)
+                
+                neg_target = {
+                    "sample_id": pos_tgt["sample_id"],
+                    "subject": pos_tgt["subject"] if corrupt_object else corrupted_entity,
+                    "predicate": pos_tgt["predicate"],
+                    "object": corrupted_entity if corrupt_object else pos_tgt["object"],
+                    "label": 0,  # Negative!
+                    "truth_value": "False",
+                    "type": "inferred",
+                    "hops": 0,
+                    "corruption_method": "random"
+                }
+                targets_rows.append(neg_target)
+                
                 
         split_dir = output_dir / split_name
         split_dir.mkdir(parents=True, exist_ok=True)

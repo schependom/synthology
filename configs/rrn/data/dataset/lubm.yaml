@@ -1,5 +1,5 @@
 name: "LUBM (Lehigh University Benchmark)"
 
-train_path: "data/lubm/lubm_1/train"
-val_path: "data/lubm/lubm_1/val"
-test_path: "data/lubm/lubm_1/test"
+train_path: "data/lubm/lubm_100/train"
+val_path: "data/lubm/lubm_100/val"
+test_path: "data/lubm/lubm_100/test"
