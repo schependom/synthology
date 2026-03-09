@@ -30,6 +30,13 @@ dataset:
   # targets (targets.csv). A value of 0.2 means 20% of edges are dropped.
   target_ratio: 0.2
 
+  # Number of Independent Subgraph Samples
+  # The parser will sequentially chunk the aggregated LUBM triples into this
+  # exact number of datasets (sample_ids) while preserving local graph density.
+  # Set to 'null' to automatically use the exact number of raw TTL files generated 
+  # (e.g. 10 files = 10 samples).
+  num_samples: 10000
+
 generator:
   # The format of the output from the Java generator. 
   # TURTLE is required for the Python parser to read it accurately using rdflib.

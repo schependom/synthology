@@ -3,6 +3,7 @@ import csv
 import urllib.parse
 from pathlib import Path
 import random
+from typing import Optional
 
 import hydra
 from loguru import logger
@@ -39,7 +40,7 @@ def parse_uri(uri: str) -> str:
     return uri
 
 
-def parse_lubm_directory(raw_dir: Path, output_dir: Path, split_ratios: dict, target_ratio: float = 0.0):
+def parse_lubm_directory(raw_dir: Path, output_dir: Path, split_ratios: dict, target_ratio: float = 0.0, num_samples: Optional[int] = None):
     """
     Parses all .ttl files in a given LUBM raw directory and exports 
     them as facts.csv and targets.csv in standard format, split into
@@ -49,86 +50,99 @@ def parse_lubm_directory(raw_dir: Path, output_dir: Path, split_ratios: dict, ta
         logger.error(f"Cannot find raw directory {raw_dir}")
         return
 
+    import math
+
     # RRN expects arbitrary sample IDs for independent KGs. 
     # Use 500000+ to avoid collision with ASP (100000+) and ONT generators.
-    sample_id = 500000 + int(raw_dir.name.split("_")[-1])
+    base_sample_id = 500000 + int(raw_dir.name.split("_")[-1]) * 10000
 
-    facts_rows = []
-    targets_rows = []
-    
     ttl_files = list(raw_dir.glob("*.ttl"))
-    logger.info(f"Parsing {len(ttl_files)} TTL files in {raw_dir}...")
-
-    combined_graph = rdflib.Graph()
-    for ttl in ttl_files:
-        try:
-            combined_graph.parse(ttl, format="turtle")
-        except Exception as e:
-            logger.error(f"Error parsing {ttl.name}: {e}")
-
-    logger.info(f"Parsed {len(combined_graph)} triples. Generating CSV rows...")
+    logger.info(f"Parsing {len(ttl_files)} TTL files in {raw_dir} sequentially to preserve structural local density...")
 
     random.seed(42)  # Replicable splits
-
+    
     all_triples = []
-    for subject, predicate, obj in combined_graph:
-        s_clean = parse_uri(subject)
-        p_clean = parse_uri(predicate)
-        o_clean = parse_uri(obj)
-        
-        if isinstance(obj, rdflib.Literal):
+    
+    for i, ttl in enumerate(ttl_files):
+        local_graph = rdflib.Graph()
+        try:
+            local_graph.parse(ttl, format="turtle")
+        except Exception as e:
+            logger.error(f"Error parsing {ttl.name}: {e}")
             continue
             
-        if p_clean == "type":
-            p_clean = "rdf:type"
+        for subject, predicate, obj in local_graph:
+            s_clean = parse_uri(subject)
+            p_clean = parse_uri(predicate)
+            o_clean = parse_uri(obj)
             
-        all_triples.append((s_clean, p_clean, o_clean))
-        
-    random.shuffle(all_triples)
+            if isinstance(obj, rdflib.Literal):
+                continue
+                
+            if p_clean == "type":
+                p_clean = "rdf:type"
+                
+            all_triples.append((s_clean, p_clean, o_clean))
+
+    if num_samples is None:
+        num_samples = len(ttl_files)
+
+    chunk_size = math.ceil(len(all_triples) / max(1, num_samples))
+    logger.info(f"Parsed {len(all_triples)} individual triples. Slicing sequentially into {num_samples} samples of roughly {chunk_size} triples each.")
     
-    total = len(all_triples)
+    samples = []
+    for i in range(0, len(all_triples), chunk_size):
+        chunk = all_triples[i : i+chunk_size]
+        current_sample_id = base_sample_id + len(samples)
+        samples.append((current_sample_id, chunk))
+    
+    # Shuffle the samples globally to mix subgraphs across train/val/test splits
+    random.shuffle(samples)
+    
+    total_samples = len(samples)
     train_ratio = split_ratios.get('train', 0.8)
     val_ratio = split_ratios.get('val', 0.1)
     test_ratio = split_ratios.get('test', 0.1)
     
     total_ratio = train_ratio + val_ratio + test_ratio
-    train_idx = int(total * (train_ratio / total_ratio))
-    val_idx = train_idx + int(total * (val_ratio / total_ratio))
+    train_idx = int(total_samples * (train_ratio / total_ratio))
+    val_idx = train_idx + int(total_samples * (val_ratio / total_ratio))
     
     splits = {
-        "train": all_triples[:train_idx],
-        "val": all_triples[train_idx:val_idx],
-        "test": all_triples[val_idx:]
+        "train": samples[:train_idx],
+        "val": samples[train_idx:val_idx],
+        "test": samples[val_idx:]
     }
     
-    for split_name, split_triples in splits.items():
-        if not split_triples:
+    for split_name, split_samples in splits.items():
+        if not split_samples:
             continue
             
         facts_rows = []
         targets_rows = []
         
-        for s, p, o in split_triples:
-            is_target_only = (random.random() < target_ratio)
-            fact_type = "inferred" if is_target_only else "base_fact"
-            
-            fact = {
-                "sample_id": str(sample_id),
-                "subject": s,
-                "predicate": p,
-                "object": o
-            }
-            target = {
-                "sample_id": str(sample_id),
-                "subject": s,
-                "predicate": p,
-                "object": o,
-                "label": 1,
-                "truth_value": "True",
-                "type": fact_type,
-                "hops": 0,
-                "corruption_method": ""
-            }
+        for sid, sample_triples in split_samples:
+            for s, p, o in sample_triples:
+                is_target_only = (random.random() < target_ratio)
+                fact_type = "inferred" if is_target_only else "base_fact"
+                
+                fact = {
+                    "sample_id": str(sid),
+                    "subject": s,
+                    "predicate": p,
+                    "object": o
+                }
+                target = {
+                    "sample_id": str(sid),
+                    "subject": s,
+                    "predicate": p,
+                    "object": o,
+                    "label": 1,
+                    "truth_value": "True",
+                    "type": fact_type,
+                    "hops": 0,
+                    "corruption_method": ""
+                }
             
             if fact_type == "base_fact":
                 facts_rows.append(fact)
@@ -181,8 +195,9 @@ def main(cfg: DictConfig):
             
         output_dir = base_dir / size_label # data/lubm/lubm_1
         target_ratio = cfg.dataset.get("target_ratio", 0.0)
+        num_samples = cfg.dataset.get("num_samples", None)
         logger.info(f"Processing CSV output for {size_label} into train, val and test files...")
-        parse_lubm_directory(raw_ds, output_dir, split_ratios, target_ratio)
+        parse_lubm_directory(raw_ds, output_dir, split_ratios, target_ratio, num_samples)
 
 
 if __name__ == "__main__":
