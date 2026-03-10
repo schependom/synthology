@@ -124,8 +124,18 @@ def parse_lubm_directory(raw_dir: Path, output_dir: Path, split_ratios: dict, ta
         # --- Positive Targets ---
         for sid, sample_triples in split_samples:
             
-            # Pre-compute all unique entities in this specific dataset for faster corruption
-            all_entities = list(set([t[0] for t in sample_triples] + [t[2] for t in sample_triples]))
+            # Pre-compute all unique entities and classes in this specific dataset
+            all_individuals = set()
+            all_classes = set()
+            for s, p, o in sample_triples:
+                all_individuals.add(s)
+                if p == "rdf:type":
+                    all_classes.add(o)
+                else:
+                    all_individuals.add(o)
+                    
+            all_individuals = list(all_individuals)
+            all_classes = list(all_classes)
             
             positive_targets = []
             
@@ -164,15 +174,23 @@ def parse_lubm_directory(raw_dir: Path, output_dir: Path, split_ratios: dict, ta
             for pos_tgt in positive_targets:
                 # Randomly corrupt subject or object (basic negative sampling)
                 corrupt_object = random.choice([True, False])
-                corrupted_entity = random.choice(all_entities)
                 
-                # Ensure we don't accidentally recreate the positive fact
-                while corrupted_entity == (pos_tgt["object"] if corrupt_object else pos_tgt["subject"]):
-                    corrupted_entity = random.choice(all_entities)
+                if pos_tgt["predicate"] == "rdf:type" and corrupt_object:
+                    choices = all_classes
+                else:
+                    choices = all_individuals
+
+                if len(choices) < 2:
+                    # Rare fallback if there's only 1 valid option, don't accidentally create infinite loop
+                    corrupted_entity = "Dummy_Fallback"
+                else:
+                    corrupted_entity = random.choice(choices)
+                    while corrupted_entity == (pos_tgt["object"] if corrupt_object else pos_tgt["subject"]):
+                        corrupted_entity = random.choice(choices)
                 
                 neg_target = {
                     "sample_id": pos_tgt["sample_id"],
-                    "subject": pos_tgt["subject"] if corrupt_object else corrupted_entity,
+                    "subject": pos_tgt["subject"] if not corrupt_object else corrupted_entity,
                     "predicate": pos_tgt["predicate"],
                     "object": corrupted_entity if corrupt_object else pos_tgt["object"],
                     "label": 0,  # Negative!
