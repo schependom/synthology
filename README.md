@@ -30,45 +30,55 @@ This repository implements this generator and evaluates the quality of the gener
 
 ## Table of Contents <!-- omit in toc -->
 
--   [Introduction](#introduction)
-    -   [Context \& Problem Statement](#context--problem-statement)
-    -   [Hypothesis and Approach](#hypothesis-and-approach)
--   [Features](#features)
--   [Installation](#installation)
-    -   [macOS/Linux](#macoslinux)
-        -   [UV installation](#uv-installation)
-        -   [DLV](#dlv)
-        -   [Development tools](#development-tools)
-    -   [Windows](#windows)
-        -   [Activation of virtual environment](#activation-of-virtual-environment)
-        -   [DLV](#dlv-1)
-        -   [Development tools](#development-tools-1)
--   [Generating datasets](#generating-datasets)
-    -   [ASP solver](#asp-solver)
-    -   [Ontology-based generator](#ontology-based-generator)
--   [Training RRN model](#training-rrn-model)
--   [Full workflow](#full-workflow)
--   [Custom configurations](#custom-configurations)
-    -   [1. Edit configuration files](#1-edit-configuration-files)
-    -   [2. Override configurations from command line](#2-override-configurations-from-command-line)
--   [Development](#development)
--   [Known issues](#known-issues)
-    -   [1. Python output buffering](#1-python-output-buffering)
+- [Introduction](#introduction)
+    - [Context \& Problem Statement](#context--problem-statement)
+    - [Hypothesis and Approach](#hypothesis-and-approach)
+- [Features](#features)
+- [Installation](#installation)
+    - [macOS/Linux](#macoslinux)
+        - [UV installation](#uv-installation)
+        - [DLV](#dlv)
+    - [Windows](#windows)
+        - [Activation of virtual environment](#activation-of-virtual-environment)
+        - [DLV](#dlv-1)
+        - [Development tools](#development-tools)
+- [Generating datasets](#generating-datasets)
+    - [Standard Data Format](#standard-data-format)
+    - [ASP solver (Family Tree)](#asp-solver-family-tree)
+    - [Ontology-based generator](#ontology-based-generator)
+- [Training RRN model](#training-rrn-model)
+- [Hyperparameter Optimization (WandB Sweeps)](#hyperparameter-optimization-wandb-sweeps)
+- [Full workflow](#full-workflow)
+- [Custom configurations](#custom-configurations)
+    - [1. Edit configuration files](#1-edit-configuration-files)
+    - [2. Override configurations from command line](#2-override-configurations-from-command-line)
+- [Experiments](#experiments)
+    - [Descriptions](#descriptions)
+        - [1. Depth test](#1-depth-test)
+        - [2. Negative Sampling Quality](#2-negative-sampling-quality)
+        - [3. Information Density](#3-information-density)
+        - [4. Scalability](#4-scalability)
+    - [Creating a 'hard test set'](#creating-a-hard-test-set)
+- [Development](#development)
+    - [`uv`](#uv)
+- [TODO](#todo)
+- [Known issues](#known-issues)
+    - [1. Python output buffering](#1-python-output-buffering)
 
 ## Features
 
 Don't worry if the repository looks a bit overwhelming :)
 I value **reproducibility** of scientific experiments very highly, so:
 
--   I created a sophisticated `uv` **_monorepo_**, i.e. a single repository containing multiple packages as 'subprojects', each with their own dependencies and configurations.
--   I added a **Linux devcontainer** for easy setup on any OS (including Windows, which is not Unix-based like Linux or macOS).
+- I created a sophisticated `uv` **_monorepo_**, i.e. a single repository containing multiple packages as 'subprojects', each with their own dependencies and configurations.
+- I added a **Linux devcontainer** for easy setup on any OS (including Windows, which is not Unix-based like Linux or macOS).
 
 The _subprojects_ (located in `apps/`) are:
 
--   `ont_generator`: The backward-chaining ontology-based data generator I created for my thesis
--   `asp_generator`: The ASP-based family tree data generator by Patrick Hohenecker (see [below](#ASP-solver))
--   `rrn`: The Recursive Reasoning Model (also by Patrick Hohenecker) is a neuro-symbolic link prediction model, used for testing the quality of the generated datasets.
--   `baselines`: A collection of baseline link prediction models (e.g., TransE, DistMult, ComplEx) to further benchmark the performance of the generated datasets.
+- `ont_generator`: The backward-chaining ontology-based data generator I created for my thesis
+- `asp_generator`: The ASP-based family tree data generator by Patrick Hohenecker (see [below](#ASP-solver))
+- `rrn`: The Recursive Reasoning Model (also by Patrick Hohenecker) is a neuro-symbolic link prediction model, used for testing the quality of the generated datasets.
+- `baselines`: A collection of baseline link prediction models (e.g., TransE, DistMult, ComplEx) to further benchmark the performance of the generated datasets.
 
 The `uv` nature of this repo makes it possible to easily manage **dependencies** between these subprojects. Furthermore, it provides a **task runner** (`invoke`) to run common tasks (e.g., generating datasets, training models, running experiments) from the project root. Use the following command to see all available tasks:
 
@@ -142,9 +152,9 @@ dlv: /path/to/dlv/executable # <- change this!
 
 For the easiest use, you should open the **devcontainer**, which I included in `.devcontainer/`, for example using VS Code:
 
--   I assume you are in the project root directory.
--   Click the `><` icon in the bottom-left corner of VS Code.
--   Select `Reopen in Container`.
+- I assume you are in the project root directory.
+- Click the `><` icon in the bottom-left corner of VS Code.
+- Select `Reopen in Container`.
 
 The (Linux) devcontainer will be built using `Dockerfile` and `post_create.sh` will take care of installing `uv`, as well as syncing the project dependencies and setting up the config files.
 
@@ -175,14 +185,15 @@ See the [Development](#development) section for instructions on setting up devel
 All generators output data in a **standardized format**.
 Each split (`train`, `val`, `test`) contains:
 
--   **`facts.csv`**: Base facts (explicit relations/memberships).
--   **`targets.csv`**: All facts (base + inferred) and negative samples.
+- **`facts.csv`**: Base facts (explicit relations/memberships).
+- **`targets.csv`**: All facts (base + inferred) and negative samples.
 
 ### ASP solver (Family Tree)
 
 Below, I describe how to generate the [`reldata`](https://github.com/phohenecker/reldata) Family Tree dataset based on the ASP solver by [Patrick Hohenecker](https://github.com/phohenecker/family-tree-data-gen).
 
 **Quick Start (generates and converts to standard format):**
+
 ```bash
 uv run invoke gen-ft-asp
 ```
@@ -192,9 +203,11 @@ This command generates raw `reldata` output in `data/asp/out-reldata` and then a
 **Step-by-Step (for more control):**
 
 1.  **Generate Raw Data Only**:
+
     ```bash
     uv run --package asp_generator python apps/asp_generator/src/asp_generator/create_data.py
     ```
+
     This generates raw `reldata` output in `data/asp/out-reldata` without converting.
 
 2.  **Convert to Standard Format** (separate step):
@@ -245,30 +258,33 @@ A wrapper script `scripts/sweep_ont_rrn.py` handles the coordination between the
     Create a YAML file (e.g., `configs/my_sweep.yaml`) defining the parameters to tune. Use the prefix `gen.` for generator parameters and `rrn.` for RRN parameters.
 
     Example (`configs/sweep_sample.yaml`):
+
     ```yaml
     program: scripts/sweep_ont_rrn.py
     method: bayes
     metric:
-      name: val_loss
-      goal: minimize
+        name: val_loss
+        goal: minimize
     parameters:
-      # Generator Parameters
-      gen.dataset.n_train:
-        values: [1000, 2000]
-      gen.negative_sampling.ratio:
-        min: 0.5
-        max: 2.0
-      
-      # Model Parameters
-      rrn.hyperparams.learning_rate:
-        min: 0.0001
-        max: 0.01
+        # Generator Parameters
+        gen.dataset.n_train:
+            values: [1000, 2000]
+        gen.negative_sampling.ratio:
+            min: 0.5
+            max: 2.0
+
+        # Model Parameters
+        rrn.hyperparams.learning_rate:
+            min: 0.0001
+            max: 0.01
     ```
 
 2.  **Initialize the sweep**:
+
     ```bash
     uv run wandb sweep configs/sweep_sample.yaml
     ```
+
     This will output a sweep ID (e.g., `username/project/sweep_id`).
 
 3.  **Start the agent**:
@@ -334,7 +350,7 @@ I aim to complete the first two experiments listed below. Time will probably not
 
 #### 1. Depth test
 
-- **Goal**: Prove that the Synthology generator creates that that *requires deep reasoning*
+- **Goal**: Prove that the Synthology generator creates that that _requires deep reasoning_
 - **Method**:
     - Train RRN on 500 KGs generated by LUBM-10 (10 universities)
     - Train RRN on 500 KGs generated by Synthology (with high depth)
@@ -344,9 +360,13 @@ I aim to complete the first two experiments listed below. Time will probably not
 
 #### 2. Negative Sampling Quality
 
-- **Goal**: Validate the *proof-based corruption* (hard negatives)
+- **Goal**: Validate the _proof-based corruption_ (hard negatives)
 - **Method**:
-    - TODO
+    - Test out all different methods
+        - Random
+        - Constrained
+        - Proof-based
+        - Mixed
 - **Metric**: Measure False Positive Rate (FPR) on test set that contains near-miss triples.
 
 #### 3. Information Density
@@ -358,8 +378,8 @@ I aim to complete the first two experiments listed below. Time will probably not
     - Train the RRN from scratch on each subset.
     - Evaluate all models on the exact same **standard evaluation/test set**.
 - **Metric**: Learning curves for each subset size
-- **Expected Result**: 
-    -   An intelligent generator should reach high accuracy with *fewer* training samples because every sample is designed to be a "lesson" in logic.
+- **Expected Result**:
+    - An intelligent generator should reach high accuracy with _fewer_ training samples because every sample is designed to be a "lesson" in logic.
     - We expect a **steeper learning curve** for the Synthology generator.
 
 #### 4. Scalability
@@ -406,7 +426,7 @@ uv add <dependency> --package my-new-app
 
 ## TODO
 
-- [ ] Add LUBM generator
+- [x] Add LUBM generator
 - [ ] Add experiments
 - [ ] Add `invoke` commands to reproduce experiments
 - [ ] Add LUBM java dependencies to devcontainer
