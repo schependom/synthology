@@ -30,6 +30,12 @@ dataset:
   # targets (targets.csv). A value of 0.2 means 20% of edges are dropped.
   target_ratio: 0.2
 
+  # Whether to mask a random subset of base facts and place them only in
+  # targets.csv as positive prediction targets (type=inferred, hops=0).
+  # Set to false to keep all base facts in facts.csv and only include
+  # reasoner-derived inferred positives in targets.csv.
+  mask_base_facts: false
+
   # Number of Independent Subgraph Samples
   # The parser will sequentially chunk the aggregated LUBM triples into this
   # exact number of datasets (sample_ids) while preserving local graph density.

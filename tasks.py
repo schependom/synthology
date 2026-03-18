@@ -217,14 +217,16 @@ def parse_lubm(ctx: Context, args=""):
 
 
 @task
-def verify_lubm_reasoner(ctx: Context):
+def verify_lubm_reasoner(ctx: Context, args=""):
     """
-    Runs a tiny deterministic toy verification of LUBM reasoning + CSV export.
+    Runs configurable LUBM reasoner verification (subset or toy mode).
     Useful as a static sanity check before expensive full parsing.
     """
-    print("\nRunning LUBM toy reasoner verification.")
+    print("\nRunning LUBM reasoner verification.")
     cmd = "export LOGURU_COLORIZE=1 && "
     cmd += "uv run --package lubm python -m lubm.verify_reasoner"
+    if args:
+        cmd += f" {args}"
     ctx.run(cmd)
 
 

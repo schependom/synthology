@@ -1,8 +1,0 @@
-@prefix ns1: <http://example.org/> .
-
-ns1:Alice a ns1:GraduateStudent .
-
-ns1:Bob ns1:teaches ns1:CS101 .
-
-ns1:Carol ns1:takesCourse ns1:CS101 .
-

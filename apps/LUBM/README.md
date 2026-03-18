@@ -27,21 +27,56 @@ Output goes into:
     uv run invoke parse-lubm
     ```
 
-3. **Run Toy Reasoner Verification (fast sanity check):**
+    If you want targets to contain only reasoner-derived inferred positives
+    (and no target-masked base facts), disable masking:
 
-    This creates a tiny in-memory ontology and checks whether expected inferred
-    facts and hop counts are exported correctly to `targets.csv`.
+    ```bash
+    uv run invoke parse-lubm --args="dataset.mask_base_facts=false"
+    ```
+
+3. **Run Configurable Reasoner Verification (subset or toy):**
+
+    Verification is now YAML-driven via `configs/lubm/verify_reasoner.yaml`.
+    By default, it samples a subset from `LUBM_1`, runs reasoning, exports CSV,
+    and exports a graph with base + inferred facts.
 
     ```bash
     uv run invoke verify-lubm-reasoner
     ```
 
+    Override settings for custom/future datasets with Hydra args:
+
+    ```bash
+    uv run invoke verify-lubm-reasoner --args="source.raw_dir=data/lubm/raw/lubm_10 subset.max_base_facts=800 output.dataset_label=lubm10_subset"
+    ```
+
+    Graph export size is configurable as well:
+
+    ```bash
+    uv run invoke verify-lubm-reasoner --args="output.graph.max_base_facts=150"
+    ```
+
+    Switch to the tiny deterministic toy mode:
+
+    ```bash
+    uv run invoke verify-lubm-reasoner --args="verification.mode=toy output.dataset_label=toy_case"
+    ```
+
     Artifacts are kept (not temporary) under:
-    - `data/lubm/toy_verify/raw/lubm_0/toy.ttl`
-    - `data/lubm/toy_verify/out/lubm_0/train/facts.csv`
-    - `data/lubm/toy_verify/out/lubm_0/train/targets.csv`
-    - `data/lubm/toy_verify/graph/toy_reasoning_graph.pdf`
-    - `data/lubm/toy_verify/graph/toy_reasoning_graph.png`
+    - `data/lubm/toy_verify/raw/<dataset_label>/...`
+    - `data/lubm/toy_verify/out/<dataset_label>/train/facts.csv`
+    - `data/lubm/toy_verify/out/<dataset_label>/train/targets.csv`
+    - `data/lubm/toy_verify/graph/verification_reasoning_graph.pdf`
+
+## Repo-Wide Graph Export Utility
+
+Graph export logic for base + inferred fact visualization was moved to a shared,
+repo-wide utility in:
+
+- `src/synthology/verification_visualizer.py`
+
+This allows other generators/verifiers (current and future) to reuse identical
+display semantics when exporting verification graphs.
 
 ## Timing Statistics (for reporting)
 
@@ -80,5 +115,10 @@ The parsed output is located in `data/lubm/lubm_{size}/` and consists of two fil
         - `type`: Target inference type (e.g., `base_fact`, `neg_inf_root`).
         - `hops`: The derivation depth (0 for base facts).
         - `corruption_method`: Metadata detailing how a negative target was generated.
+
+    When `dataset.mask_base_facts=true`, some base facts are moved to targets-only
+    as positive rows with `type=inferred` and `hops=0`.
+    When `dataset.mask_base_facts=false`, inferred positives in `targets.csv`
+    come only from reasoning.
 
 _Note: The LUBM parser now applies OWL RL reasoning (optionally with the LUBM TBox from `data/ont/input/lubm.ttl`). If the TBox file is missing, closure still runs over the sample ABox only._

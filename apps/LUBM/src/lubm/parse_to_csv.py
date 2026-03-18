@@ -136,6 +136,7 @@ def parse_lubm_directory(
     split_ratios: dict,
     target_ratio: float = 0.0,
     num_samples: Optional[int] = None,
+    mask_base_facts: bool = True,
     enable_reasoning: bool = True,
     tbox_graph: Optional[rdflib.Graph] = None,
 ):
@@ -152,7 +153,12 @@ def parse_lubm_directory(
 
     # RRN expects arbitrary sample IDs for independent KGs.
     # Use 500000+ to avoid collision with ASP (100000+) and ONT generators.
-    base_sample_id = 500000 + int(raw_dir.name.split("_")[-1]) * 10000
+    # Fallback gracefully when raw_dir does not end with a numeric suffix.
+    try:
+        size_token = int(raw_dir.name.split("_")[-1])
+    except ValueError:
+        size_token = abs(hash(raw_dir.name)) % 10000
+    base_sample_id = 500000 + size_token * 10000
 
     ttl_files = list(raw_dir.glob("*.ttl"))
     logger.info(f"Parsing {len(ttl_files)} TTL files in {raw_dir} sequentially to preserve structural local density...")
@@ -287,7 +293,7 @@ def parse_lubm_directory(
             positive_targets = []
 
             for s, p, o in sample_base_clean:
-                is_target_only = random.random() < target_ratio
+                is_target_only = mask_base_facts and (random.random() < target_ratio)
                 fact_type = "inferred" if is_target_only else "base_fact"
 
                 fact = {"sample_id": str(sid), "subject": s, "predicate": p, "object": o}
@@ -440,6 +446,7 @@ def main(cfg: DictConfig):
 
     dataset_configs = cfg.dataset.sizes
     split_ratios = cfg.dataset.get("split", {"train": 0.8, "val": 0.1, "test": 0.1})
+    mask_base_facts = cfg.dataset.get("mask_base_facts", True)
     reasoning_cfg = cfg.dataset.get("reasoning", {})
     enable_reasoning = reasoning_cfg.get("enabled", True)
 
@@ -467,6 +474,7 @@ def main(cfg: DictConfig):
             split_ratios,
             target_ratio,
             num_samples,
+            mask_base_facts=mask_base_facts,
             enable_reasoning=enable_reasoning,
             tbox_graph=tbox_graph,
         )
