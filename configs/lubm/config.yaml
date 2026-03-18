@@ -46,8 +46,23 @@ dataset:
   # Reasoning configuration for computing inferred targets from base facts.
   reasoning:
     enabled: true
+    # Reasoning backend: 'rdfox' or 'rdflib'
+    engine: "rdfox"
     # Download with: uv run invoke gen-lubm-tbox
     tbox_path: "data/ont/input/lubm.ttl"
+    rdfox:
+      # Path or command name for RDFox executable.
+      executable: "rdfox"
+      # Shell command template used to run materialization.
+      # Available placeholders:
+      # - {rdfox_executable}
+      # - {input_abox}
+      # - {input_tbox}
+      # - {output_ttl}
+      #
+      # IMPORTANT: Adapt this template to your local RDFox CLI syntax.
+      # If this is empty while engine=rdfox, parsing will fail fast with instructions.
+      command_template: ""
 
 generator:
   # The format of the output from the Java generator. 

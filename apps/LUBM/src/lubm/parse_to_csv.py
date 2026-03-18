@@ -1,10 +1,13 @@
 import csv
 import os
 import random
+import shlex
+import subprocess
+import tempfile
 import time
 import urllib.parse
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import hydra
 import rdflib
@@ -113,6 +116,84 @@ def compute_inferred_triples(
     return inferred
 
 
+def compute_inferred_triples_rdfox(
+    base_graph: rdflib.Graph,
+    tbox_graph: Optional[rdflib.Graph],
+    known_individuals: set[rdflib.term.Node],
+    rdfox_cfg: dict[str, Any],
+) -> list[tuple[rdflib.term.Node, rdflib.term.Node, rdflib.term.Node, int]]:
+    """Run inference via RDFox CLI and return inferred ABox triples.
+
+    Requires `rdfox.command_template` in config. The template can use:
+    {rdfox_executable}, {input_abox}, {input_tbox}, {output_ttl}
+    """
+    rdfox_executable = str(rdfox_cfg.get("executable", "rdfox"))
+    command_template = rdfox_cfg.get("command_template", "")
+
+    if not command_template:
+        raise RuntimeError(
+            "RDFox backend selected, but no `dataset.reasoning.rdfox.command_template` is configured. "
+            "Please set a template using placeholders {rdfox_executable}, {input_abox}, {input_tbox}, {output_ttl}."
+        )
+
+    with tempfile.TemporaryDirectory(prefix="lubm_rdfox_") as td:
+        tmp_dir = Path(td)
+        abox_path = tmp_dir / "abox.ttl"
+        tbox_path = tmp_dir / "tbox.ttl"
+        output_path = tmp_dir / "materialized.ttl"
+
+        base_graph.serialize(destination=str(abox_path), format="turtle")
+        if tbox_graph is not None:
+            tbox_graph.serialize(destination=str(tbox_path), format="turtle")
+        else:
+            tbox_path.write_text("", encoding="utf-8")
+
+        command = command_template.format(
+            rdfox_executable=shlex.quote(rdfox_executable),
+            input_abox=shlex.quote(str(abox_path)),
+            input_tbox=shlex.quote(str(tbox_path)),
+            output_ttl=shlex.quote(str(output_path)),
+        )
+
+        proc = subprocess.run(command, shell=True, text=True, capture_output=True)
+        if proc.returncode != 0:
+            raise RuntimeError(
+                "RDFox materialization command failed\n"
+                f"Command: {command}\n"
+                f"Exit code: {proc.returncode}\n"
+                f"STDOUT:\n{proc.stdout}\n"
+                f"STDERR:\n{proc.stderr}"
+            )
+
+        if not output_path.exists():
+            raise RuntimeError(
+                "RDFox command completed but no output file was produced at "
+                f"{output_path}. Check rdfox.command_template export/output command."
+            )
+
+        closure_graph = rdflib.Graph()
+        closure_graph.parse(output_path, format="turtle")
+
+    inferred = []
+    for s, p, o in closure_graph:
+        if (s, p, o) in base_graph:
+            continue
+        if tbox_graph is not None and (s, p, o) in tbox_graph:
+            continue
+        if not is_valid_abox_triple(s, p, o):
+            continue
+        if s not in known_individuals:
+            continue
+        if str(p) != RDF_TYPE_URI and o not in known_individuals:
+            continue
+
+        # RDFox CLI output does not expose derivation-cycle depth in this pipeline.
+        inferred.append((s, p, o, 1))
+
+    inferred.sort(key=lambda t: (t[3], str(t[0]), str(t[1]), str(t[2])))
+    return inferred
+
+
 def load_optional_tbox(tbox_path: Path) -> Optional[rdflib.Graph]:
     """Load TBox ontology if available, otherwise continue without it."""
     if not tbox_path.exists():
@@ -138,6 +219,8 @@ def parse_lubm_directory(
     num_samples: Optional[int] = None,
     mask_base_facts: bool = True,
     enable_reasoning: bool = True,
+    reasoner_engine: str = "rdflib",
+    rdfox_cfg: Optional[dict[str, Any]] = None,
     tbox_graph: Optional[rdflib.Graph] = None,
 ):
     """
@@ -264,11 +347,19 @@ def parse_lubm_directory(
                         known_individuals.add(o)
 
                 t_reason_start = time.perf_counter()
-                inferred_raw = compute_inferred_triples(
-                    base_graph=sample_base_graph,
-                    tbox_graph=tbox_graph,
-                    known_individuals=known_individuals,
-                )
+                if reasoner_engine == "rdfox":
+                    inferred_raw = compute_inferred_triples_rdfox(
+                        base_graph=sample_base_graph,
+                        tbox_graph=tbox_graph,
+                        known_individuals=known_individuals,
+                        rdfox_cfg=rdfox_cfg or {},
+                    )
+                else:
+                    inferred_raw = compute_inferred_triples(
+                        base_graph=sample_base_graph,
+                        tbox_graph=tbox_graph,
+                        known_individuals=known_individuals,
+                    )
                 reasoning_seconds += time.perf_counter() - t_reason_start
                 reasoning_calls += 1
 
@@ -449,6 +540,8 @@ def main(cfg: DictConfig):
     mask_base_facts = cfg.dataset.get("mask_base_facts", True)
     reasoning_cfg = cfg.dataset.get("reasoning", {})
     enable_reasoning = reasoning_cfg.get("enabled", True)
+    reasoner_engine = str(reasoning_cfg.get("engine", "rdfox")).lower()
+    rdfox_cfg = reasoning_cfg.get("rdfox", {})
 
     tbox_graph = None
     if enable_reasoning:
@@ -476,6 +569,8 @@ def main(cfg: DictConfig):
             num_samples,
             mask_base_facts=mask_base_facts,
             enable_reasoning=enable_reasoning,
+            reasoner_engine=reasoner_engine,
+            rdfox_cfg=rdfox_cfg,
             tbox_graph=tbox_graph,
         )
         if stats:

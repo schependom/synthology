@@ -13,6 +13,22 @@ This runs the Java vendor generator, then parses output into CSV while applying 
 uv run invoke gen-lubm
 ```
 
+The Java LUBM vendor generator produces base facts only. Inferred facts are
+created in the parsing stage by the configured reasoner backend.
+
+By default, the parser now expects RDFox (`dataset.reasoning.engine=rdfox`).
+Set your local RDFox CLI command in `configs/lubm/config.yaml` under:
+
+- `dataset.reasoning.rdfox.executable`
+- `dataset.reasoning.rdfox.command_template`
+
+For environments without RDFox configured, you can switch back to the previous
+RDFlib backend:
+
+```bash
+uv run invoke parse-lubm --args="dataset.reasoning.engine=rdflib"
+```
+
 Output goes into:
 
 - `data/lubm/raw/lubm_{size}` (raw Turtle)
