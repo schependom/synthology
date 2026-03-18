@@ -10,7 +10,7 @@ dataset:
   # The LUBM generator creates synthetic data where the size is parameterized 
   # by the number of universities. 1 univ ~= ~100k generated triples.
   sizes:
-    - 100
+    - 1
     # - 5
     # - 10
   
@@ -35,7 +35,13 @@ dataset:
   # exact number of datasets (sample_ids) while preserving local graph density.
   # Set to 'null' to automatically use the exact number of raw TTL files generated 
   # (e.g. 10 files = 10 samples).
-  num_samples: 10000
+  num_samples: 100
+
+  # Reasoning configuration for computing inferred targets from base facts.
+  reasoning:
+    enabled: true
+    # Download with: uv run invoke gen-lubm-tbox
+    tbox_path: "data/ont/input/lubm.ttl"
 
 generator:
   # The format of the output from the Java generator. 

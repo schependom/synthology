@@ -206,3 +206,5 @@ gpu_*.*
 
 data/lubm/raw/*
 log.*
+
+.github/copilot-instructions.md

@@ -66,27 +66,28 @@ def convert_reldata(ctx: Context):
 @task
 def gen_ft_ont(ctx: Context, args=""):
     """
-    Generates family tree datasets with Ontology-based Generator 
+    Generates family tree datasets with Ontology-based Generator
     using default configurations in configs/ont_generator/config.yaml
     """
 
     print("\nRunning family tree Ontology-based generator.")
-    cmd = "export LOGURU_COLORIZE=1 && " # Ensure logs are colored
+    cmd = "export LOGURU_COLORIZE=1 && "  # Ensure logs are colored
     cmd += "uv run --package ont_generator python -m ont_generator.create_data"
     if args:
         cmd += f" {args}"
     ctx.run(cmd)
 
+
 @task
 def gen_ft_ont_single(ctx: Context, args=""):
     """
-    Generates one single, big family tree dataset with Ontology-based 
+    Generates one single, big family tree dataset with Ontology-based
     Generator using default configurations in configs/ont_generator/config_single_graph.yaml.
     Handy for debugging purposes (visual inspection of proof trees and KG's).
     """
 
     print("\nRunning family tree Ontology-based generator.")
-    cmd = "export LOGURU_COLORIZE=1 && " # Ensure logs are colored
+    cmd = "export LOGURU_COLORIZE=1 && "  # Ensure logs are colored
     cmd += "uv run --package ont_generator python -m ont_generator.generate"
     if args:
         cmd += f" {args}"
@@ -131,8 +132,8 @@ def train_rrn_ont(ctx: Context, args=""):
 
     print("\nRunning RRN training with Ontology-based dataset.")
 
-    cmd = "export PYTHONUNBUFFERED=1 && " # Ensure logs are unbuffered
-    cmd += "export LOGURU_COLORIZE=1 && " # Ensure logs are colored
+    cmd = "export PYTHONUNBUFFERED=1 && "  # Ensure logs are unbuffered
+    cmd += "export LOGURU_COLORIZE=1 && "  # Ensure logs are colored
     cmd += "uv run --package rrn python -m rrn.train data/dataset=ont"
     if args:
         cmd += f" {args}"
@@ -145,8 +146,8 @@ def train_rrn_asp(ctx: Context, args=""):
 
     print("\nRunning RRN training with ASP dataset.")
 
-    cmd = "export PYTHONUNBUFFERED=1 && " # Ensure logs are unbuffered
-    cmd += "export LOGURU_COLORIZE=1 && " # Ensure logs are colored
+    cmd = "export PYTHONUNBUFFERED=1 && "  # Ensure logs are unbuffered
+    cmd += "export LOGURU_COLORIZE=1 && "  # Ensure logs are colored
     cmd += "uv run --package rrn python -m rrn.train data/dataset=asp"
     if args:
         cmd += f" {args}"
@@ -159,8 +160,8 @@ def train_rrn_lubm(ctx: Context, args=""):
 
     print("\nRunning RRN training with LUBM dataset.")
 
-    cmd = "export PYTHONUNBUFFERED=1 && " # Ensure logs are unbuffered
-    cmd += "export LOGURU_COLORIZE=1 && " # Ensure logs are colored
+    cmd = "export PYTHONUNBUFFERED=1 && "  # Ensure logs are unbuffered
+    cmd += "export LOGURU_COLORIZE=1 && "  # Ensure logs are colored
     # Add LUBM tag to wandb correctly using Hydra dict syntax
     cmd += "uv run --package rrn python -m rrn.train data/dataset=lubm +logger.tags=[LUBM]"
     if args:
@@ -171,7 +172,8 @@ def train_rrn_lubm(ctx: Context, args=""):
 @task
 def gen_lubm(ctx: Context, args=""):
     """
-    Generates LUBM datasets using the orchestrator script in apps/LUBM
+    Generates LUBM datasets and parses them into CSV (facts/targets).
+    Parsing stage applies OWL RL reasoning to compute inferred targets.
     """
     print("\nRunning LUBM generator orchestrator.")
     cmd = "export LOGURU_COLORIZE=1 && "
@@ -179,6 +181,13 @@ def gen_lubm(ctx: Context, args=""):
     if args:
         cmd += f" {args}"
     ctx.run(cmd)
+
+    print("\nParsing generated LUBM data into facts.csv and targets.csv (with reasoning).")
+    parse_cmd = "export LOGURU_COLORIZE=1 && "
+    parse_cmd += "uv run --package lubm python -m lubm.parse_to_csv"
+    if args:
+        parse_cmd += f" {args}"
+    ctx.run(parse_cmd)
 
 
 @task
@@ -204,6 +213,18 @@ def parse_lubm(ctx: Context, args=""):
     cmd += "uv run --package lubm python -m lubm.parse_to_csv"
     if args:
         cmd += f" {args}"
+    ctx.run(cmd)
+
+
+@task
+def verify_lubm_reasoner(ctx: Context):
+    """
+    Runs a tiny deterministic toy verification of LUBM reasoning + CSV export.
+    Useful as a static sanity check before expensive full parsing.
+    """
+    print("\nRunning LUBM toy reasoner verification.")
+    cmd = "export LOGURU_COLORIZE=1 && "
+    cmd += "uv run --package lubm python -m lubm.verify_reasoner"
     ctx.run(cmd)
 
 
