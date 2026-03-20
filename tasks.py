@@ -111,22 +111,6 @@ def visualize_proofs(ctx: Context, args=""):
 
 
 @task
-def visualize_lubm_proofs(ctx: Context, args=""):
-    """
-    Generates a few medium-sized datasets based on LUBM with all negative sampling strategies
-    and exports proof tree visualizations for manual inspection.
-    Output goes to data/ont/output/lubm-visualize/proofs/ and data/ont/output/lubm-visualize/graphs/.
-    """
-
-    print("\nGenerating LUBM proof visualizations (medium dataset, mixed strategy).")
-    cmd = "export LOGURU_COLORIZE=1 && "
-    cmd += "uv run --package ont_generator python -m ont_generator.create_data --config-name=config_lubm_visualize"
-    if args:
-        cmd += f" {args}"
-    ctx.run(cmd)
-
-
-@task
 def train_rrn_ont(ctx: Context, args=""):
     """Trains RRN based on default configurations in configs/rrn/"""
 
@@ -155,90 +139,31 @@ def train_rrn_asp(ctx: Context, args=""):
 
 
 @task
-def train_rrn_lubm(ctx: Context, args=""):
-    """Trains RRN based on default configurations in configs/rrn/ using LUBM data"""
+def train_rrn_owl2bench(ctx: Context, args=""):
+    """Trains RRN using OWL2Bench OWL 2 RL dataset."""
 
-    print("\nRunning RRN training with LUBM dataset.")
+    print("\nRunning RRN training with OWL2Bench dataset.")
 
-    cmd = "export PYTHONUNBUFFERED=1 && "  # Ensure logs are unbuffered
-    cmd += "export LOGURU_COLORIZE=1 && "  # Ensure logs are colored
-    # Add LUBM tag to wandb correctly using Hydra dict syntax
-    cmd += "uv run --package rrn python -m rrn.train data/dataset=lubm +logger.tags=[LUBM]"
+    cmd = "export PYTHONUNBUFFERED=1 && "
+    cmd += "export LOGURU_COLORIZE=1 && "
+    cmd += "uv run --package rrn python -m rrn.train data/dataset=owl2bench +logger.tags=[OWL2Bench]"
     if args:
         cmd += f" {args}"
     ctx.run(cmd)
 
 
 @task
-def gen_lubm(ctx: Context, args=""):
+def gen_owl2bench(ctx: Context, args=""):
     """
-    Generates LUBM datasets and parses them into CSV (facts/targets).
-    Parsing stage applies Apache Jena materialization to compute inferred targets.
+    Runs the OWL2Bench OWL 2 RL pipeline:
+    ABox generation -> Jena materialization -> CSV export.
     """
-    print("\nRunning LUBM generator orchestrator.")
+    print("\nRunning OWL2Bench OWL 2 RL generation pipeline.")
     cmd = "export LOGURU_COLORIZE=1 && "
-    cmd += "uv run --package lubm python -m lubm.orchestrator"
+    cmd += "uv run --package owl2bench python -m owl2bench.pipeline"
     if args:
         cmd += f" {args}"
     ctx.run(cmd)
-
-    print("\nParsing generated LUBM data into facts.csv and targets.csv (with reasoning).")
-    parse_cmd = "export LOGURU_COLORIZE=1 && "
-    parse_cmd += "uv run --package lubm python -m lubm.parse_to_csv"
-    if args:
-        parse_cmd += f" {args}"
-    ctx.run(parse_cmd)
-
-
-@task
-def gen_lubm_tbox(ctx: Context, args=""):
-    """
-    Downloads the LUBM TBox ontology and saves it to data/ont/input/lubm.ttl
-    """
-    print("\nDownloading LUBM TBox ontology.")
-    cmd = "export LOGURU_COLORIZE=1 && "
-    cmd += "uv run --package lubm python -m lubm.download_tbox"
-    if args:
-        cmd += f" {args}"
-    ctx.run(cmd)
-
-
-@task
-def parse_lubm(ctx: Context, args=""):
-    """
-    Parses LUBM generated TTL data into RRN standard CSV format.
-    """
-    print("\nRunning LUBM CSV parser.")
-    cmd = "export LOGURU_COLORIZE=1 && "
-    cmd += "uv run --package lubm python -m lubm.parse_to_csv"
-    if args:
-        cmd += f" {args}"
-    ctx.run(cmd)
-
-
-@task
-def verify_lubm_reasoner(ctx: Context, args=""):
-    """
-    Runs configurable LUBM reasoner verification (subset or toy mode).
-    Useful as a static sanity check before expensive full parsing.
-    """
-    print("\nRunning LUBM reasoner verification.")
-    cmd = "export LOGURU_COLORIZE=1 && "
-    cmd += "uv run --package lubm python -m lubm.verify_reasoner"
-    if args:
-        cmd += f" {args}"
-    ctx.run(cmd)
-
-
-@task
-def pipeline_lubm(ctx: Context, args=""):
-    """
-    Runs the full LUBM pipeline sequentially: generation then parsing.
-    """
-    print("\nStarting full LUBM generation & parsing pipeline.")
-    gen_lubm(ctx, args)
-    parse_lubm(ctx, args)
-    print("\nLUBM pipeline completed successfully.")
 
 
 # Data version control with DVC+SSH

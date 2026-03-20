@@ -60,7 +60,6 @@ members = [
     "apps/asp_generator",
     "apps/RRN",
     "apps/ont_generator",
-    "apps/LUBM",
     "apps/OWL2Bench",
 ]
 

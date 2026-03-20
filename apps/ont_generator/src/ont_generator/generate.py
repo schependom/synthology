@@ -11,7 +11,6 @@ AUTHOR
     Vincent Van Schependom
 """
 
-
 import os
 import sys
 from collections import defaultdict
@@ -171,7 +170,7 @@ def atoms_to_knowledge_graph(
             if key not in attr_triples:
                 assert isinstance(s, Individual)
                 if isinstance(o, (Class, Relation, Attribute, Individual)):
-                    print(f"DEBUG BAD LUBM ATTR: p={p.name}, o={o}")
+                    print(f"DEBUG BAD ATTR: p={p.name}, o={o}")
                     continue
                 attr_triples[key] = AttributeTriple(s, p, o, proofs=[])
             if current_proofs:
@@ -474,7 +473,9 @@ def main(cfg: DictConfig):
     output_dir = cfg.dataset.output_dir
     os.makedirs(output_dir, exist_ok=True)
     log_path = os.path.join(output_dir, "generation.log")
-    logger.add(log_path, mode="w", format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}")
+    logger.add(
+        log_path, mode="w", format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}"
+    )
 
     logger.info(f"Running Ontology Knowledge Graph Generator with configuration:\n{OmegaConf.to_yaml(cfg)}")
 

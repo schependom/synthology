@@ -1,0 +1,33 @@
+dataset:
+  name: "owl2bench"
+  universities: [1]
+  output_dir: "data/OWL2Bench/output"
+
+  split:
+    train: 0.8
+    val: 0.1
+    test: 0.1
+
+  target_ratio: 0.0
+  mask_base_facts: false
+  num_samples: 1
+  diagnostics:
+    enabled: true
+    output_dir: "data/OWL2Bench/output/diagnostics"
+    # <= 0 means write all rows to each diagnostics TSV file.
+    max_rows_per_file: 0
+
+  reasoning:
+    tbox_path: "data/OWL2Bench/input/UNIV-BENCH-OWL2RL.owl"
+    # Defensive mapping for generator variants that emit legacy LUBM-style namespaces.
+    namespace_map:
+      "http://swat.cse.lehigh.edu/onto/univ-bench.owl#": "https://kracr.iiitd.edu.in/OWL2Bench#"
+    jena:
+      executable: "java"
+      command_template: "{jena_executable} --class-path 'vendor/apache-jena-6.0.0/lib/*' apps/OWL2Bench/src/owl2bench/vendor/JenaMaterializer.java {input_tbox} {input_abox} {output_ttl}"
+
+generator:
+  vendor_dir: "vendor/OWL2Bench"
+  profile: "RL"
+  seed: 1
+  maven_executable: "mvn"

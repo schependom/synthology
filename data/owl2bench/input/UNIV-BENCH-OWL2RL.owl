@@ -9,11 +9,7 @@
      xmlns:obda="https://w3id.org/obda/vocabulary#"
      xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
      xmlns:owl2bench="https://kracr.iiitd.edu.in/OWL2Bench#">
-    <owl:Ontology rdf:about="https://kracr.iiitd.edu.in/OWL2Bench">
-        <rdfs:comment>A Benchmark for OWL 2 Ontologies.</rdfs:comment>
-        <rdfs:label xml:lang="en">OWL2Bench</rdfs:label>
-        <owl:versionInfo>OWL2Bench, ver 10 April, 2020</owl:versionInfo>
-    </owl:Ontology>
+    <owl:Ontology rdf:about="https://kracr.iiitd.edu.in/OWL2Bench"/>
     
 
 
@@ -39,7 +35,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#dislikes -->
 
     <owl:ObjectProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#dislikes">
-        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topObjectProperty"/>
         <rdfs:domain rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
         <owl:propertyDisjointWith rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#likes"/>
     </owl:ObjectProperty>
@@ -49,7 +44,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#enrollFor -->
 
     <owl:ObjectProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#enrollFor">
-        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topObjectProperty"/>
         <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
         <rdfs:domain rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
         <rdfs:range rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Program"/>
@@ -130,7 +124,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#hasCollaborationWith -->
 
     <owl:ObjectProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#hasCollaborationWith">
-        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topObjectProperty"/>
         <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#SymmetricProperty"/>
         <rdfs:domain rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
         <rdfs:range rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
@@ -152,7 +145,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#hasCollegeDiscipline -->
 
     <owl:ObjectProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#hasCollegeDiscipline">
-        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topObjectProperty"/>
         <rdfs:domain rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#College"/>
         <rdfs:range rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#CollegeDiscipline"/>
     </owl:ObjectProperty>
@@ -235,6 +227,7 @@
     <owl:ObjectProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#hasHead">
         <rdfs:subPropertyOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#hasFullProfessor"/>
         <owl:inverseOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#isHeadOf"/>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
     </owl:ObjectProperty>
     
 
@@ -254,17 +247,6 @@
 
     <owl:ObjectProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#hasMajor">
         <rdfs:domain rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
-        <rdfs:range>
-            <owl:Class>
-                <owl:unionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Engineering"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#FineArts"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#HumanitiesAndSocialScience"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Management"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Science"/>
-                </owl:unionOf>
-            </owl:Class>
-        </rdfs:range>
     </owl:ObjectProperty>
     
 
@@ -313,7 +295,6 @@
 
     <owl:ObjectProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#hasPart">
         <owl:equivalentProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#hasSubOrganization"/>
-        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topObjectProperty"/>
         <owl:inverseOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#isPartOf"/>
         <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#TransitiveProperty"/>
         <rdfs:domain rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Organization"/>
@@ -357,7 +338,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#hasProgram -->
 
     <owl:ObjectProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#hasProgram">
-        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topObjectProperty"/>
         <rdfs:domain rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Department"/>
         <rdfs:range rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Program"/>
     </owl:ObjectProperty>
@@ -421,7 +401,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#hasSubOrganization -->
 
     <owl:ObjectProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#hasSubOrganization">
-        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topObjectProperty"/>
         <owl:inverseOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#isSubOrganizationOf"/>
         <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#TransitiveProperty"/>
         <rdfs:domain rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Organization"/>
@@ -492,7 +471,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#hasWork -->
 
     <owl:ObjectProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#hasWork">
-        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topObjectProperty"/>
+        <rdfs:domain rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Employee"/>
         <rdfs:range rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Work"/>
     </owl:ObjectProperty>
     
@@ -658,7 +637,6 @@
 
     <owl:ObjectProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#isPartOf">
         <owl:equivalentProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#isSubOrganizationOf"/>
-        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topObjectProperty"/>
         <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#TransitiveProperty"/>
         <rdfs:domain rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Organization"/>
         <rdfs:range rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Organization"/>
@@ -776,9 +754,7 @@
 
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#knows -->
 
-    <owl:ObjectProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#knows">
-        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#ReflexiveProperty"/>
-    </owl:ObjectProperty>
+    <owl:ObjectProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#knows"/>
     
 
 
@@ -802,7 +778,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#offerCourse -->
 
     <owl:ObjectProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#offerCourse">
-        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topObjectProperty"/>
         <rdfs:domain rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Department"/>
         <rdfs:range rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Course"/>
     </owl:ObjectProperty>
@@ -890,7 +865,6 @@
 
     <owl:DatatypeProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#hasCode">
         <owl:equivalentProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#hasID"/>
-        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topDataProperty"/>
         <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
     </owl:DatatypeProperty>
     
@@ -908,7 +882,6 @@
 
     <owl:DatatypeProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#hasFirstName">
         <rdfs:domain rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
-        <owl:propertyDisjointWith rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#hasLastName"/>
     </owl:DatatypeProperty>
     
 
@@ -916,7 +889,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#hasID -->
 
     <owl:DatatypeProperty rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#hasID">
-        <rdfs:subPropertyOf rdf:resource="http://www.w3.org/2002/07/owl#topDataProperty"/>
         <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty"/>
     </owl:DatatypeProperty>
     
@@ -1019,11 +991,6 @@
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Article">
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Publication"/>
-        <owl:disjointUnionOf rdf:parseType="Collection">
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ConferencePaper"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#JournalArticle"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#TechnicalReport"/>
-        </owl:disjointUnionOf>
     </owl:Class>
     
 
@@ -1103,12 +1070,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Chair -->
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Chair">
-        <owl:equivalentClass>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#isHeadOf"/>
-                <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Department"/>
-            </owl:Restriction>
-        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#FullProfessor"/>
     </owl:Class>
     
@@ -1165,15 +1126,7 @@
 
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#CollegeDiscipline -->
 
-    <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#CollegeDiscipline">
-        <owl:disjointUnionOf rdf:parseType="Collection">
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Engineering"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#FineArts"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#HumanitiesAndSocialScience"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Management"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Science"/>
-        </owl:disjointUnionOf>
-    </owl:Class>
+    <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#CollegeDiscipline"/>
     
 
 
@@ -1205,10 +1158,6 @@
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Course">
         <owl:equivalentClass rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#TeachingCourse"/>
-        <owl:disjointUnionOf rdf:parseType="Collection">
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ElectiveCourse"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#UGCourse"/>
-        </owl:disjointUnionOf>
     </owl:Class>
     
 
@@ -1224,12 +1173,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Dean -->
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Dean">
-        <owl:equivalentClass>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#isHeadOf"/>
-                <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#College"/>
-            </owl:Restriction>
-        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#FullProfessor"/>
     </owl:Class>
     
@@ -1254,12 +1197,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Director -->
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Director">
-        <owl:equivalentClass>
-            <owl:Restriction>
-                <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#isHeadOf"/>
-                <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Program"/>
-            </owl:Restriction>
-        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#FullProfessor"/>
     </owl:Class>
     
@@ -1301,17 +1238,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Employee -->
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Employee">
-        <owl:equivalentClass>
-            <owl:Class>
-                <owl:intersectionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
-                    <owl:Restriction>
-                        <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#worksFor"/>
-                        <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Organization"/>
-                    </owl:Restriction>
-                </owl:intersectionOf>
-            </owl:Class>
-        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
     </owl:Class>
     
@@ -1321,18 +1247,6 @@
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Engineering">
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#CollegeDiscipline"/>
-        <owl:disjointUnionOf rdf:parseType="Collection">
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#AeronauticalEngineering"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#BiomedicalEngineering"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ChemicalEngineering"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#CivilEngineering"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ComputerEngineering"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ElectricalEngineering"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#IndustryEngineering"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#MaterialScienceEngineering"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#MechanicalEngineering"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#PetroleumlEngineering"/>
-        </owl:disjointUnionOf>
     </owl:Class>
     
 
@@ -1348,17 +1262,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Faculty -->
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Faculty">
-        <owl:equivalentClass>
-            <owl:Class>
-                <owl:intersectionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Employee"/>
-                    <owl:Restriction>
-                        <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#teachesCourse"/>
-                        <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Course"/>
-                    </owl:Restriction>
-                </owl:intersectionOf>
-            </owl:Class>
-        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Employee"/>
     </owl:Class>
     
@@ -1376,18 +1279,6 @@
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#FineArts">
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#CollegeDiscipline"/>
-        <owl:disjointUnionOf rdf:parseType="Collection">
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Architecture"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#AsianArts"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Drama"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#LatinArts"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#MediaArtsAndSciences"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#MedievalArts"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ModernArts"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#MusicsClass"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#PerformingArts"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#TheatreAndDance"/>
-        </owl:disjointUnionOf>
     </owl:Class>
     
 
@@ -1452,18 +1343,6 @@
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#HumanitiesAndSocialScience">
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#CollegeDiscipline"/>
-        <owl:disjointUnionOf rdf:parseType="Collection">
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Anthropology"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Economics"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#English"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#History"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Humanities"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Linguistics"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ModernLanguages"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Philosophy"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Psychology"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Religions"/>
-        </owl:disjointUnionOf>
     </owl:Class>
     
 
@@ -1486,42 +1365,7 @@
 
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Interest -->
 
-    <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Interest">
-        <owl:equivalentClass>
-            <owl:Class>
-                <owl:oneOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#AbstractPainting"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ActionMovie"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ArticleReading"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Badminton"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Basketball"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#BookReading"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ClassicalMusic"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ComedyMovie"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Cricket"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#DocumentaryMovie"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#FictionMovie"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Football"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#HorrorMovie"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#NewspaperReading"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#OilPainting"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#PCGame"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#PopMusic"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#RockAndRollMusic"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#RomanticMovie"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Shopping"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Soccer"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#StampCollecting"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Swimming"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#T20Cricket"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Tennis"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ThrillerMovie"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Travelling"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#VideoGame"/>
-                </owl:oneOf>
-            </owl:Class>
-        </owl:equivalentClass>
-    </owl:Class>
+    <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
     
 
 
@@ -1552,7 +1396,8 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#LeisureStudent -->
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#LeisureStudent">
-        <owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
+        <rdfs:subClassOf>
             <owl:Class>
                 <owl:intersectionOf rdf:parseType="Collection">
                     <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
@@ -1563,8 +1408,7 @@
                     </owl:Restriction>
                 </owl:intersectionOf>
             </owl:Class>
-        </owl:equivalentClass>
-        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
+        </rdfs:subClassOf>
     </owl:Class>
     
 
@@ -1590,18 +1434,6 @@
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Management">
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#CollegeDiscipline"/>
-        <owl:disjointUnionOf rdf:parseType="Collection">
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#DesignManagement"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#FinancialAndAccountingManagement"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#HumanResourceManagement"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#MarketingManagement"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#OperationsManagement"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ProjectManagement"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#PublicRelationsManagement"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#RiskManagement"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#SalesManagement"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#SupplyChainManagement"/>
-        </owl:disjointUnionOf>
     </owl:Class>
     
 
@@ -1721,12 +1553,12 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#NonScience -->
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#NonScience">
-        <owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#CollegeDiscipline"/>
+        <rdfs:subClassOf>
             <owl:Class>
                 <owl:complementOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Science"/>
             </owl:Class>
-        </owl:equivalentClass>
-        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#CollegeDiscipline"/>
+        </rdfs:subClassOf>
     </owl:Class>
     
 
@@ -1764,18 +1596,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#PGStudent -->
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#PGStudent">
-        <owl:equivalentClass>
-            <owl:Class>
-                <owl:intersectionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
-                    <owl:Restriction>
-                        <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#enrollFor"/>
-                        <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
-                        <owl:onClass rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#PGProgram"/>
-                    </owl:Restriction>
-                </owl:intersectionOf>
-            </owl:Class>
-        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
     </owl:Class>
     
@@ -1792,37 +1612,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#PeopleWithHobby -->
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#PeopleWithHobby">
-        <owl:equivalentClass>
-            <owl:Class>
-                <owl:intersectionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
-                    <owl:Restriction>
-                        <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#likes"/>
-                        <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
-                    </owl:Restriction>
-                </owl:intersectionOf>
-            </owl:Class>
-        </owl:equivalentClass>
-        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
-    </owl:Class>
-    
-
-
-    <!-- https://kracr.iiitd.edu.in/OWL2Bench#PeopleWithManyHobbies -->
-
-    <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#PeopleWithManyHobbies">
-        <owl:equivalentClass>
-            <owl:Class>
-                <owl:intersectionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
-                    <owl:Restriction>
-                        <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#likes"/>
-                        <owl:minQualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">3</owl:minQualifiedCardinality>
-                        <owl:onClass rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
-                    </owl:Restriction>
-                </owl:intersectionOf>
-            </owl:Class>
-        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
     </owl:Class>
     
@@ -1838,16 +1627,7 @@
 
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Person -->
 
-    <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Person">
-        <owl:equivalentClass>
-            <owl:Class>
-                <owl:unionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Man"/>
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Woman"/>
-                </owl:unionOf>
-            </owl:Class>
-        </owl:equivalentClass>
-    </owl:Class>
+    <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
     
 
 
@@ -1870,18 +1650,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#PhDStudent -->
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#PhDStudent">
-        <owl:equivalentClass>
-            <owl:Class>
-                <owl:intersectionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
-                    <owl:Restriction>
-                        <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#enrollFor"/>
-                        <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
-                        <owl:onClass rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#PhDProgram"/>
-                    </owl:Restriction>
-                </owl:intersectionOf>
-            </owl:Class>
-        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
     </owl:Class>
     
@@ -1951,16 +1719,7 @@
 
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Publication -->
 
-    <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Publication">
-        <owl:disjointUnionOf rdf:parseType="Collection">
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Article"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Book"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Manual"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Software"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Specification"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#UnofficialPublication"/>
-        </owl:disjointUnionOf>
-    </owl:Class>
+    <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Publication"/>
     
 
 
@@ -2032,36 +1791,22 @@
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Science">
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#CollegeDiscipline"/>
-        <owl:disjointUnionOf rdf:parseType="Collection">
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Astronomy"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Biology"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Chemistry"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ComputerScience"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Geosciences"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#MarineScience"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#MaterialsScience"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Mathematics"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Physics"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Statistics"/>
-        </owl:disjointUnionOf>
     </owl:Class>
     
 
 
-    <!-- https://kracr.iiitd.edu.in/OWL2Bench#SelfAwarePerson -->
+    <!-- https://kracr.iiitd.edu.in/OWL2Bench#ScienceStudent -->
 
-    <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#SelfAwarePerson">
-        <owl:equivalentClass>
-            <owl:Class>
-                <owl:intersectionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
-                    <owl:Restriction>
-                        <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#knows"/>
-                        <owl:hasSelf rdf:datatype="http://www.w3.org/2001/XMLSchema#boolean">true</owl:hasSelf>
-                    </owl:Restriction>
-                </owl:intersectionOf>
-            </owl:Class>
-        </owl:equivalentClass>
+    <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ScienceStudent">
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
+    </owl:Class>
+    
+
+
+    <!-- https://kracr.iiitd.edu.in/OWL2Bench#SelfAware -->
+
+    <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#SelfAware">
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
     </owl:Class>
     
 
@@ -2098,6 +1843,22 @@
     
 
 
+    <!-- https://kracr.iiitd.edu.in/OWL2Bench#SportsFan -->
+
+    <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#SportsFan">
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
+    </owl:Class>
+    
+
+
+    <!-- https://kracr.iiitd.edu.in/OWL2Bench#SportsLover -->
+
+    <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#SportsLover">
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
+    </owl:Class>
+    
+
+
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Statistics -->
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Statistics">
@@ -2109,17 +1870,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Student -->
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Student">
-        <owl:equivalentClass>
-            <owl:Class>
-                <owl:intersectionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
-                    <owl:Restriction>
-                        <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#enrollIn"/>
-                        <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Department"/>
-                    </owl:Restriction>
-                </owl:intersectionOf>
-            </owl:Class>
-        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
         <owl:hasKey rdf:parseType="Collection">
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#hasID"/>
@@ -2164,15 +1914,10 @@
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#T20CricketFan">
         <owl:equivalentClass>
-            <owl:Class>
-                <owl:intersectionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
-                    <owl:Restriction>
-                        <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#isCrazyAbout"/>
-                        <owl:hasValue rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#T20Cricket"/>
-                    </owl:Restriction>
-                </owl:intersectionOf>
-            </owl:Class>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#isCrazyAbout"/>
+                <owl:hasValue rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#T20Cricket"/>
+            </owl:Restriction>
         </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
     </owl:Class>
@@ -2182,17 +1927,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#TeachingAssistant -->
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#TeachingAssistant">
-        <owl:equivalentClass>
-            <owl:Class>
-                <owl:intersectionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
-                    <owl:Restriction>
-                        <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#isTeachingAssistantOf"/>
-                        <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Course"/>
-                    </owl:Restriction>
-                </owl:intersectionOf>
-            </owl:Class>
-        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
     </owl:Class>
     
@@ -2257,18 +1991,6 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#UGStudent -->
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#UGStudent">
-        <owl:equivalentClass>
-            <owl:Class>
-                <owl:intersectionOf rdf:parseType="Collection">
-                    <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
-                    <owl:Restriction>
-                        <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#enrollFor"/>
-                        <owl:qualifiedCardinality rdf:datatype="http://www.w3.org/2001/XMLSchema#nonNegativeInteger">1</owl:qualifiedCardinality>
-                        <owl:onClass rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#UGProgram"/>
-                    </owl:Restriction>
-                </owl:intersectionOf>
-            </owl:Class>
-        </owl:equivalentClass>
         <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
     </owl:Class>
     
@@ -2309,7 +2031,8 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#WomenCollege -->
 
     <owl:Class rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#WomenCollege">
-        <owl:equivalentClass>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#College"/>
+        <rdfs:subClassOf>
             <owl:Class>
                 <owl:intersectionOf rdf:parseType="Collection">
                     <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#College"/>
@@ -2319,8 +2042,7 @@
                     </owl:Restriction>
                 </owl:intersectionOf>
             </owl:Class>
-        </owl:equivalentClass>
-        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#College"/>
+        </rdfs:subClassOf>
     </owl:Class>
     
 
@@ -2344,13 +2066,17 @@
 
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#AbstractPainting -->
 
-    <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#AbstractPainting"/>
+    <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#AbstractPainting">
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Painting"/>
+    </owl:NamedIndividual>
     
 
 
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#ActionMovie -->
 
-    <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ActionMovie"/>
+    <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ActionMovie">
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Movie"/>
+    </owl:NamedIndividual>
     
 
 
@@ -2378,9 +2104,11 @@
     
 
 
-    <!-- https://kracr.iiitd.edu.in/OWL2Bench#ArticleReading -->
+    <!-- https://kracr.iiitd.edu.in/OWL2Bench#Article -->
 
-    <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ArticleReading"/>
+    <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Article">
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Reading"/>
+    </owl:NamedIndividual>
     
 
 
@@ -2408,13 +2136,16 @@
 
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Badminton -->
 
-    <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Badminton"/>
+    <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Badminton">
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Badminton"/>
+    </owl:NamedIndividual>
     
 
 
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#BasketBall -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#BasketBall">
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#BasketBall"/>
         <owl:sameAs rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Basketball"/>
     </owl:NamedIndividual>
     
@@ -2422,9 +2153,7 @@
 
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Basketball -->
 
-    <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Basketball">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
-    </owl:NamedIndividual>
+    <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Basketball"/>
     
 
 
@@ -2444,10 +2173,10 @@
     
 
 
-    <!-- https://kracr.iiitd.edu.in/OWL2Bench#BookReading -->
+    <!-- https://kracr.iiitd.edu.in/OWL2Bench#Book -->
 
-    <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#BookReading">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+    <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Book">
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Reading"/>
     </owl:NamedIndividual>
     
 
@@ -2479,7 +2208,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#ClassicalMusic -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ClassicalMusic">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Music"/>
     </owl:NamedIndividual>
     
 
@@ -2487,7 +2216,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#ComedyMovie -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ComedyMovie">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Movie"/>
     </owl:NamedIndividual>
     
 
@@ -2511,7 +2240,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Cricket -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Cricket">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Cricket"/>
     </owl:NamedIndividual>
     
 
@@ -2519,7 +2248,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#DocumentaryMovie -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#DocumentaryMovie">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Movie"/>
     </owl:NamedIndividual>
     
 
@@ -2567,7 +2296,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#FictionMovie -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#FictionMovie">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Movie"/>
     </owl:NamedIndividual>
     
 
@@ -2591,7 +2320,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Football -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Football">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Football"/>
     </owl:NamedIndividual>
     
 
@@ -2621,7 +2350,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#HorrorMovie -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#HorrorMovie">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Movie"/>
     </owl:NamedIndividual>
     
 
@@ -2754,10 +2483,10 @@
     
 
 
-    <!-- https://kracr.iiitd.edu.in/OWL2Bench#NewspaperReading -->
+    <!-- https://kracr.iiitd.edu.in/OWL2Bench#Newspaper -->
 
-    <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#NewspaperReading">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+    <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Newspaper">
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Reading"/>
     </owl:NamedIndividual>
     
 
@@ -2765,7 +2494,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#OilPainting -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#OilPainting">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Painting"/>
     </owl:NamedIndividual>
     
 
@@ -2773,7 +2502,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#PCGame -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#PCGame">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Game"/>
     </owl:NamedIndividual>
     
 
@@ -2835,7 +2564,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#PopMusic -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#PopMusic">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Music"/>
     </owl:NamedIndividual>
     
 
@@ -2856,10 +2585,10 @@
     
 
 
-    <!-- https://kracr.iiitd.edu.in/OWL2Bench#RockAndRollMusic -->
+    <!-- https://kracr.iiitd.edu.in/OWL2Bench#RockandRollMusic -->
 
-    <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#RockAndRollMusic">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+    <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#RockandRollMusic">
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Music"/>
     </owl:NamedIndividual>
     
 
@@ -2867,7 +2596,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#RomanticMovie -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#RomanticMovie">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Movie"/>
     </owl:NamedIndividual>
     
 
@@ -2891,7 +2620,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Soccer -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Soccer">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Soccer"/>
     </owl:NamedIndividual>
     
 
@@ -2915,7 +2644,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Swimming -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Swimming">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Swimming"/>
     </owl:NamedIndividual>
     
 
@@ -2923,7 +2652,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#T20Cricket -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#T20Cricket">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Cricket"/>
     </owl:NamedIndividual>
     
 
@@ -2931,7 +2660,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Tennis -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Tennis">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Tennis"/>
     </owl:NamedIndividual>
     
 
@@ -2947,7 +2676,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#ThrillerMovie -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ThrillerMovie">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Movie"/>
     </owl:NamedIndividual>
     
 
@@ -2955,7 +2684,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#Travelling -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Travelling">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Travelling"/>
     </owl:NamedIndividual>
     
 
@@ -2985,7 +2714,7 @@
     <!-- https://kracr.iiitd.edu.in/OWL2Bench#VideoGame -->
 
     <owl:NamedIndividual rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#VideoGame">
-        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+        <rdf:type rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Game"/>
     </owl:NamedIndividual>
     
 
@@ -2998,6 +2727,138 @@
     ///////////////////////////////////////////////////////////////////////////////////////
      -->
 
+    <owl:Class>
+        <owl:intersectionOf rdf:parseType="Collection">
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Employee"/>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#teachesCourse"/>
+                <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Course"/>
+            </owl:Restriction>
+        </owl:intersectionOf>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Faculty"/>
+    </owl:Class>
+    <owl:Class>
+        <owl:intersectionOf rdf:parseType="Collection">
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#enrollIn"/>
+                <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Department"/>
+            </owl:Restriction>
+        </owl:intersectionOf>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
+    </owl:Class>
+    <owl:Class>
+        <owl:intersectionOf rdf:parseType="Collection">
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#isCrazyAbout"/>
+                <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Sports"/>
+            </owl:Restriction>
+        </owl:intersectionOf>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#SportsFan"/>
+    </owl:Class>
+    <owl:Class>
+        <owl:intersectionOf rdf:parseType="Collection">
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#likes"/>
+                <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Interest"/>
+            </owl:Restriction>
+        </owl:intersectionOf>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#PeopleWithHobby"/>
+    </owl:Class>
+    <owl:Class>
+        <owl:intersectionOf rdf:parseType="Collection">
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#loves"/>
+                <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Sports"/>
+            </owl:Restriction>
+        </owl:intersectionOf>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#SportsLover"/>
+    </owl:Class>
+    <owl:Class>
+        <owl:intersectionOf rdf:parseType="Collection">
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#worksFor"/>
+                <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Organization"/>
+            </owl:Restriction>
+        </owl:intersectionOf>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Employee"/>
+    </owl:Class>
+    <owl:Class>
+        <owl:intersectionOf rdf:parseType="Collection">
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#enrollFor"/>
+                <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#PGProgram"/>
+            </owl:Restriction>
+        </owl:intersectionOf>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#PGStudent"/>
+    </owl:Class>
+    <owl:Class>
+        <owl:intersectionOf rdf:parseType="Collection">
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#enrollFor"/>
+                <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#PhDProgram"/>
+            </owl:Restriction>
+        </owl:intersectionOf>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#PhDStudent"/>
+    </owl:Class>
+    <owl:Class>
+        <owl:intersectionOf rdf:parseType="Collection">
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#enrollFor"/>
+                <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#UGProgram"/>
+            </owl:Restriction>
+        </owl:intersectionOf>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#UGStudent"/>
+    </owl:Class>
+    <owl:Class>
+        <owl:intersectionOf rdf:parseType="Collection">
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#hasMajor"/>
+                <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Science"/>
+            </owl:Restriction>
+        </owl:intersectionOf>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#ScienceStudent"/>
+    </owl:Class>
+    <owl:Class>
+        <owl:intersectionOf rdf:parseType="Collection">
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Student"/>
+            <owl:Restriction>
+                <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#isTeachingAssistantOf"/>
+                <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Course"/>
+            </owl:Restriction>
+        </owl:intersectionOf>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#TeachingAssistant"/>
+    </owl:Class>
+    <owl:Class>
+        <owl:unionOf rdf:parseType="Collection">
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Man"/>
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Woman"/>
+        </owl:unionOf>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Person"/>
+    </owl:Class>
+    <owl:Restriction>
+        <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#isHeadOf"/>
+        <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#College"/>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Dean"/>
+    </owl:Restriction>
+    <owl:Restriction>
+        <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#isHeadOf"/>
+        <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Department"/>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Chair"/>
+    </owl:Restriction>
+    <owl:Restriction>
+        <owl:onProperty rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#isHeadOf"/>
+        <owl:someValuesFrom rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Program"/>
+        <rdfs:subClassOf rdf:resource="https://kracr.iiitd.edu.in/OWL2Bench#Director"/>
+    </owl:Restriction>
     <rdf:Description>
         <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#AllDisjointClasses"/>
         <owl:members rdf:parseType="Collection">
@@ -3031,6 +2892,21 @@
     <rdf:Description>
         <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#AllDisjointClasses"/>
         <owl:members rdf:parseType="Collection">
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Architecture"/>
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#AsianArts"/>
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Drama"/>
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#LatinArts"/>
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#MediaArtsAndSciences"/>
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#MedievalArts"/>
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ModernArts"/>
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Music"/>
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#PerformingArts"/>
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#TheatreAndDance"/>
+        </owl:members>
+    </rdf:Description>
+    <rdf:Description>
+        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#AllDisjointClasses"/>
+        <owl:members rdf:parseType="Collection">
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Astronomy"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Biology"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Chemistry"/>
@@ -3053,16 +2929,6 @@
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Soccer"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Swimming"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Tennis"/>
-        </owl:members>
-    </rdf:Description>
-    <rdf:Description>
-        <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#AllDisjointClasses"/>
-        <owl:members rdf:parseType="Collection">
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Badminton"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#BasketBall"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Cricket"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Football"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Swimming"/>
         </owl:members>
     </rdf:Description>
     <rdf:Description>
@@ -3097,7 +2963,9 @@
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Movie"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Music"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Painting"/>
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Reading"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Sports"/>
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Travelling"/>
         </owl:members>
     </rdf:Description>
     <rdf:Description>
@@ -3116,7 +2984,7 @@
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#AeronauticalEngineering"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Anthropology"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Architecture"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ArticleReading"/>
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Article"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#AsianArts"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Astronomy"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#BackStroke"/>
@@ -3124,7 +2992,7 @@
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Basketball"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Biology"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#BiomedicalEngineering"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#BookReading"/>
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Book"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ChemicalEngineering"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Chemistry"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#CivilEngineering"/>
@@ -3158,7 +3026,7 @@
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ModernArts"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#ModernLanguages"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#MusicsClass"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#NewspaperReading"/>
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Newspaper"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#OilPainting"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#PCGame"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#PerformingArts"/>
@@ -3168,7 +3036,7 @@
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#PopMusic"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Psychology"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Religions"/>
-            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#RockAndRollMusic"/>
+            <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#RockandRollMusic"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#RomanticMovie"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Shopping"/>
             <rdf:Description rdf:about="https://kracr.iiitd.edu.in/OWL2Bench#Soccer"/>

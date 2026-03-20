@@ -1,7 +1,0 @@
-Dropped inferred triple reason counts
-===================================
-object_bnode	8
-object_literal	0
-subject_bnode	46
-unknown_object	0
-unknown_subject	0

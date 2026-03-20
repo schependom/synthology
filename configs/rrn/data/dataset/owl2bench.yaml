@@ -1,0 +1,5 @@
+name: "OWL2Bench (OWL 2 RL)"
+
+train_path: "data/OWL2Bench/output/owl2bench_1/train"
+val_path: "data/OWL2Bench/output/owl2bench_1/val"
+test_path: "data/OWL2Bench/output/owl2bench_1/test"

@@ -7,10 +7,15 @@ authors = [
     { name = "Vincent Van Schependom", email = "vincent.van.schependom@gmail.com" }
 ]
 requires-python = ">=3.9"
-dependencies = []
+dependencies = [
+    "hydra-core>=1.3.2",
+    "loguru>=0.7.3",
+    "omegaconf>=2.3.0",
+    "rdflib>=7.5.0",
+]
 
 [project.scripts]
-owl2bench = "owl2bench:main"
+owl2bench = "owl2bench.pipeline:main"
 
 [build-system]
 requires = ["uv_build>=0.9.21,<0.10.0"]
