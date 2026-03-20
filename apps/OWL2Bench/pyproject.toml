@@ -1,0 +1,17 @@
+[project]
+name = "owl2bench"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Vincent Van Schependom", email = "vincent.van.schependom@gmail.com" }
+]
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+owl2bench = "owl2bench:main"
+
+[build-system]
+requires = ["uv_build>=0.9.21,<0.10.0"]
+build-backend = "uv_build"

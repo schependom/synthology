@@ -9,7 +9,13 @@ import rdflib
 from loguru import logger
 from omegaconf import DictConfig
 
-from lubm.parse_to_csv import RDF_TYPE_URI, compute_inferred_triples, is_valid_abox_triple, parse_lubm_directory
+from lubm.parse_to_csv import (
+    RDF_TYPE_URI,
+    apply_namespace_map,
+    compute_inferred_triples,
+    is_valid_abox_triple,
+    parse_lubm_directory,
+)
 from synthology.verification_visualizer import export_base_inferred_graph
 
 REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../..")
@@ -181,6 +187,7 @@ def _run_csv_export_verification(base: rdflib.Graph, tbox: rdflib.Graph, cfg: Di
     target_ratio = float(cfg.output.get("target_ratio", 0.0))
     num_samples_cfg = cfg.output.get("num_samples", 1)
     num_samples = None if num_samples_cfg is None else int(num_samples_cfg)
+    jena_cfg = dict(cfg.reasoning.get("jena", {}))
 
     parse_lubm_directory(
         raw_dir=raw_dir,
@@ -189,6 +196,7 @@ def _run_csv_export_verification(base: rdflib.Graph, tbox: rdflib.Graph, cfg: Di
         target_ratio=target_ratio,
         num_samples=num_samples,
         enable_reasoning=True,
+        jena_cfg=jena_cfg,
         tbox_graph=tbox,
     )
 
@@ -274,6 +282,8 @@ def main(cfg: DictConfig) -> None:
     output_root = _resolve_path(str(cfg.output.root_dir), original_cwd)
 
     mode = str(cfg.verification.get("mode", "subset")).lower()
+    jena_cfg = dict(cfg.reasoning.get("jena", {}))
+    namespace_map = dict(cfg.reasoning.get("namespace_map", {}))
 
     if mode == "toy":
         base_graph, tbox_graph = _make_toy_graphs()
@@ -292,12 +302,20 @@ def main(cfg: DictConfig) -> None:
             seed=seed,
         )
         tbox_graph = _load_tbox_graph(tbox_path)
+        if namespace_map:
+            tbox_graph, changed_terms = apply_namespace_map(tbox_graph, namespace_map)
+            logger.info(f"Applied namespace mapping to TBox in verifier | mapped_terms={changed_terms}")
         logger.info("Running subset verification mode")
     else:
         raise ValueError(f"Unsupported verification.mode '{mode}'. Use 'subset' or 'toy'.")
 
     known = _known_individuals_from_base(base_graph)
-    inferred = compute_inferred_triples(base_graph=base_graph, tbox_graph=tbox_graph, known_individuals=known)
+    inferred = compute_inferred_triples(
+        base_graph=base_graph,
+        tbox_graph=tbox_graph,
+        known_individuals=known,
+        jena_cfg=jena_cfg,
+    )
 
     if mode == "toy":
         _run_toy_expected_checks(inferred)

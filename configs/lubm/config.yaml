@@ -46,23 +46,27 @@ dataset:
   # Reasoning configuration for computing inferred targets from base facts.
   reasoning:
     enabled: true
-    # Reasoning backend: 'rdfox' or 'rdflib'
-    engine: "rdfox"
+    # Apache Jena settings for materializing inferred facts.
+    # The vendor directory is expected to contain Apache Jena binaries.
     # Download with: uv run invoke gen-lubm-tbox
     tbox_path: "data/ont/input/lubm.ttl"
-    rdfox:
-      # Path or command name for RDFox executable.
-      executable: "rdfox"
+    # Remap ontology namespaces to match generated ABox namespaces.
+    namespace_map:
+      "http://swat.cse.lehigh.edu/onto/univ-bench.owl#": "http://www.lehigh.edu/~zhp2/2004/0401/univ-bench.owl#"
+    jena:
+      # Path or command name for Java runtime used to run JenaMaterializer.java.
+      executable: "java"
       # Shell command template used to run materialization.
       # Available placeholders:
-      # - {rdfox_executable}
+      # - {jena_executable}
       # - {input_abox}
       # - {input_tbox}
       # - {output_ttl}
       #
-      # IMPORTANT: Adapt this template to your local RDFox CLI syntax.
-      # If this is empty while engine=rdfox, parsing will fail fast with instructions.
-      command_template: ""
+      # IMPORTANT: This template runs the OWL-based Java materializer.
+      # It uses Jena jars from vendor/apache-jena-6.0.0/lib and the local
+      # apps/LUBM/src/lubm/vendor/JenaMaterializer.java source file.
+      command_template: "{jena_executable} --class-path 'vendor/apache-jena-6.0.0/lib/*' apps/LUBM/src/lubm/vendor/JenaMaterializer.java {input_tbox} {input_abox} {output_ttl}"
 
 generator:
   # The format of the output from the Java generator. 

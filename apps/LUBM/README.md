@@ -7,7 +7,7 @@ This package contains scripts and configuration to generate [Lehigh University B
 1. **Generate and Parse LUBM Data (recommended):**
 
 Use the `gen_lubm` task defined in `synthology/tasks.py`.
-This runs the Java vendor generator, then parses output into CSV while applying an OWL RL reasoner to compute inferred facts.
+This runs the Java vendor generator, then parses output into CSV while applying Apache Jena materialization to compute inferred facts.
 
 ```bash
 uv run invoke gen-lubm
@@ -16,18 +16,14 @@ uv run invoke gen-lubm
 The Java LUBM vendor generator produces base facts only. Inferred facts are
 created in the parsing stage by the configured reasoner backend.
 
-By default, the parser now expects RDFox (`dataset.reasoning.engine=rdfox`).
-Set your local RDFox CLI command in `configs/lubm/config.yaml` under:
+The parser now expects Apache Jena for materialization.
+Set your local Apache Jena CLI command in `configs/lubm/config.yaml` under:
 
-- `dataset.reasoning.rdfox.executable`
-- `dataset.reasoning.rdfox.command_template`
+- `dataset.reasoning.jena.executable`
+- `dataset.reasoning.jena.command_template`
 
-For environments without RDFox configured, you can switch back to the previous
-RDFlib backend:
-
-```bash
-uv run invoke parse-lubm --args="dataset.reasoning.engine=rdflib"
-```
+If the Jena command template is empty or invalid, parsing fails fast with a
+clear setup error message.
 
 Output goes into:
 
@@ -137,4 +133,4 @@ The parsed output is located in `data/lubm/lubm_{size}/` and consists of two fil
     When `dataset.mask_base_facts=false`, inferred positives in `targets.csv`
     come only from reasoning.
 
-_Note: The LUBM parser now applies OWL RL reasoning (optionally with the LUBM TBox from `data/ont/input/lubm.ttl`). If the TBox file is missing, closure still runs over the sample ABox only._
+_Note: The LUBM parser now applies Apache Jena materialization (optionally with the LUBM TBox from `data/ont/input/lubm.ttl`). If the TBox file is missing, materialization still runs over the sample ABox only._

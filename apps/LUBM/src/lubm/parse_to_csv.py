@@ -13,29 +13,89 @@ import hydra
 import rdflib
 from loguru import logger
 from omegaconf import DictConfig
-from owlrl import OWLRL_Semantics
 
 RDF_TYPE_URI = str(rdflib.RDF.type)
 
 
-class HopTrackingOWLRL(OWLRL_Semantics):
-    """OWL RL semantics that records the first cycle that derives each triple."""
+def _namespace_of(uri: rdflib.term.Node) -> str:
+    value = str(uri)
+    if "#" in value:
+        return value.rsplit("#", 1)[0] + "#"
+    if "/" in value:
+        return value.rsplit("/", 1)[0] + "/"
+    return value
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.current_cycle = 0
-        self.first_cycle_by_triple: dict[tuple, int] = {}
 
-    def rules(self, t, cycle_num):
-        self.current_cycle = cycle_num
-        return super().rules(t, cycle_num)
+def _log_namespace_diagnostics(base_graph: rdflib.Graph, tbox_graph: Optional[rdflib.Graph]) -> None:
+    if tbox_graph is None:
+        return
 
-    def store_triple(self, t):
-        """Store inferred triples and record the earliest cycle in which they appear."""
-        s, p, o = t
-        if not isinstance(p, rdflib.Literal) and not (t in self.destination or t in self.graph):
-            self.added_triples.add(t)
-            self.first_cycle_by_triple.setdefault(t, max(1, self.current_cycle))
+    base_ns = set()
+    for s, p, o in base_graph:
+        base_ns.add(_namespace_of(s))
+        base_ns.add(_namespace_of(p))
+        if not isinstance(o, rdflib.Literal):
+            base_ns.add(_namespace_of(o))
+
+    tbox_ns = set()
+    for s, p, o in tbox_graph:
+        tbox_ns.add(_namespace_of(s))
+        tbox_ns.add(_namespace_of(p))
+        if not isinstance(o, rdflib.Literal):
+            tbox_ns.add(_namespace_of(o))
+
+    overlap = base_ns & tbox_ns
+    logger.info(
+        "Namespace diagnostics | base_namespaces={} | tbox_namespaces={} | overlap={}",
+        len(base_ns),
+        len(tbox_ns),
+        len(overlap),
+    )
+
+    if len(overlap) == 0:
+        logger.warning(
+            "No overlapping namespaces between ABox and TBox. This usually indicates a namespace mismatch, "
+            "which can cause zero inferences."
+        )
+
+    logger.info("ABox namespace sample: {}", sorted(base_ns)[:5])
+    logger.info("TBox namespace sample: {}", sorted(tbox_ns)[:5])
+
+
+def _remap_uri(node: rdflib.term.Node, namespace_map: dict[str, str]) -> rdflib.term.Node:
+    if not isinstance(node, rdflib.URIRef):
+        return node
+
+    value = str(node)
+    for old_ns, new_ns in namespace_map.items():
+        if value.startswith(old_ns):
+            return rdflib.URIRef(new_ns + value[len(old_ns) :])
+    return node
+
+
+def apply_namespace_map(graph: rdflib.Graph, namespace_map: dict[str, str]) -> tuple[rdflib.Graph, int]:
+    """Return a mapped graph with URI namespaces rewritten according to namespace_map."""
+    if not namespace_map:
+        return graph, 0
+
+    mapped = rdflib.Graph()
+    changed_terms = 0
+
+    for s, p, o in graph:
+        ns = _remap_uri(s, namespace_map)
+        np = _remap_uri(p, namespace_map)
+        no = _remap_uri(o, namespace_map)
+
+        if ns != s:
+            changed_terms += 1
+        if np != p:
+            changed_terms += 1
+        if no != o:
+            changed_terms += 1
+
+        mapped.add((ns, np, no))
+
+    return mapped, changed_terms
 
 
 def parse_uri(uri: str) -> str:
@@ -76,67 +136,67 @@ def is_valid_abox_triple(subject, predicate, obj) -> bool:
     return True
 
 
+def _invalid_abox_reason(subject: rdflib.term.Node, obj: rdflib.term.Node) -> Optional[str]:
+    """Return the specific reason a triple fails ABox-shape validation, if any."""
+    if isinstance(subject, rdflib.BNode):
+        return "subject_bnode"
+    if isinstance(obj, rdflib.BNode):
+        return "object_bnode"
+    if isinstance(obj, rdflib.Literal):
+        return "object_literal"
+    return None
+
+
+def _write_dropped_debug_report(
+    dropped_records: list[tuple[str, rdflib.term.Node, rdflib.term.Node, rdflib.term.Node]],
+    reason_counts: dict[str, int],
+    output_dir: Path,
+) -> Path:
+    """Persist a TSV + summary text file with sampled dropped inferred triples."""
+    output_dir.mkdir(parents=True, exist_ok=True)
+    report_stem = f"dropped_inferred_{int(time.time() * 1000)}"
+    tsv_path = output_dir / f"{report_stem}.tsv"
+    summary_path = output_dir / f"{report_stem}_summary.txt"
+
+    with open(tsv_path, "w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle, delimiter="\t")
+        writer.writerow(["reason", "subject", "predicate", "object"])
+        for reason, s, p, o in dropped_records:
+            writer.writerow([reason, s.n3(), p.n3(), o.n3()])
+
+    with open(summary_path, "w", encoding="utf-8") as handle:
+        handle.write("Dropped inferred triple reason counts\n")
+        handle.write("===================================\n")
+        for reason in sorted(reason_counts.keys()):
+            handle.write(f"{reason}\t{reason_counts[reason]}\n")
+
+    logger.info("Wrote dropped-triple debug report | tsv={} | summary={}", tsv_path, summary_path)
+    return tsv_path
+
+
 def compute_inferred_triples(
     base_graph: rdflib.Graph,
     tbox_graph: Optional[rdflib.Graph],
     known_individuals: set[rdflib.term.Node],
+    jena_cfg: dict[str, Any],
 ) -> list[tuple[rdflib.term.Node, rdflib.term.Node, rdflib.term.Node, int]]:
-    """Run OWL RL closure and return inferred ABox triples only."""
-    closure_graph = rdflib.Graph()
-    for triple in base_graph:
-        closure_graph.add(triple)
+    """Run inference via Apache Jena CLI and return inferred ABox triples.
 
-    if tbox_graph is not None:
-        for triple in tbox_graph:
-            closure_graph.add(triple)
-
-    reasoner = HopTrackingOWLRL(closure_graph, False, False)
-    reasoner.closure()
-
-    inferred = []
-    for s, p, o in closure_graph:
-        if (s, p, o) in base_graph:
-            continue
-        if tbox_graph is not None and (s, p, o) in tbox_graph:
-            continue
-        if not is_valid_abox_triple(s, p, o):
-            continue
-
-        # Keep only assertions grounded in sample individuals to avoid
-        # exporting TBox-only closure artifacts.
-        if s not in known_individuals:
-            continue
-        if str(p) != RDF_TYPE_URI and o not in known_individuals:
-            continue
-
-        hop_count = reasoner.first_cycle_by_triple.get((s, p, o), 1)
-        inferred.append((s, p, o, hop_count))
-
-    inferred.sort(key=lambda t: (t[3], str(t[0]), str(t[1]), str(t[2])))
-    return inferred
-
-
-def compute_inferred_triples_rdfox(
-    base_graph: rdflib.Graph,
-    tbox_graph: Optional[rdflib.Graph],
-    known_individuals: set[rdflib.term.Node],
-    rdfox_cfg: dict[str, Any],
-) -> list[tuple[rdflib.term.Node, rdflib.term.Node, rdflib.term.Node, int]]:
-    """Run inference via RDFox CLI and return inferred ABox triples.
-
-    Requires `rdfox.command_template` in config. The template can use:
-    {rdfox_executable}, {input_abox}, {input_tbox}, {output_ttl}
+    Requires `dataset.reasoning.jena.command_template` in config.
+    The template can use placeholders:
+      {jena_executable}, {input_abox}, {input_tbox}, {output_ttl}
     """
-    rdfox_executable = str(rdfox_cfg.get("executable", "rdfox"))
-    command_template = rdfox_cfg.get("command_template", "")
+    jena_executable = str(jena_cfg.get("executable", "jena"))
+    command_template = str(jena_cfg.get("command_template", "")).strip()
 
     if not command_template:
         raise RuntimeError(
-            "RDFox backend selected, but no `dataset.reasoning.rdfox.command_template` is configured. "
-            "Please set a template using placeholders {rdfox_executable}, {input_abox}, {input_tbox}, {output_ttl}."
+            "Jena backend selected, but `dataset.reasoning.jena.command_template` is empty. "
+            "Please configure a Jena materialization command template using placeholders "
+            "{jena_executable}, {input_abox}, {input_tbox}, {output_ttl}."
         )
 
-    with tempfile.TemporaryDirectory(prefix="lubm_rdfox_") as td:
+    with tempfile.TemporaryDirectory(prefix="lubm_jena_") as td:
         tmp_dir = Path(td)
         abox_path = tmp_dir / "abox.ttl"
         tbox_path = tmp_dir / "tbox.ttl"
@@ -149,7 +209,7 @@ def compute_inferred_triples_rdfox(
             tbox_path.write_text("", encoding="utf-8")
 
         command = command_template.format(
-            rdfox_executable=shlex.quote(rdfox_executable),
+            jena_executable=shlex.quote(jena_executable),
             input_abox=shlex.quote(str(abox_path)),
             input_tbox=shlex.quote(str(tbox_path)),
             output_ttl=shlex.quote(str(output_path)),
@@ -158,39 +218,92 @@ def compute_inferred_triples_rdfox(
         proc = subprocess.run(command, shell=True, text=True, capture_output=True)
         if proc.returncode != 0:
             raise RuntimeError(
-                "RDFox materialization command failed\n"
+                "Apache Jena materialization command failed\n"
                 f"Command: {command}\n"
                 f"Exit code: {proc.returncode}\n"
                 f"STDOUT:\n{proc.stdout}\n"
                 f"STDERR:\n{proc.stderr}"
             )
 
+        if proc.stdout.strip():
+            logger.info("Jena materializer STDOUT:\n{}", proc.stdout.strip())
+
         if not output_path.exists():
             raise RuntimeError(
-                "RDFox command completed but no output file was produced at "
-                f"{output_path}. Check rdfox.command_template export/output command."
+                "Apache Jena command completed but no output file was produced at "
+                f"{output_path}. Check jena.command_template export/output command."
             )
 
         closure_graph = rdflib.Graph()
         closure_graph.parse(output_path, format="turtle")
 
     inferred = []
+    novel_before_filter = 0
+    dropped_invalid_abox = 0
+    dropped_unknown_subject = 0
+    dropped_unknown_object = 0
+    dropped_reason_counts: dict[str, int] = {
+        "subject_bnode": 0,
+        "object_bnode": 0,
+        "object_literal": 0,
+        "unknown_subject": 0,
+        "unknown_object": 0,
+    }
+
+    debug_dropped_triples = bool(jena_cfg.get("debug_dropped_triples", False))
+    debug_dropped_limit = int(jena_cfg.get("debug_dropped_limit", 100))
+    dropped_records: list[tuple[str, rdflib.term.Node, rdflib.term.Node, rdflib.term.Node]] = []
+
+    def _record_drop(reason: str, s: rdflib.term.Node, p: rdflib.term.Node, o: rdflib.term.Node) -> None:
+        dropped_reason_counts[reason] = dropped_reason_counts.get(reason, 0) + 1
+        if debug_dropped_triples and len(dropped_records) < debug_dropped_limit:
+            dropped_records.append((reason, s, p, o))
+
     for s, p, o in closure_graph:
         if (s, p, o) in base_graph:
             continue
         if tbox_graph is not None and (s, p, o) in tbox_graph:
             continue
-        if not is_valid_abox_triple(s, p, o):
+        novel_before_filter += 1
+        invalid_reason = _invalid_abox_reason(s, o)
+        if invalid_reason is not None:
+            dropped_invalid_abox += 1
+            _record_drop(invalid_reason, s, p, o)
             continue
         if s not in known_individuals:
+            dropped_unknown_subject += 1
+            _record_drop("unknown_subject", s, p, o)
             continue
         if str(p) != RDF_TYPE_URI and o not in known_individuals:
+            dropped_unknown_object += 1
+            _record_drop("unknown_object", s, p, o)
             continue
 
-        # RDFox CLI output does not expose derivation-cycle depth in this pipeline.
+        # Jena materialization output does not expose derivation-cycle depth in this pipeline.
         inferred.append((s, p, o, 1))
 
     inferred.sort(key=lambda t: (t[3], str(t[0]), str(t[1]), str(t[2])))
+    logger.info(
+        "Filter diagnostics | novel_before_filter={} | accepted={} | dropped_invalid_abox={} | dropped_unknown_subject={} | dropped_unknown_object={}",
+        novel_before_filter,
+        len(inferred),
+        dropped_invalid_abox,
+        dropped_unknown_subject,
+        dropped_unknown_object,
+    )
+    logger.info(
+        "Drop reason diagnostics | subject_bnode={} | object_bnode={} | object_literal={} | unknown_subject={} | unknown_object={}",
+        dropped_reason_counts.get("subject_bnode", 0),
+        dropped_reason_counts.get("object_bnode", 0),
+        dropped_reason_counts.get("object_literal", 0),
+        dropped_reason_counts.get("unknown_subject", 0),
+        dropped_reason_counts.get("unknown_object", 0),
+    )
+
+    if debug_dropped_triples and dropped_records:
+        debug_output_dir = Path(str(jena_cfg.get("debug_output_dir", "data/lubm/reasoning_debug")))
+        _write_dropped_debug_report(dropped_records, dropped_reason_counts, debug_output_dir)
+
     return inferred
 
 
@@ -219,8 +332,7 @@ def parse_lubm_directory(
     num_samples: Optional[int] = None,
     mask_base_facts: bool = True,
     enable_reasoning: bool = True,
-    reasoner_engine: str = "rdflib",
-    rdfox_cfg: Optional[dict[str, Any]] = None,
+    jena_cfg: Optional[dict[str, Any]] = None,
     tbox_graph: Optional[rdflib.Graph] = None,
 ):
     """
@@ -338,6 +450,7 @@ def parse_lubm_directory(
 
             inferred_clean = []
             if enable_reasoning and len(sample_base_graph) > 0:
+                _log_namespace_diagnostics(sample_base_graph, tbox_graph)
                 known_individuals = set()
                 for s, p, o in sample_base_graph:
                     if str(p) == RDF_TYPE_URI:
@@ -347,19 +460,12 @@ def parse_lubm_directory(
                         known_individuals.add(o)
 
                 t_reason_start = time.perf_counter()
-                if reasoner_engine == "rdfox":
-                    inferred_raw = compute_inferred_triples_rdfox(
-                        base_graph=sample_base_graph,
-                        tbox_graph=tbox_graph,
-                        known_individuals=known_individuals,
-                        rdfox_cfg=rdfox_cfg or {},
-                    )
-                else:
-                    inferred_raw = compute_inferred_triples(
-                        base_graph=sample_base_graph,
-                        tbox_graph=tbox_graph,
-                        known_individuals=known_individuals,
-                    )
+                inferred_raw = compute_inferred_triples(
+                    base_graph=sample_base_graph,
+                    tbox_graph=tbox_graph,
+                    known_individuals=known_individuals,
+                    jena_cfg=jena_cfg or {},
+                )
                 reasoning_seconds += time.perf_counter() - t_reason_start
                 reasoning_calls += 1
 
@@ -540,14 +646,17 @@ def main(cfg: DictConfig):
     mask_base_facts = cfg.dataset.get("mask_base_facts", True)
     reasoning_cfg = cfg.dataset.get("reasoning", {})
     enable_reasoning = reasoning_cfg.get("enabled", True)
-    reasoner_engine = str(reasoning_cfg.get("engine", "rdfox")).lower()
-    rdfox_cfg = reasoning_cfg.get("rdfox", {})
+    jena_cfg = reasoning_cfg.get("jena", {})
+    namespace_map = dict(reasoning_cfg.get("namespace_map", {}))
 
     tbox_graph = None
     if enable_reasoning:
         tbox_path_cfg = reasoning_cfg.get("tbox_path", "data/ont/input/lubm.ttl")
         tbox_path = Path(tbox_path_cfg) if Path(tbox_path_cfg).is_absolute() else original_cwd / tbox_path_cfg
         tbox_graph = load_optional_tbox(tbox_path)
+        if tbox_graph is not None and namespace_map:
+            tbox_graph, changed_terms = apply_namespace_map(tbox_graph, namespace_map)
+            logger.info("Applied namespace mapping to TBox | mapped_terms={}", changed_terms)
 
     for univ_count in dataset_configs:
         size_label = f"lubm_{univ_count}"
@@ -569,8 +678,7 @@ def main(cfg: DictConfig):
             num_samples,
             mask_base_facts=mask_base_facts,
             enable_reasoning=enable_reasoning,
-            reasoner_engine=reasoner_engine,
-            rdfox_cfg=rdfox_cfg,
+            jena_cfg=jena_cfg,
             tbox_graph=tbox_graph,
         )
         if stats:

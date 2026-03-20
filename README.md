@@ -413,14 +413,14 @@ We shall **publish** the hard test set(s) for reproducibility.
 
 Creating a new subproject:
 
-```uv
+```bash
 uv init apps/my-new-app --package
 uv sync
 ```
 
 Adding new dependencies only to a specific subproject:
 
-```uv
+```bash
 uv add <dependency> --package my-new-app
 ```
 

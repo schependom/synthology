@@ -1,999 +1,995 @@
 @prefix ns1: <http://www.lehigh.edu/~zhp2/2004/0401/univ-bench.owl#> .
 
-<http://www.Department0.University0.edu/AssistantProfessor3/Publication1> ns1:publicationAuthor <http://www.Department0.University0.edu/AssistantProfessor3> .
+<http://www.Department0.University0.edu/AssistantProfessor3/Publication2> ns1:publicationAuthor <http://www.Department0.University0.edu/AssistantProfessor3> .
 
-<http://www.Department0.University0.edu/AssociateProfessor0/Publication10> ns1:publicationAuthor <http://www.Department0.University0.edu/GraduateStudent72> .
+<http://www.Department0.University0.edu/AssistantProfessor6/Publication8> ns1:publicationAuthor <http://www.Department0.University0.edu/GraduateStudent114> .
 
-<http://www.Department0.University0.edu/AssociateProfessor0/Publication7> a ns1:Publication .
+<http://www.Department0.University0.edu/AssociateProfessor11/Publication7> ns1:publicationAuthor <http://www.Department0.University0.edu/AssociateProfessor11> .
 
-<http://www.Department0.University0.edu/AssociateProfessor1/Publication5> ns1:publicationAuthor <http://www.Department0.University0.edu/AssociateProfessor1> .
+<http://www.Department0.University0.edu/AssociateProfessor13/Publication11> ns1:publicationAuthor <http://www.Department0.University0.edu/AssociateProfessor13> .
 
-<http://www.Department0.University0.edu/AssociateProfessor12/Publication14> ns1:publicationAuthor <http://www.Department0.University0.edu/AssociateProfessor12> .
+<http://www.Department0.University0.edu/AssociateProfessor3> ns1:undergraduateDegreeFrom <http://www.University986.edu> .
 
-<http://www.Department0.University0.edu/AssociateProfessor9/Publication7> ns1:publicationAuthor <http://www.Department0.University0.edu/GraduateStudent6> .
+<http://www.Department0.University0.edu/AssociateProfessor4/Publication2> ns1:publicationAuthor <http://www.Department0.University0.edu/GraduateStudent116> .
 
-<http://www.Department0.University0.edu/Course32> a ns1:Course .
+<http://www.Department0.University0.edu/AssociateProfessor6/Publication0> ns1:publicationAuthor <http://www.Department0.University0.edu/AssociateProfessor6> .
 
-<http://www.Department0.University0.edu/Course7> a ns1:Course .
+<http://www.Department0.University0.edu/AssociateProfessor6/Publication9> a ns1:Publication .
 
-<http://www.Department0.University0.edu/FullProfessor0/Publication10> ns1:publicationAuthor <http://www.Department0.University0.edu/GraduateStudent139> .
+<http://www.Department0.University0.edu/AssociateProfessor7/Publication10> a ns1:Publication .
 
-<http://www.Department0.University0.edu/FullProfessor1/Publication4> ns1:publicationAuthor <http://www.Department0.University0.edu/FullProfessor1> .
+<http://www.Department0.University0.edu/AssociateProfessor8/Publication12> ns1:publicationAuthor <http://www.Department0.University0.edu/AssociateProfessor8> .
 
-<http://www.Department0.University0.edu/GraduateCourse26> a ns1:GraduateCourse .
+<http://www.Department0.University0.edu/AssociateProfessor9/Publication1> ns1:publicationAuthor <http://www.Department0.University0.edu/AssociateProfessor9> .
 
-<http://www.Department0.University0.edu/GraduateCourse54> a ns1:GraduateCourse .
+<http://www.Department0.University0.edu/Course14> a ns1:Course .
 
-<http://www.Department0.University0.edu/GraduateStudent136> a ns1:GraduateStudent .
+<http://www.Department0.University0.edu/Course48> a ns1:Course .
 
-<http://www.Department0.University0.edu/GraduateStudent36> a ns1:GraduateStudent .
+<http://www.Department0.University0.edu/FullProfessor0/Publication12> ns1:publicationAuthor <http://www.Department0.University0.edu/GraduateStudent20> .
 
-<http://www.Department0.University0.edu/GraduateStudent44> ns1:takesCourse <http://www.Department0.University0.edu/GraduateCourse0> .
+<http://www.Department0.University0.edu/FullProfessor9> ns1:mastersDegreeFrom <http://www.University963.edu> .
 
-<http://www.Department0.University0.edu/GraduateStudent52> ns1:memberOf <http://www.Department0.University0.edu> .
+<http://www.Department0.University0.edu/FullProfessor9/Publication15> a ns1:Publication .
 
-<http://www.Department0.University0.edu/GraduateStudent55> ns1:memberOf <http://www.Department0.University0.edu> .
+<http://www.Department0.University0.edu/GraduateStudent102> ns1:memberOf <http://www.Department0.University0.edu> .
 
-<http://www.Department0.University0.edu/GraduateStudent94> ns1:memberOf <http://www.Department0.University0.edu> .
+<http://www.Department0.University0.edu/GraduateStudent113> a ns1:TeachingAssistant .
 
-<http://www.Department0.University0.edu/GraduateStudent98> ns1:advisor <http://www.Department0.University0.edu/FullProfessor1> .
+<http://www.Department0.University0.edu/GraduateStudent133> ns1:takesCourse <http://www.Department0.University0.edu/GraduateCourse53> .
 
-<http://www.Department0.University0.edu/UndergraduateStudent104> a ns1:UndergraduateStudent .
+<http://www.Department0.University0.edu/GraduateStudent136> ns1:memberOf <http://www.Department0.University0.edu> .
 
-<http://www.Department0.University0.edu/UndergraduateStudent105> ns1:takesCourse <http://www.Department0.University0.edu/Course43> .
+<http://www.Department0.University0.edu/GraduateStudent41> ns1:takesCourse <http://www.Department0.University0.edu/GraduateCourse5> .
 
-<http://www.Department0.University0.edu/UndergraduateStudent141> ns1:takesCourse <http://www.Department0.University0.edu/Course10> .
+<http://www.Department0.University0.edu/GraduateStudent57> ns1:takesCourse <http://www.Department0.University0.edu/GraduateCourse24> .
 
-<http://www.Department0.University0.edu/UndergraduateStudent181> ns1:takesCourse <http://www.Department0.University0.edu/Course22> .
+<http://www.Department0.University0.edu/GraduateStudent58> ns1:memberOf <http://www.Department0.University0.edu> .
 
-<http://www.Department0.University0.edu/UndergraduateStudent188> a ns1:UndergraduateStudent .
+<http://www.Department0.University0.edu/GraduateStudent67> a ns1:GraduateStudent .
 
-<http://www.Department0.University0.edu/UndergraduateStudent209> ns1:memberOf <http://www.Department0.University0.edu> .
+<http://www.Department0.University0.edu/GraduateStudent79> ns1:memberOf <http://www.Department0.University0.edu> .
 
-<http://www.Department0.University0.edu/UndergraduateStudent210> a ns1:UndergraduateStudent .
+<http://www.Department0.University0.edu/GraduateStudent88> ns1:undergraduateDegreeFrom <http://www.University14.edu> .
 
-<http://www.Department0.University0.edu/UndergraduateStudent222> ns1:memberOf <http://www.Department0.University0.edu> .
+<http://www.Department0.University0.edu/UndergraduateStudent1> ns1:takesCourse <http://www.Department0.University0.edu/Course38> .
 
-<http://www.Department0.University0.edu/UndergraduateStudent238> a ns1:UndergraduateStudent .
+<http://www.Department0.University0.edu/UndergraduateStudent108> ns1:takesCourse <http://www.Department0.University0.edu/Course58> .
 
-<http://www.Department0.University0.edu/UndergraduateStudent244> ns1:memberOf <http://www.Department0.University0.edu> .
+<http://www.Department0.University0.edu/UndergraduateStudent19> a ns1:UndergraduateStudent .
 
-<http://www.Department0.University0.edu/UndergraduateStudent289> ns1:takesCourse <http://www.Department0.University0.edu/Course52> .
+<http://www.Department0.University0.edu/UndergraduateStudent203> a ns1:UndergraduateStudent .
 
-<http://www.Department0.University0.edu/UndergraduateStudent318> ns1:takesCourse <http://www.Department0.University0.edu/Course27> .
+<http://www.Department0.University0.edu/UndergraduateStudent218> a ns1:UndergraduateStudent .
 
-<http://www.Department0.University0.edu/UndergraduateStudent33> ns1:takesCourse <http://www.Department0.University0.edu/Course59> .
+<http://www.Department0.University0.edu/UndergraduateStudent247> ns1:advisor <http://www.Department0.University0.edu/AssistantProfessor1> .
 
-<http://www.Department0.University0.edu/UndergraduateStudent334> ns1:takesCourse <http://www.Department0.University0.edu/Course44> .
+<http://www.Department0.University0.edu/UndergraduateStudent327> ns1:takesCourse <http://www.Department0.University0.edu/Course40> .
 
-<http://www.Department0.University0.edu/UndergraduateStudent336> ns1:memberOf <http://www.Department0.University0.edu> .
+<http://www.Department0.University0.edu/UndergraduateStudent330> a ns1:UndergraduateStudent .
 
-<http://www.Department0.University0.edu/UndergraduateStudent357> ns1:takesCourse <http://www.Department0.University0.edu/Course52> .
+<http://www.Department0.University0.edu/UndergraduateStudent35> ns1:takesCourse <http://www.Department0.University0.edu/Course16> .
 
-<http://www.Department0.University0.edu/UndergraduateStudent384> ns1:takesCourse <http://www.Department0.University0.edu/Course6> .
+<http://www.Department0.University0.edu/UndergraduateStudent359> ns1:takesCourse <http://www.Department0.University0.edu/Course46> .
+
+<http://www.Department0.University0.edu/UndergraduateStudent398> ns1:takesCourse <http://www.Department0.University0.edu/Course42> .
 
 <http://www.Department0.University0.edu/UndergraduateStudent406> ns1:takesCourse <http://www.Department0.University0.edu/Course44> .
 
-<http://www.Department0.University0.edu/UndergraduateStudent414> ns1:takesCourse <http://www.Department0.University0.edu/Course2> .
+<http://www.Department0.University0.edu/UndergraduateStudent411> ns1:takesCourse <http://www.Department0.University0.edu/Course24> .
 
-<http://www.Department0.University0.edu/UndergraduateStudent426> ns1:advisor <http://www.Department0.University0.edu/AssociateProfessor1> .
+<http://www.Department0.University0.edu/UndergraduateStudent433> a ns1:UndergraduateStudent .
 
-<http://www.Department0.University0.edu/UndergraduateStudent437> a ns1:UndergraduateStudent .
+<http://www.Department0.University0.edu/UndergraduateStudent439> a ns1:UndergraduateStudent .
 
-<http://www.Department0.University0.edu/UndergraduateStudent443> ns1:advisor <http://www.Department0.University0.edu/AssociateProfessor8> .
+<http://www.Department0.University0.edu/UndergraduateStudent443> ns1:takesCourse <http://www.Department0.University0.edu/Course5> .
 
-<http://www.Department0.University0.edu/UndergraduateStudent55> a ns1:UndergraduateStudent .
+<http://www.Department0.University0.edu/UndergraduateStudent47> ns1:takesCourse <http://www.Department0.University0.edu/Course51> .
 
-<http://www.Department0.University0.edu/UndergraduateStudent68> ns1:takesCourse <http://www.Department0.University0.edu/Course10> .
+<http://www.Department0.University0.edu/UndergraduateStudent68> ns1:takesCourse <http://www.Department0.University0.edu/Course34> .
 
-<http://www.Department1.University0.edu/AssociateProfessor3> ns1:teacherOf <http://www.Department1.University0.edu/Course19> .
+<http://www.Department0.University0.edu/UndergraduateStudent86> ns1:takesCourse <http://www.Department0.University0.edu/Course50> .
 
-<http://www.Department1.University0.edu/AssociateProfessor3/Publication6> a ns1:Publication .
+<http://www.Department1.University0.edu/AssistantProfessor0/Publication6> ns1:publicationAuthor <http://www.Department1.University0.edu/AssistantProfessor0> .
 
-<http://www.Department1.University0.edu/AssociateProfessor4/Publication3> a ns1:Publication .
+<http://www.Department1.University0.edu/AssistantProfessor5> a ns1:AssistantProfessor .
 
-<http://www.Department1.University0.edu/AssociateProfessor7/Publication6> ns1:publicationAuthor <http://www.Department1.University0.edu/GraduateStudent73> .
+<http://www.Department1.University0.edu/AssociateProfessor3/Publication3> ns1:publicationAuthor <http://www.Department1.University0.edu/AssociateProfessor3> .
 
-<http://www.Department1.University0.edu/AssociateProfessor7/Publication8> ns1:publicationAuthor <http://www.Department1.University0.edu/GraduateStudent66> .
+<http://www.Department1.University0.edu/AssociateProfessor4/Publication8> ns1:publicationAuthor <http://www.Department1.University0.edu/GraduateStudent13> .
 
-<http://www.Department1.University0.edu/AssociateProfessor8/Publication14> ns1:publicationAuthor <http://www.Department1.University0.edu/AssociateProfessor8> .
+<http://www.Department1.University0.edu/AssociateProfessor5/Publication2> a ns1:Publication .
 
-<http://www.Department1.University0.edu/Course40> a ns1:Course .
+<http://www.Department1.University0.edu/AssociateProfessor7/Publication0> ns1:publicationAuthor <http://www.Department1.University0.edu/GraduateStudent101> .
 
-<http://www.Department1.University0.edu/FullProfessor2/Publication14> ns1:publicationAuthor <http://www.Department1.University0.edu/FullProfessor2> .
+<http://www.Department1.University0.edu/AssociateProfessor9/Publication7> ns1:publicationAuthor <http://www.Department1.University0.edu/GraduateStudent31> .
 
-<http://www.Department1.University0.edu/FullProfessor6/Publication7> a ns1:Publication .
+<http://www.Department1.University0.edu/FullProfessor0/Publication16> ns1:publicationAuthor <http://www.Department1.University0.edu/GraduateStudent91> .
 
-<http://www.Department1.University0.edu/GraduateStudent106> ns1:teachingAssistantOf <http://www.Department1.University0.edu/Course34> .
+<http://www.Department1.University0.edu/FullProfessor3> ns1:undergraduateDegreeFrom <http://www.University383.edu> .
 
-<http://www.Department1.University0.edu/GraduateStudent14> ns1:takesCourse <http://www.Department1.University0.edu/GraduateCourse28> .
+<http://www.Department1.University0.edu/FullProfessor5/Publication8> a ns1:Publication .
 
-<http://www.Department1.University0.edu/GraduateStudent24> ns1:memberOf <http://www.Department1.University0.edu> .
+<http://www.Department1.University0.edu/FullProfessor8/Publication17> ns1:publicationAuthor <http://www.Department1.University0.edu/GraduateStudent54> .
 
-<http://www.Department1.University0.edu/GraduateStudent48> ns1:undergraduateDegreeFrom <http://www.University799.edu> .
+<http://www.Department1.University0.edu/FullProfessor9/Publication19> a ns1:Publication .
 
-<http://www.Department1.University0.edu/GraduateStudent56> ns1:takesCourse <http://www.Department1.University0.edu/GraduateCourse8> .
+<http://www.Department1.University0.edu/GraduateCourse29> a ns1:GraduateCourse .
 
-<http://www.Department1.University0.edu/GraduateStudent70> ns1:takesCourse <http://www.Department1.University0.edu/GraduateCourse45> .
+<http://www.Department1.University0.edu/GraduateStudent65> ns1:advisor <http://www.Department1.University0.edu/AssistantProfessor4> .
 
-<http://www.Department1.University0.edu/GraduateStudent80> ns1:takesCourse <http://www.Department1.University0.edu/GraduateCourse32> .
+<http://www.Department1.University0.edu/GraduateStudent66> a ns1:GraduateStudent .
 
-<http://www.Department1.University0.edu/GraduateStudent99> ns1:advisor <http://www.Department1.University0.edu/AssistantProfessor1> .
+<http://www.Department1.University0.edu/GraduateStudent82> ns1:undergraduateDegreeFrom <http://www.University825.edu> .
 
-<http://www.Department1.University0.edu/ResearchGroup7> a ns1:ResearchGroup .
+<http://www.Department1.University0.edu/UndergraduateStudent175> ns1:takesCourse <http://www.Department1.University0.edu/Course46> .
 
-<http://www.Department1.University0.edu/UndergraduateStudent152> ns1:takesCourse <http://www.Department1.University0.edu/Course3> .
+<http://www.Department1.University0.edu/UndergraduateStudent219> ns1:memberOf <http://www.Department1.University0.edu> .
 
-<http://www.Department1.University0.edu/UndergraduateStudent17> ns1:takesCourse <http://www.Department1.University0.edu/Course41> .
+<http://www.Department1.University0.edu/UndergraduateStudent256> a ns1:UndergraduateStudent .
 
-<http://www.Department1.University0.edu/UndergraduateStudent178> ns1:takesCourse <http://www.Department1.University0.edu/Course16> .
+<http://www.Department1.University0.edu/UndergraduateStudent32> ns1:takesCourse <http://www.Department1.University0.edu/Course8> .
 
-<http://www.Department1.University0.edu/UndergraduateStudent196> ns1:takesCourse <http://www.Department1.University0.edu/Course15> .
+<http://www.Department1.University0.edu/UndergraduateStudent350> a ns1:UndergraduateStudent .
 
-<http://www.Department1.University0.edu/UndergraduateStudent230> ns1:memberOf <http://www.Department1.University0.edu> .
+<http://www.Department1.University0.edu/UndergraduateStudent363> a ns1:UndergraduateStudent .
 
-<http://www.Department1.University0.edu/UndergraduateStudent248> a ns1:UndergraduateStudent .
+<http://www.Department1.University0.edu/UndergraduateStudent368> ns1:takesCourse <http://www.Department1.University0.edu/Course40> .
 
-<http://www.Department1.University0.edu/UndergraduateStudent293> ns1:takesCourse <http://www.Department1.University0.edu/Course19> .
-
-<http://www.Department1.University0.edu/UndergraduateStudent30> a ns1:UndergraduateStudent .
-
-<http://www.Department1.University0.edu/UndergraduateStudent309> a ns1:UndergraduateStudent .
-
-<http://www.Department1.University0.edu/UndergraduateStudent317> ns1:memberOf <http://www.Department1.University0.edu> .
-
-<http://www.Department1.University0.edu/UndergraduateStudent348> ns1:takesCourse <http://www.Department1.University0.edu/Course27> .
-
-<http://www.Department1.University0.edu/UndergraduateStudent353> ns1:memberOf <http://www.Department1.University0.edu> .
-
-<http://www.Department1.University0.edu/UndergraduateStudent41> ns1:takesCourse <http://www.Department1.University0.edu/Course15> .
+<http://www.Department1.University0.edu/UndergraduateStudent390> a ns1:UndergraduateStudent .
 
 <http://www.Department1.University0.edu/UndergraduateStudent53> a ns1:UndergraduateStudent .
 
-<http://www.Department1.University0.edu/UndergraduateStudent56> ns1:takesCourse <http://www.Department1.University0.edu/Course29> .
+<http://www.Department1.University0.edu/UndergraduateStudent97> ns1:takesCourse <http://www.Department1.University0.edu/Course10> .
 
-<http://www.Department1.University0.edu/UndergraduateStudent84> ns1:takesCourse <http://www.Department1.University0.edu/Course21> .
+<http://www.Department10.University0.edu/AssistantProfessor0/Publication3> a ns1:Publication .
 
-<http://www.Department1.University0.edu/UndergraduateStudent93> ns1:advisor <http://www.Department1.University0.edu/AssistantProfessor2> .
+<http://www.Department10.University0.edu/AssistantProfessor10> ns1:teacherOf <http://www.Department10.University0.edu/GraduateCourse39> .
 
-<http://www.Department1.University0.edu/UndergraduateStudent99> a ns1:UndergraduateStudent .
+<http://www.Department10.University0.edu/AssistantProfessor6> ns1:undergraduateDegreeFrom <http://www.University102.edu> .
 
-<http://www.Department10.University0.edu/AssistantProfessor0> ns1:teacherOf <http://www.Department10.University0.edu/GraduateCourse23> .
+<http://www.Department10.University0.edu/AssociateProfessor1/Publication10> ns1:publicationAuthor <http://www.Department10.University0.edu/GraduateStudent88> .
 
-<http://www.Department10.University0.edu/AssistantProfessor5/Publication8> a ns1:Publication .
+<http://www.Department10.University0.edu/FullProfessor4/Publication2> ns1:publicationAuthor <http://www.Department10.University0.edu/GraduateStudent99> .
 
-<http://www.Department10.University0.edu/AssistantProfessor8/Publication2> a ns1:Publication .
+<http://www.Department10.University0.edu/FullProfessor6/Publication16> ns1:publicationAuthor <http://www.Department10.University0.edu/FullProfessor6> .
 
-<http://www.Department10.University0.edu/AssistantProfessor8/Publication6> ns1:publicationAuthor <http://www.Department10.University0.edu/AssistantProfessor8> .
+<http://www.Department10.University0.edu/GraduateStudent32> ns1:teachingAssistantOf <http://www.Department10.University0.edu/Course21> .
 
-<http://www.Department10.University0.edu/AssociateProfessor0/Publication15> ns1:publicationAuthor <http://www.Department10.University0.edu/GraduateStudent114> .
+<http://www.Department10.University0.edu/GraduateStudent35> a ns1:TeachingAssistant .
 
-<http://www.Department10.University0.edu/AssociateProfessor2/Publication12> ns1:publicationAuthor <http://www.Department10.University0.edu/GraduateStudent39> .
+<http://www.Department10.University0.edu/GraduateStudent39> ns1:undergraduateDegreeFrom <http://www.University987.edu> .
 
-<http://www.Department10.University0.edu/AssociateProfessor3> a ns1:AssociateProfessor .
+<http://www.Department10.University0.edu/GraduateStudent42> ns1:memberOf <http://www.Department10.University0.edu> .
 
-<http://www.Department10.University0.edu/AssociateProfessor3/Publication12> ns1:publicationAuthor <http://www.Department10.University0.edu/GraduateStudent96> .
+<http://www.Department10.University0.edu/GraduateStudent46> ns1:advisor <http://www.Department10.University0.edu/FullProfessor2> .
 
-<http://www.Department10.University0.edu/AssociateProfessor6/Publication7> ns1:publicationAuthor <http://www.Department10.University0.edu/AssociateProfessor6> .
+<http://www.Department10.University0.edu/GraduateStudent72> ns1:undergraduateDegreeFrom <http://www.University863.edu> .
 
-<http://www.Department10.University0.edu/AssociateProfessor8/Publication3> ns1:publicationAuthor <http://www.Department10.University0.edu/AssociateProfessor8> .
+<http://www.Department10.University0.edu/GraduateStudent9> ns1:advisor <http://www.Department10.University0.edu/AssociateProfessor3> .
 
-<http://www.Department10.University0.edu/FullProfessor5/Publication4> ns1:publicationAuthor <http://www.Department10.University0.edu/FullProfessor5> .
+<http://www.Department10.University0.edu/UndergraduateStudent111> ns1:takesCourse <http://www.Department10.University0.edu/Course14> .
 
-<http://www.Department10.University0.edu/FullProfessor6> a ns1:FullProfessor .
+<http://www.Department10.University0.edu/UndergraduateStudent113> ns1:takesCourse <http://www.Department10.University0.edu/Course47> .
 
-<http://www.Department10.University0.edu/GraduateStudent119> ns1:advisor <http://www.Department10.University0.edu/AssistantProfessor7> .
+<http://www.Department10.University0.edu/UndergraduateStudent116> ns1:takesCourse <http://www.Department10.University0.edu/Course44> .
 
-<http://www.Department10.University0.edu/GraduateStudent37> ns1:undergraduateDegreeFrom <http://www.University975.edu> .
+<http://www.Department10.University0.edu/UndergraduateStudent143> ns1:memberOf <http://www.Department10.University0.edu> .
 
-<http://www.Department10.University0.edu/GraduateStudent77> ns1:advisor <http://www.Department10.University0.edu/AssistantProfessor6> .
+<http://www.Department10.University0.edu/UndergraduateStudent258> ns1:memberOf <http://www.Department10.University0.edu> .
 
-<http://www.Department10.University0.edu/GraduateStudent86> ns1:undergraduateDegreeFrom <http://www.University417.edu> .
+<http://www.Department10.University0.edu/UndergraduateStudent322> ns1:takesCourse <http://www.Department10.University0.edu/Course23> .
 
-<http://www.Department10.University0.edu/GraduateStudent93> ns1:undergraduateDegreeFrom <http://www.University822.edu> .
+<http://www.Department10.University0.edu/UndergraduateStudent365> ns1:memberOf <http://www.Department10.University0.edu> .
 
-<http://www.Department10.University0.edu/Lecturer0> ns1:undergraduateDegreeFrom <http://www.University317.edu> .
+<http://www.Department10.University0.edu/UndergraduateStudent52> ns1:takesCourse <http://www.Department10.University0.edu/Course47> .
 
-<http://www.Department10.University0.edu/Lecturer2/Publication2> a ns1:Publication .
+<http://www.Department10.University0.edu/UndergraduateStudent90> ns1:takesCourse <http://www.Department10.University0.edu/Course24> .
 
-<http://www.Department10.University0.edu/UndergraduateStudent101> ns1:takesCourse <http://www.Department10.University0.edu/Course15> .
+<http://www.Department11.University0.edu/AssistantProfessor7/Publication1> ns1:publicationAuthor <http://www.Department11.University0.edu/GraduateStudent76> .
 
-<http://www.Department10.University0.edu/UndergraduateStudent11> ns1:takesCourse <http://www.Department10.University0.edu/Course12> .
+<http://www.Department11.University0.edu/AssistantProfessor8> ns1:mastersDegreeFrom <http://www.University874.edu> .
 
-<http://www.Department10.University0.edu/UndergraduateStudent168> a ns1:UndergraduateStudent .
+<http://www.Department11.University0.edu/AssociateProfessor10/Publication6> a ns1:Publication .
 
-<http://www.Department10.University0.edu/UndergraduateStudent176> a ns1:UndergraduateStudent .
+<http://www.Department11.University0.edu/AssociateProfessor11/Publication1> a ns1:Publication .
 
-<http://www.Department10.University0.edu/UndergraduateStudent207> ns1:takesCourse <http://www.Department10.University0.edu/Course23> .
+<http://www.Department11.University0.edu/AssociateProfessor11/Publication14> ns1:publicationAuthor <http://www.Department11.University0.edu/AssociateProfessor11> .
 
-<http://www.Department10.University0.edu/UndergraduateStudent254> a ns1:UndergraduateStudent .
+<http://www.Department11.University0.edu/AssociateProfessor2/Publication0> ns1:publicationAuthor <http://www.Department11.University0.edu/GraduateStudent73> .
 
-<http://www.Department10.University0.edu/UndergraduateStudent292> ns1:memberOf <http://www.Department10.University0.edu> .
+<http://www.Department11.University0.edu/AssociateProfessor6/Publication15> ns1:publicationAuthor <http://www.Department11.University0.edu/AssociateProfessor6> .
 
-<http://www.Department10.University0.edu/UndergraduateStudent332> ns1:takesCourse <http://www.Department10.University0.edu/Course47> .
+<http://www.Department11.University0.edu/AssociateProfessor6/Publication3> ns1:publicationAuthor <http://www.Department11.University0.edu/GraduateStudent77> .
 
-<http://www.Department10.University0.edu/UndergraduateStudent366> ns1:takesCourse <http://www.Department10.University0.edu/Course53> .
+<http://www.Department11.University0.edu/FullProfessor2/Publication17> a ns1:Publication .
 
-<http://www.Department10.University0.edu/UndergraduateStudent406> a ns1:UndergraduateStudent .
+<http://www.Department11.University0.edu/FullProfessor2/Publication3> a ns1:Publication .
 
-<http://www.Department10.University0.edu/UndergraduateStudent80> ns1:memberOf <http://www.Department10.University0.edu> .
+<http://www.Department11.University0.edu/FullProfessor4/Publication7> a ns1:Publication .
 
-<http://www.Department11.University0.edu/AssistantProfessor10> ns1:teacherOf <http://www.Department11.University0.edu/Course48> .
+<http://www.Department11.University0.edu/FullProfessor6/Publication2> ns1:publicationAuthor <http://www.Department11.University0.edu/FullProfessor6> .
 
-<http://www.Department11.University0.edu/AssistantProfessor6/Publication2> ns1:publicationAuthor <http://www.Department11.University0.edu/AssistantProfessor6> .
+<http://www.Department11.University0.edu/FullProfessor7/Publication12> ns1:publicationAuthor <http://www.Department11.University0.edu/GraduateStudent47> .
 
-<http://www.Department11.University0.edu/AssistantProfessor8/Publication2> ns1:publicationAuthor <http://www.Department11.University0.edu/GraduateStudent11> .
+<http://www.Department11.University0.edu/GraduateStudent115> ns1:undergraduateDegreeFrom <http://www.University317.edu> .
 
-<http://www.Department11.University0.edu/AssociateProfessor10/Publication7> ns1:publicationAuthor <http://www.Department11.University0.edu/AssociateProfessor10> .
+<http://www.Department11.University0.edu/GraduateStudent134> ns1:memberOf <http://www.Department11.University0.edu> .
 
-<http://www.Department11.University0.edu/AssociateProfessor11/Publication1> ns1:publicationAuthor <http://www.Department11.University0.edu/GraduateStudent90> .
+<http://www.Department11.University0.edu/GraduateStudent31> a ns1:GraduateStudent .
 
-<http://www.Department11.University0.edu/AssociateProfessor12/Publication0> ns1:publicationAuthor <http://www.Department11.University0.edu/AssociateProfessor12> .
+<http://www.Department11.University0.edu/GraduateStudent57> ns1:takesCourse <http://www.Department11.University0.edu/GraduateCourse41> .
 
-<http://www.Department11.University0.edu/AssociateProfessor3/Publication10> ns1:publicationAuthor <http://www.Department11.University0.edu/GraduateStudent111> .
+<http://www.Department11.University0.edu/GraduateStudent69> ns1:takesCourse <http://www.Department11.University0.edu/GraduateCourse33> .
 
-<http://www.Department11.University0.edu/FullProfessor1/Publication2> ns1:publicationAuthor <http://www.Department11.University0.edu/FullProfessor1> .
+<http://www.Department11.University0.edu/GraduateStudent70> a ns1:GraduateStudent .
 
-<http://www.Department11.University0.edu/FullProfessor4/Publication2> ns1:publicationAuthor <http://www.Department11.University0.edu/FullProfessor4> .
+<http://www.Department11.University0.edu/GraduateStudent83> a ns1:GraduateStudent .
 
-<http://www.Department11.University0.edu/FullProfessor5/Publication10> ns1:publicationAuthor <http://www.Department11.University0.edu/FullProfessor5> .
+<http://www.Department11.University0.edu/GraduateStudent88> a ns1:TeachingAssistant .
 
-<http://www.Department11.University0.edu/FullProfessor6/Publication12> a ns1:Publication .
+<http://www.Department11.University0.edu/Lecturer5> ns1:teacherOf <http://www.Department11.University0.edu/GraduateCourse58> .
 
-<http://www.Department11.University0.edu/GraduateCourse47> a ns1:GraduateCourse .
+<http://www.Department11.University0.edu/UndergraduateStudent103> ns1:takesCourse <http://www.Department11.University0.edu/Course10> .
 
-<http://www.Department11.University0.edu/GraduateStudent102> ns1:memberOf <http://www.Department11.University0.edu> .
+<http://www.Department11.University0.edu/UndergraduateStudent16> a ns1:UndergraduateStudent .
 
-<http://www.Department11.University0.edu/GraduateStudent118> a ns1:GraduateStudent .
+<http://www.Department11.University0.edu/UndergraduateStudent160> ns1:advisor <http://www.Department11.University0.edu/FullProfessor5> .
 
-<http://www.Department11.University0.edu/GraduateStudent16> ns1:undergraduateDegreeFrom <http://www.University209.edu> .
+<http://www.Department11.University0.edu/UndergraduateStudent203> ns1:takesCourse <http://www.Department11.University0.edu/Course23>,
+        <http://www.Department11.University0.edu/Course42> .
 
-<http://www.Department11.University0.edu/GraduateStudent35> ns1:takesCourse <http://www.Department11.University0.edu/GraduateCourse59> .
+<http://www.Department11.University0.edu/UndergraduateStudent22> ns1:memberOf <http://www.Department11.University0.edu> .
 
-<http://www.Department11.University0.edu/GraduateStudent41> ns1:memberOf <http://www.Department11.University0.edu> .
+<http://www.Department11.University0.edu/UndergraduateStudent236> a ns1:UndergraduateStudent .
 
-<http://www.Department11.University0.edu/GraduateStudent46> ns1:undergraduateDegreeFrom <http://www.University546.edu> .
+<http://www.Department11.University0.edu/UndergraduateStudent244> a ns1:UndergraduateStudent .
 
-<http://www.Department11.University0.edu/GraduateStudent75> a ns1:GraduateStudent .
+<http://www.Department11.University0.edu/UndergraduateStudent260> a ns1:UndergraduateStudent .
 
-<http://www.Department11.University0.edu/Lecturer0/Publication2> ns1:publicationAuthor <http://www.Department11.University0.edu/GraduateStudent107> .
+<http://www.Department11.University0.edu/UndergraduateStudent272> ns1:takesCourse <http://www.Department11.University0.edu/Course10> .
 
-<http://www.Department11.University0.edu/UndergraduateStudent107> ns1:takesCourse <http://www.Department11.University0.edu/Course34> .
+<http://www.Department11.University0.edu/UndergraduateStudent323> ns1:takesCourse <http://www.Department11.University0.edu/Course29> .
 
-<http://www.Department11.University0.edu/UndergraduateStudent132> ns1:memberOf <http://www.Department11.University0.edu> .
+<http://www.Department11.University0.edu/UndergraduateStudent334> ns1:takesCourse <http://www.Department11.University0.edu/Course1> .
 
-<http://www.Department11.University0.edu/UndergraduateStudent134> ns1:takesCourse <http://www.Department11.University0.edu/Course12> .
+<http://www.Department11.University0.edu/UndergraduateStudent350> ns1:memberOf <http://www.Department11.University0.edu> .
 
-<http://www.Department11.University0.edu/UndergraduateStudent142> ns1:takesCourse <http://www.Department11.University0.edu/Course47> .
+<http://www.Department11.University0.edu/UndergraduateStudent379> ns1:takesCourse <http://www.Department11.University0.edu/Course35> .
 
-<http://www.Department11.University0.edu/UndergraduateStudent144> ns1:advisor <http://www.Department11.University0.edu/FullProfessor1> .
+<http://www.Department11.University0.edu/UndergraduateStudent46> ns1:takesCourse <http://www.Department11.University0.edu/Course30> .
 
-<http://www.Department11.University0.edu/UndergraduateStudent176> ns1:takesCourse <http://www.Department11.University0.edu/Course58> .
+<http://www.Department11.University0.edu/UndergraduateStudent50> ns1:memberOf <http://www.Department11.University0.edu> .
 
-<http://www.Department11.University0.edu/UndergraduateStudent23> a ns1:UndergraduateStudent .
+<http://www.Department11.University0.edu/UndergraduateStudent64> a ns1:UndergraduateStudent .
 
-<http://www.Department11.University0.edu/UndergraduateStudent271> ns1:advisor <http://www.Department11.University0.edu/FullProfessor3> .
+<http://www.Department11.University0.edu/UndergraduateStudent66> a ns1:UndergraduateStudent .
 
-<http://www.Department11.University0.edu/UndergraduateStudent313> ns1:takesCourse <http://www.Department11.University0.edu/Course40> .
+<http://www.Department11.University0.edu/UndergraduateStudent72> ns1:takesCourse <http://www.Department11.University0.edu/Course52> .
 
-<http://www.Department11.University0.edu/UndergraduateStudent366> ns1:takesCourse <http://www.Department11.University0.edu/Course23> .
+<http://www.Department12.University0.edu/AssistantProfessor10/Publication2> ns1:publicationAuthor <http://www.Department12.University0.edu/AssistantProfessor10>,
+        <http://www.Department12.University0.edu/GraduateStudent77> .
 
-<http://www.Department11.University0.edu/UndergraduateStudent71> ns1:takesCourse <http://www.Department11.University0.edu/Course34> .
+<http://www.Department12.University0.edu/AssistantProfessor3> ns1:mastersDegreeFrom <http://www.University222.edu> .
 
-<http://www.Department11.University0.edu/UndergraduateStudent92> ns1:takesCourse <http://www.Department11.University0.edu/Course1> .
+<http://www.Department12.University0.edu/AssistantProfessor6/Publication5> a ns1:Publication .
 
-<http://www.Department12.University0.edu/AssociateProfessor7/Publication1> ns1:publicationAuthor <http://www.Department12.University0.edu/AssociateProfessor7> .
+<http://www.Department12.University0.edu/AssociateProfessor4> ns1:undergraduateDegreeFrom <http://www.University626.edu> .
 
-<http://www.Department12.University0.edu/Course53> a ns1:Course .
+<http://www.Department12.University0.edu/FullProfessor2/Publication14> a ns1:Publication .
 
-<http://www.Department12.University0.edu/FullProfessor0/Publication8> a ns1:Publication .
+<http://www.Department12.University0.edu/FullProfessor2/Publication3> ns1:publicationAuthor <http://www.Department12.University0.edu/FullProfessor2> .
 
-<http://www.Department12.University0.edu/FullProfessor2/Publication5> ns1:publicationAuthor <http://www.Department12.University0.edu/FullProfessor2> .
+<http://www.Department12.University0.edu/FullProfessor4/Publication11> ns1:publicationAuthor <http://www.Department12.University0.edu/FullProfessor4> .
 
-<http://www.Department12.University0.edu/FullProfessor3> ns1:undergraduateDegreeFrom <http://www.University786.edu> .
+<http://www.Department12.University0.edu/FullProfessor5> ns1:worksFor <http://www.Department12.University0.edu> .
 
-<http://www.Department12.University0.edu/FullProfessor5/Publication3> a ns1:Publication .
+<http://www.Department12.University0.edu/GraduateStudent16> a ns1:GraduateStudent .
 
-<http://www.Department12.University0.edu/FullProfessor7/Publication6> a ns1:Publication .
+<http://www.Department12.University0.edu/GraduateStudent37> ns1:memberOf <http://www.Department12.University0.edu> .
 
-<http://www.Department12.University0.edu/GraduateCourse47> a ns1:GraduateCourse .
+<http://www.Department12.University0.edu/GraduateStudent42> ns1:takesCourse <http://www.Department12.University0.edu/GraduateCourse27> .
 
-<http://www.Department12.University0.edu/GraduateStudent10> a ns1:GraduateStudent .
+<http://www.Department12.University0.edu/GraduateStudent54> ns1:advisor <http://www.Department12.University0.edu/FullProfessor6> .
 
-<http://www.Department12.University0.edu/GraduateStudent74> a ns1:GraduateStudent .
+<http://www.Department12.University0.edu/GraduateStudent94> ns1:undergraduateDegreeFrom <http://www.University676.edu> .
 
-<http://www.Department12.University0.edu/GraduateStudent82> ns1:advisor <http://www.Department12.University0.edu/AssistantProfessor2> .
+<http://www.Department12.University0.edu/UndergraduateStudent10> a ns1:UndergraduateStudent .
 
-<http://www.Department12.University0.edu/GraduateStudent9> ns1:advisor <http://www.Department12.University0.edu/FullProfessor6> .
+<http://www.Department12.University0.edu/UndergraduateStudent147> ns1:takesCourse <http://www.Department12.University0.edu/Course39> .
 
-<http://www.Department12.University0.edu/ResearchGroup4> ns1:subOrganizationOf <http://www.Department12.University0.edu> .
+<http://www.Department12.University0.edu/UndergraduateStudent237> ns1:takesCourse <http://www.Department12.University0.edu/Course34> .
 
-<http://www.Department12.University0.edu/UndergraduateStudent132> ns1:memberOf <http://www.Department12.University0.edu> .
+<http://www.Department12.University0.edu/UndergraduateStudent245> ns1:takesCourse <http://www.Department12.University0.edu/Course31> .
 
-<http://www.Department12.University0.edu/UndergraduateStudent175> a ns1:UndergraduateStudent .
+<http://www.Department12.University0.edu/UndergraduateStudent30> ns1:takesCourse <http://www.Department12.University0.edu/Course34> .
 
-<http://www.Department12.University0.edu/UndergraduateStudent198> ns1:memberOf <http://www.Department12.University0.edu> .
+<http://www.Department12.University0.edu/UndergraduateStudent314> a ns1:UndergraduateStudent .
 
-<http://www.Department12.University0.edu/UndergraduateStudent227> a ns1:UndergraduateStudent .
+<http://www.Department12.University0.edu/UndergraduateStudent45> ns1:takesCourse <http://www.Department12.University0.edu/Course40> .
 
-<http://www.Department12.University0.edu/UndergraduateStudent23> ns1:takesCourse <http://www.Department12.University0.edu/Course21> .
+<http://www.Department12.University0.edu/UndergraduateStudent81> a ns1:UndergraduateStudent .
 
-<http://www.Department12.University0.edu/UndergraduateStudent243> ns1:takesCourse <http://www.Department12.University0.edu/Course32> .
+<http://www.Department12.University0.edu/UndergraduateStudent93> ns1:memberOf <http://www.Department12.University0.edu> .
 
-<http://www.Department12.University0.edu/UndergraduateStudent357> ns1:memberOf <http://www.Department12.University0.edu> .
+<http://www.Department13.University0.edu/AssistantProfessor10/Publication0> ns1:publicationAuthor <http://www.Department13.University0.edu/AssistantProfessor10> .
 
-<http://www.Department12.University0.edu/UndergraduateStudent39> ns1:takesCourse <http://www.Department12.University0.edu/Course48> .
+<http://www.Department13.University0.edu/AssistantProfessor2/Publication3> a ns1:Publication .
 
-<http://www.Department13.University0.edu/AssistantProfessor0> ns1:undergraduateDegreeFrom <http://www.University553.edu> .
+<http://www.Department13.University0.edu/AssistantProfessor5/Publication2> ns1:publicationAuthor <http://www.Department13.University0.edu/GraduateStudent50> .
 
-<http://www.Department13.University0.edu/AssistantProfessor2/Publication4> ns1:publicationAuthor <http://www.Department13.University0.edu/GraduateStudent50> .
+<http://www.Department13.University0.edu/AssistantProfessor7/Publication0> ns1:publicationAuthor <http://www.Department13.University0.edu/AssistantProfessor7> .
 
-<http://www.Department13.University0.edu/AssistantProfessor5/Publication6> ns1:publicationAuthor <http://www.Department13.University0.edu/AssistantProfessor5> .
+<http://www.Department13.University0.edu/AssociateProfessor1/Publication9> a ns1:Publication .
 
-<http://www.Department13.University0.edu/AssistantProfessor8/Publication3> ns1:publicationAuthor <http://www.Department13.University0.edu/AssistantProfessor8> .
+<http://www.Department13.University0.edu/AssociateProfessor4/Publication2> a ns1:Publication .
 
-<http://www.Department13.University0.edu/AssistantProfessor9/Publication5> ns1:publicationAuthor <http://www.Department13.University0.edu/GraduateStudent130> .
+<http://www.Department13.University0.edu/AssociateProfessor6/Publication2> a ns1:Publication .
 
-<http://www.Department13.University0.edu/AssociateProfessor11/Publication14> ns1:publicationAuthor <http://www.Department13.University0.edu/GraduateStudent15> .
+<http://www.Department13.University0.edu/FullProfessor0/Publication5> ns1:publicationAuthor <http://www.Department13.University0.edu/FullProfessor0> .
 
-<http://www.Department13.University0.edu/AssociateProfessor11/Publication2> a ns1:Publication .
+<http://www.Department13.University0.edu/FullProfessor3/Publication11> ns1:publicationAuthor <http://www.Department13.University0.edu/GraduateStudent94> .
 
-<http://www.Department13.University0.edu/AssociateProfessor2/Publication4> a ns1:Publication .
+<http://www.Department13.University0.edu/GraduateCourse10> a ns1:GraduateCourse .
 
-<http://www.Department13.University0.edu/AssociateProfessor4/Publication11> ns1:publicationAuthor <http://www.Department13.University0.edu/AssociateProfessor4> .
+<http://www.Department13.University0.edu/GraduateStudent105> a ns1:GraduateStudent .
 
-<http://www.Department13.University0.edu/AssociateProfessor5/Publication3> a ns1:Publication .
+<http://www.Department13.University0.edu/GraduateStudent23> ns1:takesCourse <http://www.Department13.University0.edu/GraduateCourse50> .
 
-<http://www.Department13.University0.edu/Course48> a ns1:Course .
+<http://www.Department13.University0.edu/GraduateStudent59> ns1:takesCourse <http://www.Department13.University0.edu/GraduateCourse31>,
+        <http://www.Department13.University0.edu/GraduateCourse40> .
 
-<http://www.Department13.University0.edu/FullProfessor0/Publication6> ns1:publicationAuthor <http://www.Department13.University0.edu/FullProfessor0> .
+<http://www.Department13.University0.edu/GraduateStudent62> ns1:undergraduateDegreeFrom <http://www.University903.edu> .
 
-<http://www.Department13.University0.edu/GraduateCourse22> a ns1:GraduateCourse .
+<http://www.Department13.University0.edu/UndergraduateStudent100> ns1:memberOf <http://www.Department13.University0.edu> .
 
-<http://www.Department13.University0.edu/GraduateStudent40> ns1:takesCourse <http://www.Department13.University0.edu/GraduateCourse21> .
+<http://www.Department13.University0.edu/UndergraduateStudent132> ns1:memberOf <http://www.Department13.University0.edu> .
 
-<http://www.Department13.University0.edu/GraduateStudent41> ns1:undergraduateDegreeFrom <http://www.University63.edu> .
+<http://www.Department13.University0.edu/UndergraduateStudent133> ns1:takesCourse <http://www.Department13.University0.edu/Course38> .
 
-<http://www.Department13.University0.edu/GraduateStudent44> a ns1:ResearchAssistant .
+<http://www.Department13.University0.edu/UndergraduateStudent138> a ns1:UndergraduateStudent ;
+    ns1:memberOf <http://www.Department13.University0.edu> .
 
-<http://www.Department13.University0.edu/GraduateStudent97> a ns1:GraduateStudent .
+<http://www.Department13.University0.edu/UndergraduateStudent143> ns1:takesCourse <http://www.Department13.University0.edu/Course16> .
 
-<http://www.Department13.University0.edu/GraduateStudent98> ns1:advisor <http://www.Department13.University0.edu/AssistantProfessor1> .
+<http://www.Department13.University0.edu/UndergraduateStudent151> a ns1:UndergraduateStudent .
 
-<http://www.Department13.University0.edu/ResearchGroup9> a ns1:ResearchGroup .
+<http://www.Department13.University0.edu/UndergraduateStudent19> ns1:takesCourse <http://www.Department13.University0.edu/Course13> .
 
-<http://www.Department13.University0.edu/UndergraduateStudent115> ns1:takesCourse <http://www.Department13.University0.edu/Course32> .
+<http://www.Department13.University0.edu/UndergraduateStudent2> ns1:memberOf <http://www.Department13.University0.edu> .
 
-<http://www.Department13.University0.edu/UndergraduateStudent123> ns1:takesCourse <http://www.Department13.University0.edu/Course1> .
+<http://www.Department13.University0.edu/UndergraduateStudent203> a ns1:UndergraduateStudent .
 
-<http://www.Department13.University0.edu/UndergraduateStudent141> a ns1:UndergraduateStudent .
+<http://www.Department13.University0.edu/UndergraduateStudent209> a ns1:UndergraduateStudent .
 
-<http://www.Department13.University0.edu/UndergraduateStudent142> a ns1:UndergraduateStudent .
+<http://www.Department13.University0.edu/UndergraduateStudent225> ns1:memberOf <http://www.Department13.University0.edu> .
 
-<http://www.Department13.University0.edu/UndergraduateStudent155> a ns1:UndergraduateStudent .
+<http://www.Department13.University0.edu/UndergraduateStudent244> ns1:memberOf <http://www.Department13.University0.edu> .
 
-<http://www.Department13.University0.edu/UndergraduateStudent175> ns1:takesCourse <http://www.Department13.University0.edu/Course5> .
+<http://www.Department13.University0.edu/UndergraduateStudent29> ns1:takesCourse <http://www.Department13.University0.edu/Course18> .
 
-<http://www.Department13.University0.edu/UndergraduateStudent176> a ns1:UndergraduateStudent .
+<http://www.Department13.University0.edu/UndergraduateStudent352> ns1:memberOf <http://www.Department13.University0.edu> .
 
-<http://www.Department13.University0.edu/UndergraduateStudent197> ns1:takesCourse <http://www.Department13.University0.edu/Course14> .
+<http://www.Department13.University0.edu/UndergraduateStudent356> ns1:memberOf <http://www.Department13.University0.edu> .
 
-<http://www.Department13.University0.edu/UndergraduateStudent250> ns1:advisor <http://www.Department13.University0.edu/FullProfessor5> .
+<http://www.Department13.University0.edu/UndergraduateStudent380> ns1:takesCourse <http://www.Department13.University0.edu/Course27> .
 
-<http://www.Department13.University0.edu/UndergraduateStudent296> a ns1:UndergraduateStudent .
+<http://www.Department13.University0.edu/UndergraduateStudent432> a ns1:UndergraduateStudent .
 
-<http://www.Department13.University0.edu/UndergraduateStudent304> ns1:takesCourse <http://www.Department13.University0.edu/Course11> .
+<http://www.Department13.University0.edu/UndergraduateStudent47> ns1:takesCourse <http://www.Department13.University0.edu/Course8> .
 
-<http://www.Department13.University0.edu/UndergraduateStudent33> ns1:memberOf <http://www.Department13.University0.edu> .
+<http://www.Department13.University0.edu/UndergraduateStudent473> ns1:memberOf <http://www.Department13.University0.edu> .
 
-<http://www.Department13.University0.edu/UndergraduateStudent357> ns1:memberOf <http://www.Department13.University0.edu> .
+<http://www.Department13.University0.edu/UndergraduateStudent58> ns1:takesCourse <http://www.Department13.University0.edu/Course36> .
 
-<http://www.Department13.University0.edu/UndergraduateStudent382> ns1:takesCourse <http://www.Department13.University0.edu/Course43> .
+<http://www.Department13.University0.edu/UndergraduateStudent60> ns1:takesCourse <http://www.Department13.University0.edu/Course4> .
 
-<http://www.Department13.University0.edu/UndergraduateStudent394> ns1:takesCourse <http://www.Department13.University0.edu/Course52> .
+<http://www.Department13.University0.edu/UndergraduateStudent87> ns1:takesCourse <http://www.Department13.University0.edu/Course19> .
 
-<http://www.Department13.University0.edu/UndergraduateStudent41> ns1:takesCourse <http://www.Department13.University0.edu/Course14> .
+<http://www.Department13.University0.edu/UndergraduateStudent95> ns1:takesCourse <http://www.Department13.University0.edu/Course23> .
 
-<http://www.Department13.University0.edu/UndergraduateStudent449> ns1:takesCourse <http://www.Department13.University0.edu/Course29> .
+<http://www.Department14.University0.edu/AssistantProfessor4/Publication4> ns1:publicationAuthor <http://www.Department14.University0.edu/GraduateStudent44> .
 
-<http://www.Department13.University0.edu/UndergraduateStudent456> ns1:takesCourse <http://www.Department13.University0.edu/Course28> .
+<http://www.Department14.University0.edu/AssociateProfessor1/Publication6> a ns1:Publication .
 
-<http://www.Department14.University0.edu/AssistantProfessor7/Publication7> a ns1:Publication .
+<http://www.Department14.University0.edu/AssociateProfessor2/Publication8> a ns1:Publication .
 
-<http://www.Department14.University0.edu/Course17> a ns1:Course .
+<http://www.Department14.University0.edu/AssociateProfessor9/Publication1> a ns1:Publication .
 
-<http://www.Department14.University0.edu/FullProfessor0/Publication9> ns1:publicationAuthor <http://www.Department14.University0.edu/FullProfessor0> .
+<http://www.Department14.University0.edu/FullProfessor0/Publication17> ns1:publicationAuthor <http://www.Department14.University0.edu/GraduateStudent86> .
 
-<http://www.Department14.University0.edu/FullProfessor2/Publication5> a ns1:Publication .
+<http://www.Department14.University0.edu/FullProfessor4/Publication1> ns1:publicationAuthor <http://www.Department14.University0.edu/GraduateStudent18> .
 
-<http://www.Department14.University0.edu/GraduateStudent0> ns1:advisor <http://www.Department14.University0.edu/AssistantProfessor5> .
+<http://www.Department14.University0.edu/FullProfessor5/Publication7> ns1:publicationAuthor <http://www.Department14.University0.edu/GraduateStudent92> .
 
-<http://www.Department14.University0.edu/GraduateStudent12> ns1:undergraduateDegreeFrom <http://www.University177.edu> .
+<http://www.Department14.University0.edu/GraduateCourse36> a ns1:GraduateCourse .
 
-<http://www.Department14.University0.edu/GraduateStudent24> ns1:undergraduateDegreeFrom <http://www.University988.edu> .
+<http://www.Department14.University0.edu/GraduateStudent1> a ns1:GraduateStudent .
 
-<http://www.Department14.University0.edu/GraduateStudent33> ns1:undergraduateDegreeFrom <http://www.University715.edu> .
+<http://www.Department14.University0.edu/GraduateStudent104> ns1:advisor <http://www.Department14.University0.edu/AssistantProfessor4> .
 
-<http://www.Department14.University0.edu/GraduateStudent39> ns1:takesCourse <http://www.Department14.University0.edu/GraduateCourse44> .
+<http://www.Department14.University0.edu/GraduateStudent12> ns1:memberOf <http://www.Department14.University0.edu> .
 
-<http://www.Department14.University0.edu/GraduateStudent43> a ns1:GraduateStudent .
+<http://www.Department14.University0.edu/GraduateStudent16> ns1:advisor <http://www.Department14.University0.edu/FullProfessor1> .
 
-<http://www.Department14.University0.edu/GraduateStudent55> ns1:advisor <http://www.Department14.University0.edu/AssistantProfessor0> .
+<http://www.Department14.University0.edu/GraduateStudent2> a ns1:GraduateStudent .
 
-<http://www.Department14.University0.edu/GraduateStudent59> a ns1:GraduateStudent .
+<http://www.Department14.University0.edu/GraduateStudent38> ns1:advisor <http://www.Department14.University0.edu/AssistantProfessor5> .
 
-<http://www.Department14.University0.edu/GraduateStudent60> ns1:takesCourse <http://www.Department14.University0.edu/GraduateCourse8> .
+<http://www.Department14.University0.edu/GraduateStudent50> ns1:undergraduateDegreeFrom <http://www.University888.edu> .
 
-<http://www.Department14.University0.edu/UndergraduateStudent166> ns1:advisor <http://www.Department14.University0.edu/AssistantProfessor6> .
+<http://www.Department14.University0.edu/GraduateStudent65> ns1:undergraduateDegreeFrom <http://www.University355.edu> .
 
-<http://www.Department14.University0.edu/UndergraduateStudent172> ns1:memberOf <http://www.Department14.University0.edu> .
+<http://www.Department14.University0.edu/GraduateStudent67> a ns1:GraduateStudent .
 
-<http://www.Department14.University0.edu/UndergraduateStudent194> ns1:takesCourse <http://www.Department14.University0.edu/Course42> .
+<http://www.Department14.University0.edu/GraduateStudent71> ns1:undergraduateDegreeFrom <http://www.University605.edu> .
 
-<http://www.Department14.University0.edu/UndergraduateStudent203> ns1:takesCourse <http://www.Department14.University0.edu/Course46> .
+<http://www.Department14.University0.edu/GraduateStudent82> ns1:memberOf <http://www.Department14.University0.edu> .
 
-<http://www.Department14.University0.edu/UndergraduateStudent222> ns1:takesCourse <http://www.Department14.University0.edu/Course23> .
+<http://www.Department14.University0.edu/UndergraduateStudent139> ns1:takesCourse <http://www.Department14.University0.edu/Course30> .
 
-<http://www.Department14.University0.edu/UndergraduateStudent23> ns1:takesCourse <http://www.Department14.University0.edu/Course16> .
+<http://www.Department14.University0.edu/UndergraduateStudent149> a ns1:UndergraduateStudent .
 
-<http://www.Department14.University0.edu/UndergraduateStudent237> a ns1:UndergraduateStudent .
+<http://www.Department14.University0.edu/UndergraduateStudent160> a ns1:UndergraduateStudent .
 
-<http://www.Department14.University0.edu/UndergraduateStudent259> ns1:takesCourse <http://www.Department14.University0.edu/Course35> .
+<http://www.Department14.University0.edu/UndergraduateStudent19> ns1:advisor <http://www.Department14.University0.edu/FullProfessor1> .
 
-<http://www.Department14.University0.edu/UndergraduateStudent29> ns1:takesCourse <http://www.Department14.University0.edu/Course29> .
+<http://www.Department14.University0.edu/UndergraduateStudent199> ns1:advisor <http://www.Department14.University0.edu/AssistantProfessor4> .
 
-<http://www.Department14.University0.edu/UndergraduateStudent32> ns1:takesCourse <http://www.Department14.University0.edu/Course39> .
+<http://www.Department14.University0.edu/UndergraduateStudent207> a ns1:UndergraduateStudent .
 
-<http://www.Department14.University0.edu/UndergraduateStudent58> a ns1:UndergraduateStudent .
+<http://www.Department14.University0.edu/UndergraduateStudent21> ns1:takesCourse <http://www.Department14.University0.edu/Course7> .
 
-<http://www.Department14.University0.edu/UndergraduateStudent76> ns1:advisor <http://www.Department14.University0.edu/AssistantProfessor3> .
+<http://www.Department14.University0.edu/UndergraduateStudent22> ns1:takesCourse <http://www.Department14.University0.edu/Course5> .
 
-<http://www.Department14.University0.edu/UndergraduateStudent78> ns1:takesCourse <http://www.Department14.University0.edu/Course41> .
+<http://www.Department14.University0.edu/UndergraduateStudent226> ns1:takesCourse <http://www.Department14.University0.edu/Course40> .
 
-<http://www.Department2.University0.edu/AssistantProfessor4> a ns1:AssistantProfessor .
+<http://www.Department2.University0.edu/AssistantProfessor7/Publication3> ns1:publicationAuthor <http://www.Department2.University0.edu/GraduateStudent23> .
 
-<http://www.Department2.University0.edu/AssistantProfessor5> ns1:worksFor <http://www.Department2.University0.edu> .
+<http://www.Department2.University0.edu/AssociateProfessor0/Publication3> ns1:publicationAuthor <http://www.Department2.University0.edu/GraduateStudent88> .
 
-<http://www.Department2.University0.edu/AssociateProfessor0/Publication6> a ns1:Publication .
+<http://www.Department2.University0.edu/AssociateProfessor10/Publication5> a ns1:Publication .
 
-<http://www.Department2.University0.edu/AssociateProfessor2/Publication5> ns1:publicationAuthor <http://www.Department2.University0.edu/AssociateProfessor2> .
+<http://www.Department2.University0.edu/AssociateProfessor2/Publication7> ns1:publicationAuthor <http://www.Department2.University0.edu/AssociateProfessor2> .
 
-<http://www.Department2.University0.edu/AssociateProfessor2/Publication7> ns1:publicationAuthor <http://www.Department2.University0.edu/GraduateStudent34> .
+<http://www.Department2.University0.edu/AssociateProfessor7/Publication1> ns1:publicationAuthor <http://www.Department2.University0.edu/AssociateProfessor7> .
 
-<http://www.Department2.University0.edu/AssociateProfessor3/Publication16> ns1:publicationAuthor <http://www.Department2.University0.edu/AssociateProfessor3> .
+<http://www.Department2.University0.edu/FullProfessor3> ns1:doctoralDegreeFrom <http://www.University354.edu> .
 
-<http://www.Department2.University0.edu/AssociateProfessor6> ns1:mastersDegreeFrom <http://www.University466.edu> .
+<http://www.Department2.University0.edu/FullProfessor4/Publication3> ns1:publicationAuthor <http://www.Department2.University0.edu/GraduateStudent38> .
 
-<http://www.Department2.University0.edu/AssociateProfessor7/Publication0> a ns1:Publication .
+<http://www.Department2.University0.edu/FullProfessor5/Publication12> a ns1:Publication .
 
-<http://www.Department2.University0.edu/AssociateProfessor9/Publication8> a ns1:Publication .
+<http://www.Department2.University0.edu/GraduateStudent22> a ns1:TeachingAssistant .
 
-<http://www.Department2.University0.edu/FullProfessor0/Publication12> ns1:publicationAuthor <http://www.Department2.University0.edu/GraduateStudent15> .
+<http://www.Department2.University0.edu/GraduateStudent26> ns1:takesCourse <http://www.Department2.University0.edu/GraduateCourse37> .
 
-<http://www.Department2.University0.edu/FullProfessor2/Publication0> ns1:publicationAuthor <http://www.Department2.University0.edu/FullProfessor2> .
+<http://www.Department2.University0.edu/GraduateStudent33> ns1:advisor <http://www.Department2.University0.edu/AssistantProfessor4> .
 
-<http://www.Department2.University0.edu/FullProfessor4/Publication17> ns1:publicationAuthor <http://www.Department2.University0.edu/FullProfessor4> .
+<http://www.Department2.University0.edu/GraduateStudent5> a ns1:GraduateStudent .
 
-<http://www.Department2.University0.edu/GraduateStudent32> ns1:memberOf <http://www.Department2.University0.edu> .
+<http://www.Department2.University0.edu/GraduateStudent51> ns1:memberOf <http://www.Department2.University0.edu> .
 
-<http://www.Department2.University0.edu/GraduateStudent39> a ns1:GraduateStudent .
+<http://www.Department2.University0.edu/GraduateStudent79> ns1:takesCourse <http://www.Department2.University0.edu/GraduateCourse0> .
 
-<http://www.Department2.University0.edu/GraduateStudent90> a ns1:GraduateStudent .
+<http://www.Department2.University0.edu/UndergraduateStudent103> ns1:memberOf <http://www.Department2.University0.edu> .
 
-<http://www.Department2.University0.edu/Lecturer1> a ns1:Lecturer .
+<http://www.Department2.University0.edu/UndergraduateStudent125> a ns1:UndergraduateStudent .
 
-<http://www.Department2.University0.edu/UndergraduateStudent122> a ns1:UndergraduateStudent .
+<http://www.Department2.University0.edu/UndergraduateStudent158> ns1:takesCourse <http://www.Department2.University0.edu/Course5> .
 
-<http://www.Department2.University0.edu/UndergraduateStudent134> ns1:takesCourse <http://www.Department2.University0.edu/Course38> .
+<http://www.Department2.University0.edu/UndergraduateStudent161> ns1:memberOf <http://www.Department2.University0.edu> .
 
-<http://www.Department2.University0.edu/UndergraduateStudent152> ns1:takesCourse <http://www.Department2.University0.edu/Course15> .
+<http://www.Department2.University0.edu/UndergraduateStudent200> a ns1:UndergraduateStudent .
 
-<http://www.Department2.University0.edu/UndergraduateStudent272> a ns1:UndergraduateStudent .
+<http://www.Department2.University0.edu/UndergraduateStudent237> a ns1:UndergraduateStudent .
 
-<http://www.Department2.University0.edu/UndergraduateStudent276> ns1:takesCourse <http://www.Department2.University0.edu/Course42> .
+<http://www.Department2.University0.edu/UndergraduateStudent261> ns1:takesCourse <http://www.Department2.University0.edu/Course3> .
 
-<http://www.Department2.University0.edu/UndergraduateStudent283> ns1:takesCourse <http://www.Department2.University0.edu/Course36> .
+<http://www.Department2.University0.edu/UndergraduateStudent277> a ns1:UndergraduateStudent .
 
-<http://www.Department2.University0.edu/UndergraduateStudent321> ns1:takesCourse <http://www.Department2.University0.edu/Course19> .
+<http://www.Department2.University0.edu/UndergraduateStudent278> ns1:takesCourse <http://www.Department2.University0.edu/Course45> .
 
-<http://www.Department2.University0.edu/UndergraduateStudent353> ns1:takesCourse <http://www.Department2.University0.edu/Course15> .
+<http://www.Department2.University0.edu/UndergraduateStudent295> ns1:memberOf <http://www.Department2.University0.edu> .
 
-<http://www.Department2.University0.edu/UndergraduateStudent359> ns1:takesCourse <http://www.Department2.University0.edu/Course16> .
+<http://www.Department2.University0.edu/UndergraduateStudent305> ns1:takesCourse <http://www.Department2.University0.edu/Course9> .
 
-<http://www.Department2.University0.edu/UndergraduateStudent41> ns1:takesCourse <http://www.Department2.University0.edu/Course43> .
+<http://www.Department2.University0.edu/UndergraduateStudent336> a ns1:UndergraduateStudent .
 
-<http://www.Department2.University0.edu/UndergraduateStudent52> a ns1:UndergraduateStudent .
+<http://www.Department2.University0.edu/UndergraduateStudent366> a ns1:UndergraduateStudent .
 
-<http://www.Department3.University0.edu/AssistantProfessor5/Publication4> ns1:publicationAuthor <http://www.Department3.University0.edu/AssistantProfessor5> .
+<http://www.Department2.University0.edu/UndergraduateStudent99> ns1:memberOf <http://www.Department2.University0.edu> .
 
-<http://www.Department3.University0.edu/AssociateProfessor1> ns1:worksFor <http://www.Department3.University0.edu> .
+<http://www.Department3.University0.edu/AssistantProfessor0/Publication0> a ns1:Publication .
 
-<http://www.Department3.University0.edu/AssociateProfessor1/Publication1> ns1:publicationAuthor <http://www.Department3.University0.edu/GraduateStudent4> .
+<http://www.Department3.University0.edu/AssistantProfessor5> ns1:worksFor <http://www.Department3.University0.edu> .
 
-<http://www.Department3.University0.edu/AssociateProfessor1/Publication10> a ns1:Publication .
+<http://www.Department3.University0.edu/AssociateProfessor1/Publication5> ns1:publicationAuthor <http://www.Department3.University0.edu/AssociateProfessor1> .
 
-<http://www.Department3.University0.edu/AssociateProfessor7/Publication16> ns1:publicationAuthor <http://www.Department3.University0.edu/AssociateProfessor7> .
+<http://www.Department3.University0.edu/AssociateProfessor2/Publication1> ns1:publicationAuthor <http://www.Department3.University0.edu/AssociateProfessor2> .
 
-<http://www.Department3.University0.edu/AssociateProfessor8/Publication5> ns1:publicationAuthor <http://www.Department3.University0.edu/AssociateProfessor8> .
+<http://www.Department3.University0.edu/AssociateProfessor3/Publication11> ns1:publicationAuthor <http://www.Department3.University0.edu/GraduateStudent15> .
 
-<http://www.Department3.University0.edu/FullProfessor0/Publication2> a ns1:Publication .
+<http://www.Department3.University0.edu/AssociateProfessor4/Publication15> ns1:publicationAuthor <http://www.Department3.University0.edu/GraduateStudent103> .
 
-<http://www.Department3.University0.edu/FullProfessor1/Publication19> ns1:publicationAuthor <http://www.Department3.University0.edu/FullProfessor1> .
+<http://www.Department3.University0.edu/AssociateProfessor6/Publication8> ns1:publicationAuthor <http://www.Department3.University0.edu/AssociateProfessor6> .
 
-<http://www.Department3.University0.edu/FullProfessor2/Publication3> a ns1:Publication .
+<http://www.Department3.University0.edu/Course54> a ns1:Course .
 
-<http://www.Department3.University0.edu/FullProfessor5/Publication9> a ns1:Publication .
+<http://www.Department3.University0.edu/FullProfessor1/Publication8> ns1:publicationAuthor <http://www.Department3.University0.edu/GraduateStudent18> .
 
-<http://www.Department3.University0.edu/FullProfessor8/Publication7> ns1:publicationAuthor <http://www.Department3.University0.edu/GraduateStudent111> .
+<http://www.Department3.University0.edu/FullProfessor4/Publication16> a ns1:Publication .
 
-<http://www.Department3.University0.edu/GraduateStudent1> ns1:memberOf <http://www.Department3.University0.edu> .
+<http://www.Department3.University0.edu/FullProfessor5/Publication10> ns1:publicationAuthor <http://www.Department3.University0.edu/FullProfessor5> .
 
-<http://www.Department3.University0.edu/GraduateStudent15> ns1:advisor <http://www.Department3.University0.edu/AssistantProfessor5> .
+<http://www.Department3.University0.edu/FullProfessor5/Publication11> ns1:publicationAuthor <http://www.Department3.University0.edu/GraduateStudent11> .
 
-<http://www.Department3.University0.edu/GraduateStudent20> ns1:takesCourse <http://www.Department3.University0.edu/GraduateCourse17> .
+<http://www.Department3.University0.edu/FullProfessor5/Publication8> ns1:publicationAuthor <http://www.Department3.University0.edu/FullProfessor5> .
 
-<http://www.Department3.University0.edu/GraduateStudent21> ns1:memberOf <http://www.Department3.University0.edu> .
+<http://www.Department3.University0.edu/GraduateCourse12> a ns1:GraduateCourse .
 
-<http://www.Department3.University0.edu/GraduateStudent34> a ns1:GraduateStudent .
+<http://www.Department3.University0.edu/GraduateStudent100> a ns1:ResearchAssistant .
 
-<http://www.Department3.University0.edu/GraduateStudent37> ns1:takesCourse <http://www.Department3.University0.edu/GraduateCourse0> .
+<http://www.Department3.University0.edu/GraduateStudent110> ns1:undergraduateDegreeFrom <http://www.University451.edu> .
 
-<http://www.Department3.University0.edu/GraduateStudent93> ns1:memberOf <http://www.Department3.University0.edu> .
+<http://www.Department3.University0.edu/GraduateStudent23> a ns1:ResearchAssistant .
 
-<http://www.Department3.University0.edu/UndergraduateStudent147> ns1:takesCourse <http://www.Department3.University0.edu/Course10> .
+<http://www.Department3.University0.edu/GraduateStudent57> a ns1:ResearchAssistant .
 
-<http://www.Department3.University0.edu/UndergraduateStudent175> a ns1:UndergraduateStudent .
+<http://www.Department3.University0.edu/GraduateStudent63> ns1:teachingAssistantOf <http://www.Department3.University0.edu/Course41> .
 
-<http://www.Department3.University0.edu/UndergraduateStudent247> ns1:takesCourse <http://www.Department3.University0.edu/Course49> .
+<http://www.Department3.University0.edu/GraduateStudent66> ns1:undergraduateDegreeFrom <http://www.University92.edu> .
 
-<http://www.Department3.University0.edu/UndergraduateStudent274> ns1:takesCourse <http://www.Department3.University0.edu/Course7> .
+<http://www.Department3.University0.edu/GraduateStudent8> ns1:takesCourse <http://www.Department3.University0.edu/GraduateCourse0> .
 
-<http://www.Department3.University0.edu/UndergraduateStudent276> ns1:takesCourse <http://www.Department3.University0.edu/Course12> .
+<http://www.Department3.University0.edu/GraduateStudent90> ns1:takesCourse <http://www.Department3.University0.edu/GraduateCourse43> .
 
-<http://www.Department3.University0.edu/UndergraduateStudent283> ns1:takesCourse <http://www.Department3.University0.edu/Course46> .
+<http://www.Department3.University0.edu/Lecturer5/Publication3> a ns1:Publication .
 
-<http://www.Department3.University0.edu/UndergraduateStudent306> ns1:takesCourse <http://www.Department3.University0.edu/Course0> .
+<http://www.Department3.University0.edu/UndergraduateStudent113> ns1:takesCourse <http://www.Department3.University0.edu/Course0> .
 
-<http://www.Department3.University0.edu/UndergraduateStudent322> ns1:takesCourse <http://www.Department3.University0.edu/Course4> .
+<http://www.Department3.University0.edu/UndergraduateStudent129> a ns1:UndergraduateStudent .
 
-<http://www.Department3.University0.edu/UndergraduateStudent326> ns1:takesCourse <http://www.Department3.University0.edu/Course36> .
+<http://www.Department3.University0.edu/UndergraduateStudent182> ns1:takesCourse <http://www.Department3.University0.edu/Course0> .
 
-<http://www.Department3.University0.edu/UndergraduateStudent56> ns1:advisor <http://www.Department3.University0.edu/FullProfessor5> .
+<http://www.Department3.University0.edu/UndergraduateStudent205> ns1:takesCourse <http://www.Department3.University0.edu/Course53> .
 
-<http://www.Department3.University0.edu/UndergraduateStudent7> a ns1:UndergraduateStudent .
+<http://www.Department3.University0.edu/UndergraduateStudent220> ns1:takesCourse <http://www.Department3.University0.edu/Course22> .
 
-<http://www.Department3.University0.edu/UndergraduateStudent70> ns1:takesCourse <http://www.Department3.University0.edu/Course14> .
+<http://www.Department3.University0.edu/UndergraduateStudent263> ns1:memberOf <http://www.Department3.University0.edu> .
 
-<http://www.Department4.University0.edu/AssistantProfessor7/Publication0> ns1:publicationAuthor <http://www.Department4.University0.edu/AssistantProfessor7> .
+<http://www.Department3.University0.edu/UndergraduateStudent273> ns1:takesCourse <http://www.Department3.University0.edu/Course6> .
 
-<http://www.Department4.University0.edu/AssociateProfessor6/Publication5> ns1:publicationAuthor <http://www.Department4.University0.edu/AssociateProfessor6> .
+<http://www.Department3.University0.edu/UndergraduateStudent287> a ns1:UndergraduateStudent .
 
-<http://www.Department4.University0.edu/AssociateProfessor7/Publication1> a ns1:Publication .
+<http://www.Department3.University0.edu/UndergraduateStudent295> ns1:takesCourse <http://www.Department3.University0.edu/Course16> .
 
-<http://www.Department4.University0.edu/AssociateProfessor8/Publication6> ns1:publicationAuthor <http://www.Department4.University0.edu/AssociateProfessor8> .
+<http://www.Department3.University0.edu/UndergraduateStudent60> a ns1:UndergraduateStudent .
 
-<http://www.Department4.University0.edu/FullProfessor2/Publication11> ns1:publicationAuthor <http://www.Department4.University0.edu/GraduateStudent123> .
+<http://www.Department3.University0.edu/UndergraduateStudent65> a ns1:UndergraduateStudent .
 
-<http://www.Department4.University0.edu/FullProfessor3/Publication14> ns1:publicationAuthor <http://www.Department4.University0.edu/FullProfessor3> .
+<http://www.Department3.University0.edu/UndergraduateStudent70> ns1:takesCourse <http://www.Department3.University0.edu/Course12> .
 
-<http://www.Department4.University0.edu/FullProfessor4/Publication13> ns1:publicationAuthor <http://www.Department4.University0.edu/GraduateStudent124> .
+<http://www.Department3.University0.edu/UndergraduateStudent74> ns1:takesCourse <http://www.Department3.University0.edu/Course50> .
 
-<http://www.Department4.University0.edu/FullProfessor5> ns1:teacherOf <http://www.Department4.University0.edu/Course9> .
+<http://www.Department4.University0.edu/AssistantProfessor3/Publication1> ns1:publicationAuthor <http://www.Department4.University0.edu/GraduateStudent43> .
 
-<http://www.Department4.University0.edu/FullProfessor6/Publication10> ns1:publicationAuthor <http://www.Department4.University0.edu/FullProfessor6> .
+<http://www.Department4.University0.edu/AssistantProfessor7> a ns1:AssistantProfessor .
 
-<http://www.Department4.University0.edu/GraduateStudent0> ns1:advisor <http://www.Department4.University0.edu/AssistantProfessor5> .
+<http://www.Department4.University0.edu/AssociateProfessor4> ns1:mastersDegreeFrom <http://www.University755.edu> .
 
-<http://www.Department4.University0.edu/GraduateStudent114> a ns1:GraduateStudent .
+<http://www.Department4.University0.edu/Course11> a ns1:Course .
 
-<http://www.Department4.University0.edu/GraduateStudent22> ns1:takesCourse <http://www.Department4.University0.edu/GraduateCourse17> .
+<http://www.Department4.University0.edu/FullProfessor0/Publication10> ns1:publicationAuthor <http://www.Department4.University0.edu/GraduateStudent97> .
 
-<http://www.Department4.University0.edu/GraduateStudent45> a ns1:GraduateStudent .
+<http://www.Department4.University0.edu/FullProfessor0/Publication3> ns1:publicationAuthor <http://www.Department4.University0.edu/FullProfessor0> .
 
-<http://www.Department4.University0.edu/GraduateStudent51> ns1:undergraduateDegreeFrom <http://www.University438.edu> .
+<http://www.Department4.University0.edu/FullProfessor0/Publication5> ns1:publicationAuthor <http://www.Department4.University0.edu/FullProfessor0> .
 
-<http://www.Department4.University0.edu/GraduateStudent84> ns1:teachingAssistantOf <http://www.Department4.University0.edu/Course22> .
+<http://www.Department4.University0.edu/FullProfessor5/Publication4> ns1:publicationAuthor <http://www.Department4.University0.edu/GraduateStudent114> .
 
-<http://www.Department4.University0.edu/GraduateStudent86> ns1:takesCourse <http://www.Department4.University0.edu/GraduateCourse47> .
+<http://www.Department4.University0.edu/FullProfessor5/Publication5> ns1:publicationAuthor <http://www.Department4.University0.edu/GraduateStudent100> .
 
-<http://www.Department4.University0.edu/ResearchGroup8> a ns1:ResearchGroup .
+<http://www.Department4.University0.edu/GraduateStudent129> a ns1:ResearchAssistant .
 
-<http://www.Department4.University0.edu/UndergraduateStudent13> ns1:takesCourse <http://www.Department4.University0.edu/Course4> .
+<http://www.Department4.University0.edu/GraduateStudent130> ns1:takesCourse <http://www.Department4.University0.edu/GraduateCourse11> .
 
-<http://www.Department4.University0.edu/UndergraduateStudent140> ns1:takesCourse <http://www.Department4.University0.edu/Course6> .
+<http://www.Department4.University0.edu/GraduateStudent18> ns1:advisor <http://www.Department4.University0.edu/AssistantProfessor1> .
 
-<http://www.Department4.University0.edu/UndergraduateStudent198> ns1:memberOf <http://www.Department4.University0.edu> .
+<http://www.Department4.University0.edu/GraduateStudent21> ns1:takesCourse <http://www.Department4.University0.edu/GraduateCourse24> .
 
-<http://www.Department4.University0.edu/UndergraduateStudent220> ns1:takesCourse <http://www.Department4.University0.edu/Course28> .
+<http://www.Department4.University0.edu/GraduateStudent59> ns1:takesCourse <http://www.Department4.University0.edu/GraduateCourse30> .
 
-<http://www.Department4.University0.edu/UndergraduateStudent230> ns1:takesCourse <http://www.Department4.University0.edu/Course21> .
+<http://www.Department4.University0.edu/GraduateStudent6> ns1:memberOf <http://www.Department4.University0.edu> .
 
-<http://www.Department4.University0.edu/UndergraduateStudent255> ns1:memberOf <http://www.Department4.University0.edu> .
+<http://www.Department4.University0.edu/GraduateStudent71> ns1:undergraduateDegreeFrom <http://www.University34.edu> .
 
-<http://www.Department4.University0.edu/UndergraduateStudent267> ns1:takesCourse <http://www.Department4.University0.edu/Course37> .
+<http://www.Department4.University0.edu/GraduateStudent72> ns1:undergraduateDegreeFrom <http://www.University257.edu> .
 
-<http://www.Department4.University0.edu/UndergraduateStudent268> ns1:takesCourse <http://www.Department4.University0.edu/Course25> .
+<http://www.Department4.University0.edu/GraduateStudent76> ns1:takesCourse <http://www.Department4.University0.edu/GraduateCourse3> .
 
-<http://www.Department4.University0.edu/UndergraduateStudent269> a ns1:UndergraduateStudent .
+<http://www.Department4.University0.edu/GraduateStudent91> ns1:undergraduateDegreeFrom <http://www.University670.edu> .
 
-<http://www.Department4.University0.edu/UndergraduateStudent46> ns1:takesCourse <http://www.Department4.University0.edu/Course5> .
+<http://www.Department4.University0.edu/GraduateStudent95> ns1:advisor <http://www.Department4.University0.edu/AssociateProfessor9> .
 
-<http://www.Department4.University0.edu/UndergraduateStudent54> ns1:takesCourse <http://www.Department4.University0.edu/Course46> .
+<http://www.Department4.University0.edu/UndergraduateStudent104> ns1:takesCourse <http://www.Department4.University0.edu/Course46> .
 
-<http://www.Department4.University0.edu/UndergraduateStudent72> ns1:takesCourse <http://www.Department4.University0.edu/Course22> .
+<http://www.Department4.University0.edu/UndergraduateStudent139> ns1:takesCourse <http://www.Department4.University0.edu/Course5> .
 
-<http://www.Department4.University0.edu/UndergraduateStudent73> a ns1:UndergraduateStudent .
+<http://www.Department4.University0.edu/UndergraduateStudent147> ns1:takesCourse <http://www.Department4.University0.edu/Course0> .
 
-<http://www.Department4.University0.edu/UndergraduateStudent75> ns1:advisor <http://www.Department4.University0.edu/FullProfessor2> .
+<http://www.Department4.University0.edu/UndergraduateStudent152> ns1:takesCourse <http://www.Department4.University0.edu/Course22> .
 
-<http://www.Department4.University0.edu/UndergraduateStudent92> ns1:takesCourse <http://www.Department4.University0.edu/Course29> .
+<http://www.Department4.University0.edu/UndergraduateStudent158> ns1:takesCourse <http://www.Department4.University0.edu/Course9> .
 
-<http://www.Department5.University0.edu/AssociateProfessor10> a ns1:AssociateProfessor .
+<http://www.Department4.University0.edu/UndergraduateStudent161> ns1:takesCourse <http://www.Department4.University0.edu/Course48> .
 
-<http://www.Department5.University0.edu/AssociateProfessor3/Publication5> ns1:publicationAuthor <http://www.Department5.University0.edu/GraduateStudent6> .
+<http://www.Department4.University0.edu/UndergraduateStudent181> a ns1:UndergraduateStudent .
 
-<http://www.Department5.University0.edu/AssociateProfessor5/Publication0> ns1:publicationAuthor <http://www.Department5.University0.edu/GraduateStudent30> .
+<http://www.Department4.University0.edu/UndergraduateStudent226> ns1:takesCourse <http://www.Department4.University0.edu/Course19> .
 
-<http://www.Department5.University0.edu/AssociateProfessor7/Publication1> ns1:publicationAuthor <http://www.Department5.University0.edu/GraduateStudent91> .
+<http://www.Department4.University0.edu/UndergraduateStudent229> ns1:takesCourse <http://www.Department4.University0.edu/Course20> .
 
-<http://www.Department5.University0.edu/Course35> a ns1:Course .
+<http://www.Department4.University0.edu/UndergraduateStudent235> ns1:takesCourse <http://www.Department4.University0.edu/Course34> .
 
-<http://www.Department5.University0.edu/FullProfessor0/Publication2> ns1:publicationAuthor <http://www.Department5.University0.edu/GraduateStudent10> .
+<http://www.Department4.University0.edu/UndergraduateStudent243> ns1:takesCourse <http://www.Department4.University0.edu/Course0> .
 
-<http://www.Department5.University0.edu/FullProfessor6/Publication11> a ns1:Publication .
+<http://www.Department4.University0.edu/UndergraduateStudent317> ns1:memberOf <http://www.Department4.University0.edu> .
 
-<http://www.Department5.University0.edu/FullProfessor7/Publication11> ns1:publicationAuthor <http://www.Department5.University0.edu/FullProfessor7> .
+<http://www.Department4.University0.edu/UndergraduateStudent366> ns1:takesCourse <http://www.Department4.University0.edu/Course47> .
 
-<http://www.Department5.University0.edu/FullProfessor9/Publication11> ns1:publicationAuthor <http://www.Department5.University0.edu/GraduateStudent85> .
+<http://www.Department4.University0.edu/UndergraduateStudent367> ns1:memberOf <http://www.Department4.University0.edu> .
 
-<http://www.Department5.University0.edu/GraduateStudent104> ns1:memberOf <http://www.Department5.University0.edu> .
+<http://www.Department4.University0.edu/UndergraduateStudent377> ns1:advisor <http://www.Department4.University0.edu/AssociateProfessor0> .
 
-<http://www.Department5.University0.edu/GraduateStudent13> a ns1:TeachingAssistant .
+<http://www.Department4.University0.edu/UndergraduateStudent381> a ns1:UndergraduateStudent .
 
-<http://www.Department5.University0.edu/GraduateStudent15> a ns1:TeachingAssistant .
+<http://www.Department4.University0.edu/UndergraduateStudent54> ns1:takesCourse <http://www.Department4.University0.edu/Course6> .
 
-<http://www.Department5.University0.edu/GraduateStudent18> ns1:takesCourse <http://www.Department5.University0.edu/GraduateCourse5>,
-        <http://www.Department5.University0.edu/GraduateCourse8> .
+<http://www.Department4.University0.edu/UndergraduateStudent63> a ns1:UndergraduateStudent .
 
-<http://www.Department5.University0.edu/GraduateStudent4> ns1:undergraduateDegreeFrom <http://www.University920.edu> .
+<http://www.Department4.University0.edu/UndergraduateStudent66> ns1:memberOf <http://www.Department4.University0.edu> .
 
-<http://www.Department5.University0.edu/GraduateStudent89> ns1:undergraduateDegreeFrom <http://www.University151.edu> .
+<http://www.Department5.University0.edu/AssociateProfessor10> ns1:teacherOf <http://www.Department5.University0.edu/GraduateCourse27> .
 
-<http://www.Department5.University0.edu/GraduateStudent9> ns1:memberOf <http://www.Department5.University0.edu> .
+<http://www.Department5.University0.edu/AssociateProfessor10/Publication0> a ns1:Publication .
 
-<http://www.Department5.University0.edu/GraduateStudent98> ns1:takesCourse <http://www.Department5.University0.edu/GraduateCourse20> .
+<http://www.Department5.University0.edu/AssociateProfessor5/Publication11> a ns1:Publication .
 
-<http://www.Department5.University0.edu/Lecturer3/Publication2> ns1:publicationAuthor <http://www.Department5.University0.edu/Lecturer3> .
+<http://www.Department5.University0.edu/AssociateProfessor5/Publication6> ns1:publicationAuthor <http://www.Department5.University0.edu/AssociateProfessor5> .
 
-<http://www.Department5.University0.edu/Lecturer4> ns1:teacherOf <http://www.Department5.University0.edu/GraduateCourse48> .
+<http://www.Department5.University0.edu/AssociateProfessor6> ns1:teacherOf <http://www.Department5.University0.edu/Course26> .
 
-<http://www.Department5.University0.edu/ResearchGroup11> a ns1:ResearchGroup .
+<http://www.Department5.University0.edu/FullProfessor3> ns1:teacherOf <http://www.Department5.University0.edu/Course6> .
 
-<http://www.Department5.University0.edu/UndergraduateStudent106> ns1:takesCourse <http://www.Department5.University0.edu/Course16> .
+<http://www.Department5.University0.edu/FullProfessor3/Publication14> ns1:publicationAuthor <http://www.Department5.University0.edu/GraduateStudent22> .
 
-<http://www.Department5.University0.edu/UndergraduateStudent144> ns1:takesCourse <http://www.Department5.University0.edu/Course14> .
+<http://www.Department5.University0.edu/FullProfessor3/Publication8> ns1:publicationAuthor <http://www.Department5.University0.edu/GraduateStudent64> .
 
-<http://www.Department5.University0.edu/UndergraduateStudent148> ns1:advisor <http://www.Department5.University0.edu/AssociateProfessor5> .
+<http://www.Department5.University0.edu/FullProfessor6> ns1:doctoralDegreeFrom <http://www.University710.edu> .
 
-<http://www.Department5.University0.edu/UndergraduateStudent259> ns1:takesCourse <http://www.Department5.University0.edu/Course21> .
+<http://www.Department5.University0.edu/GraduateStudent26> ns1:takesCourse <http://www.Department5.University0.edu/GraduateCourse20> .
 
-<http://www.Department5.University0.edu/UndergraduateStudent282> ns1:memberOf <http://www.Department5.University0.edu> .
+<http://www.Department5.University0.edu/GraduateStudent59> ns1:memberOf <http://www.Department5.University0.edu> .
 
-<http://www.Department5.University0.edu/UndergraduateStudent291> ns1:takesCourse <http://www.Department5.University0.edu/Course32> .
+<http://www.Department5.University0.edu/GraduateStudent88> ns1:takesCourse <http://www.Department5.University0.edu/GraduateCourse29> .
 
-<http://www.Department5.University0.edu/UndergraduateStudent292> ns1:takesCourse <http://www.Department5.University0.edu/Course5> .
+<http://www.Department5.University0.edu/GraduateStudent94> ns1:takesCourse <http://www.Department5.University0.edu/GraduateCourse46> .
 
-<http://www.Department5.University0.edu/UndergraduateStudent309> ns1:advisor <http://www.Department5.University0.edu/AssistantProfessor0> .
+<http://www.Department5.University0.edu/GraduateStudent98> ns1:takesCourse <http://www.Department5.University0.edu/GraduateCourse21> .
 
-<http://www.Department5.University0.edu/UndergraduateStudent31> ns1:takesCourse <http://www.Department5.University0.edu/Course27> .
+<http://www.Department5.University0.edu/UndergraduateStudent146> ns1:takesCourse <http://www.Department5.University0.edu/Course0> .
 
-<http://www.Department5.University0.edu/UndergraduateStudent310> ns1:takesCourse <http://www.Department5.University0.edu/Course3> .
+<http://www.Department5.University0.edu/UndergraduateStudent169> ns1:takesCourse <http://www.Department5.University0.edu/Course38> .
 
-<http://www.Department5.University0.edu/UndergraduateStudent314> ns1:memberOf <http://www.Department5.University0.edu> .
+<http://www.Department5.University0.edu/UndergraduateStudent181> ns1:takesCourse <http://www.Department5.University0.edu/Course44> .
 
-<http://www.Department5.University0.edu/UndergraduateStudent327> ns1:advisor <http://www.Department5.University0.edu/AssistantProfessor2> .
+<http://www.Department5.University0.edu/UndergraduateStudent186> a ns1:UndergraduateStudent .
 
-<http://www.Department5.University0.edu/UndergraduateStudent338> a ns1:UndergraduateStudent .
+<http://www.Department5.University0.edu/UndergraduateStudent231> ns1:takesCourse <http://www.Department5.University0.edu/Course21> .
 
-<http://www.Department5.University0.edu/UndergraduateStudent358> ns1:takesCourse <http://www.Department5.University0.edu/Course48> .
+<http://www.Department5.University0.edu/UndergraduateStudent256> ns1:takesCourse <http://www.Department5.University0.edu/Course17> .
 
-<http://www.Department5.University0.edu/UndergraduateStudent366> a ns1:UndergraduateStudent .
+<http://www.Department5.University0.edu/UndergraduateStudent267> ns1:memberOf <http://www.Department5.University0.edu> .
 
-<http://www.Department5.University0.edu/UndergraduateStudent38> ns1:takesCourse <http://www.Department5.University0.edu/Course1> .
+<http://www.Department5.University0.edu/UndergraduateStudent268> a ns1:UndergraduateStudent .
 
-<http://www.Department5.University0.edu/UndergraduateStudent431> ns1:takesCourse <http://www.Department5.University0.edu/Course27> .
+<http://www.Department5.University0.edu/UndergraduateStudent285> ns1:memberOf <http://www.Department5.University0.edu> .
 
-<http://www.Department5.University0.edu/UndergraduateStudent85> ns1:takesCourse <http://www.Department5.University0.edu/Course31> .
+<http://www.Department5.University0.edu/UndergraduateStudent292> ns1:takesCourse <http://www.Department5.University0.edu/Course26> .
 
-<http://www.Department6.University0.edu/AssistantProfessor1/Publication2> ns1:publicationAuthor <http://www.Department6.University0.edu/AssistantProfessor1> .
+<http://www.Department5.University0.edu/UndergraduateStudent337> ns1:takesCourse <http://www.Department5.University0.edu/Course9> .
 
-<http://www.Department6.University0.edu/AssistantProfessor6/Publication9> ns1:publicationAuthor <http://www.Department6.University0.edu/AssistantProfessor6> .
+<http://www.Department5.University0.edu/UndergraduateStudent371> ns1:memberOf <http://www.Department5.University0.edu> .
 
-<http://www.Department6.University0.edu/AssistantProfessor7> ns1:doctoralDegreeFrom <http://www.University244.edu> .
+<http://www.Department5.University0.edu/UndergraduateStudent380> ns1:takesCourse <http://www.Department5.University0.edu/Course40> .
 
-<http://www.Department6.University0.edu/AssociateProfessor0> ns1:doctoralDegreeFrom <http://www.University36.edu> ;
-    ns1:worksFor <http://www.Department6.University0.edu> .
+<http://www.Department5.University0.edu/UndergraduateStudent409> a ns1:UndergraduateStudent .
 
-<http://www.Department6.University0.edu/AssociateProfessor5/Publication9> a ns1:Publication .
+<http://www.Department5.University0.edu/UndergraduateStudent421> ns1:takesCourse <http://www.Department5.University0.edu/Course26> .
 
-<http://www.Department6.University0.edu/FullProfessor1/Publication17> a ns1:Publication .
+<http://www.Department5.University0.edu/UndergraduateStudent434> ns1:takesCourse <http://www.Department5.University0.edu/Course26> .
 
-<http://www.Department6.University0.edu/FullProfessor3/Publication10> ns1:publicationAuthor <http://www.Department6.University0.edu/GraduateStudent2> .
+<http://www.Department5.University0.edu/UndergraduateStudent53> ns1:takesCourse <http://www.Department5.University0.edu/Course30> .
 
-<http://www.Department6.University0.edu/FullProfessor6/Publication6> ns1:publicationAuthor <http://www.Department6.University0.edu/GraduateStudent30> .
+<http://www.Department6.University0.edu/AssistantProfessor0/Publication2> ns1:publicationAuthor <http://www.Department6.University0.edu/GraduateStudent35> .
 
-<http://www.Department6.University0.edu/FullProfessor9> ns1:teacherOf <http://www.Department6.University0.edu/Course15> .
+<http://www.Department6.University0.edu/AssistantProfessor6> a ns1:AssistantProfessor .
 
-<http://www.Department6.University0.edu/GraduateStudent28> ns1:memberOf <http://www.Department6.University0.edu> .
+<http://www.Department6.University0.edu/AssociateProfessor0> a ns1:AssociateProfessor .
 
-<http://www.Department6.University0.edu/GraduateStudent31> ns1:memberOf <http://www.Department6.University0.edu> .
+<http://www.Department6.University0.edu/AssociateProfessor9/Publication7> ns1:publicationAuthor <http://www.Department6.University0.edu/AssociateProfessor9> .
+
+<http://www.Department6.University0.edu/FullProfessor2/Publication4> a ns1:Publication .
+
+<http://www.Department6.University0.edu/FullProfessor6/Publication0> ns1:publicationAuthor <http://www.Department6.University0.edu/FullProfessor6> .
+
+<http://www.Department6.University0.edu/GraduateStudent13> ns1:takesCourse <http://www.Department6.University0.edu/GraduateCourse24> .
+
+<http://www.Department6.University0.edu/GraduateStudent21> ns1:memberOf <http://www.Department6.University0.edu> .
 
 <http://www.Department6.University0.edu/GraduateStudent32> ns1:takesCourse <http://www.Department6.University0.edu/GraduateCourse44> .
 
-<http://www.Department6.University0.edu/GraduateStudent47> ns1:teachingAssistantOf <http://www.Department6.University0.edu/Course5> .
+<http://www.Department6.University0.edu/GraduateStudent42> a ns1:GraduateStudent .
 
-<http://www.Department6.University0.edu/GraduateStudent6> ns1:takesCourse <http://www.Department6.University0.edu/GraduateCourse20> .
+<http://www.Department6.University0.edu/GraduateStudent63> ns1:advisor <http://www.Department6.University0.edu/AssociateProfessor6> .
 
-<http://www.Department6.University0.edu/GraduateStudent70> ns1:takesCourse <http://www.Department6.University0.edu/GraduateCourse43> .
+<http://www.Department6.University0.edu/GraduateStudent79> a ns1:GraduateStudent .
 
-<http://www.Department6.University0.edu/GraduateStudent87> a ns1:GraduateStudent .
+<http://www.Department6.University0.edu/ResearchGroup14> ns1:subOrganizationOf <http://www.Department6.University0.edu> .
 
-<http://www.Department6.University0.edu/GraduateStudent99> ns1:takesCourse <http://www.Department6.University0.edu/GraduateCourse33> .
+<http://www.Department6.University0.edu/UndergraduateStudent128> ns1:takesCourse <http://www.Department6.University0.edu/Course3> .
 
-<http://www.Department6.University0.edu/Lecturer0> ns1:teacherOf <http://www.Department6.University0.edu/GraduateCourse41> .
+<http://www.Department6.University0.edu/UndergraduateStudent129> ns1:takesCourse <http://www.Department6.University0.edu/Course32> .
 
-<http://www.Department6.University0.edu/UndergraduateStudent147> a ns1:UndergraduateStudent .
+<http://www.Department6.University0.edu/UndergraduateStudent144> ns1:advisor <http://www.Department6.University0.edu/FullProfessor9> .
 
-<http://www.Department6.University0.edu/UndergraduateStudent207> ns1:takesCourse <http://www.Department6.University0.edu/Course7> .
+<http://www.Department6.University0.edu/UndergraduateStudent153> a ns1:UndergraduateStudent .
 
-<http://www.Department6.University0.edu/UndergraduateStudent218> ns1:takesCourse <http://www.Department6.University0.edu/Course31> .
+<http://www.Department6.University0.edu/UndergraduateStudent174> a ns1:UndergraduateStudent ;
+    ns1:takesCourse <http://www.Department6.University0.edu/Course15> .
 
-<http://www.Department6.University0.edu/UndergraduateStudent254> ns1:takesCourse <http://www.Department6.University0.edu/Course8> .
+<http://www.Department6.University0.edu/UndergraduateStudent209> a ns1:UndergraduateStudent .
 
-<http://www.Department6.University0.edu/UndergraduateStudent35> ns1:takesCourse <http://www.Department6.University0.edu/Course13> .
+<http://www.Department6.University0.edu/UndergraduateStudent229> ns1:memberOf <http://www.Department6.University0.edu> .
 
-<http://www.Department7.University0.edu/AssistantProfessor9/Publication1> a ns1:Publication .
+<http://www.Department6.University0.edu/UndergraduateStudent25> ns1:takesCourse <http://www.Department6.University0.edu/Course4> .
 
-<http://www.Department7.University0.edu/AssociateProfessor1/Publication0> ns1:publicationAuthor <http://www.Department7.University0.edu/AssociateProfessor1> .
+<http://www.Department6.University0.edu/UndergraduateStudent68> ns1:memberOf <http://www.Department6.University0.edu> .
 
-<http://www.Department7.University0.edu/AssociateProfessor11> ns1:mastersDegreeFrom <http://www.University80.edu> .
+<http://www.Department7.University0.edu/AssistantProfessor1/Publication2> ns1:publicationAuthor <http://www.Department7.University0.edu/AssistantProfessor1> .
 
-<http://www.Department7.University0.edu/Course1> a ns1:Course .
+<http://www.Department7.University0.edu/AssistantProfessor8/Publication3> a ns1:Publication .
 
-<http://www.Department7.University0.edu/Course37> a ns1:Course .
+<http://www.Department7.University0.edu/AssociateProfessor0/Publication11> ns1:publicationAuthor <http://www.Department7.University0.edu/AssociateProfessor0> .
 
-<http://www.Department7.University0.edu/FullProfessor4/Publication10> ns1:publicationAuthor <http://www.Department7.University0.edu/GraduateStudent33> .
+<http://www.Department7.University0.edu/AssociateProfessor11/Publication1> ns1:publicationAuthor <http://www.Department7.University0.edu/AssociateProfessor11> .
 
-<http://www.Department7.University0.edu/FullProfessor5/Publication10> a ns1:Publication .
+<http://www.Department7.University0.edu/AssociateProfessor13/Publication0> ns1:publicationAuthor <http://www.Department7.University0.edu/AssociateProfessor13> .
 
-<http://www.Department7.University0.edu/GraduateStudent39> ns1:memberOf <http://www.Department7.University0.edu> .
+<http://www.Department7.University0.edu/AssociateProfessor3/Publication7> a ns1:Publication .
 
-<http://www.Department7.University0.edu/GraduateStudent4> ns1:takesCourse <http://www.Department7.University0.edu/GraduateCourse39> .
+<http://www.Department7.University0.edu/AssociateProfessor7/Publication8> a ns1:Publication .
 
-<http://www.Department7.University0.edu/GraduateStudent65> a ns1:GraduateStudent .
+<http://www.Department7.University0.edu/Course11> a ns1:Course .
 
-<http://www.Department7.University0.edu/GraduateStudent77> ns1:takesCourse <http://www.Department7.University0.edu/GraduateCourse23> .
+<http://www.Department7.University0.edu/Course38> a ns1:Course .
 
-<http://www.Department7.University0.edu/GraduateStudent83> ns1:takesCourse <http://www.Department7.University0.edu/GraduateCourse22> .
+<http://www.Department7.University0.edu/FullProfessor2/Publication10> ns1:publicationAuthor <http://www.Department7.University0.edu/FullProfessor2> .
 
-<http://www.Department7.University0.edu/GraduateStudent98> ns1:teachingAssistantOf <http://www.Department7.University0.edu/Course11> .
+<http://www.Department7.University0.edu/FullProfessor4/Publication10> a ns1:Publication ;
+    ns1:publicationAuthor <http://www.Department7.University0.edu/FullProfessor4> .
 
-<http://www.Department7.University0.edu/ResearchGroup2> a ns1:ResearchGroup .
+<http://www.Department7.University0.edu/FullProfessor5> ns1:teacherOf <http://www.Department7.University0.edu/Course7> .
 
-<http://www.Department7.University0.edu/UndergraduateStudent100> ns1:advisor <http://www.Department7.University0.edu/AssociateProfessor7> .
+<http://www.Department7.University0.edu/FullProfessor6/Publication11> a ns1:Publication .
 
-<http://www.Department7.University0.edu/UndergraduateStudent152> a ns1:UndergraduateStudent .
+<http://www.Department7.University0.edu/GraduateCourse5> a ns1:GraduateCourse .
 
-<http://www.Department7.University0.edu/UndergraduateStudent193> a ns1:UndergraduateStudent .
+<http://www.Department7.University0.edu/GraduateCourse52> a ns1:GraduateCourse .
 
-<http://www.Department7.University0.edu/UndergraduateStudent211> a ns1:UndergraduateStudent .
+<http://www.Department7.University0.edu/GraduateStudent101> ns1:advisor <http://www.Department7.University0.edu/AssociateProfessor6> .
 
-<http://www.Department7.University0.edu/UndergraduateStudent230> ns1:takesCourse <http://www.Department7.University0.edu/Course56> .
+<http://www.Department7.University0.edu/GraduateStudent114> ns1:takesCourse <http://www.Department7.University0.edu/GraduateCourse9> .
 
-<http://www.Department7.University0.edu/UndergraduateStudent237> ns1:takesCourse <http://www.Department7.University0.edu/Course26> .
+<http://www.Department7.University0.edu/GraduateStudent30> ns1:advisor <http://www.Department7.University0.edu/AssistantProfessor4> .
 
-<http://www.Department7.University0.edu/UndergraduateStudent243> ns1:memberOf <http://www.Department7.University0.edu> .
+<http://www.Department7.University0.edu/GraduateStudent71> a ns1:GraduateStudent .
 
-<http://www.Department7.University0.edu/UndergraduateStudent248> ns1:takesCourse <http://www.Department7.University0.edu/Course47> .
+<http://www.Department7.University0.edu/GraduateStudent73> ns1:takesCourse <http://www.Department7.University0.edu/GraduateCourse13> .
 
-<http://www.Department7.University0.edu/UndergraduateStudent251> ns1:memberOf <http://www.Department7.University0.edu> .
+<http://www.Department7.University0.edu/ResearchGroup7> ns1:subOrganizationOf <http://www.Department7.University0.edu> .
 
-<http://www.Department7.University0.edu/UndergraduateStudent281> ns1:takesCourse <http://www.Department7.University0.edu/Course53> .
+<http://www.Department7.University0.edu/UndergraduateStudent1> ns1:memberOf <http://www.Department7.University0.edu> .
 
-<http://www.Department7.University0.edu/UndergraduateStudent288> ns1:takesCourse <http://www.Department7.University0.edu/Course33> .
+<http://www.Department7.University0.edu/UndergraduateStudent129> ns1:memberOf <http://www.Department7.University0.edu> .
 
-<http://www.Department7.University0.edu/UndergraduateStudent319> a ns1:UndergraduateStudent .
+<http://www.Department7.University0.edu/UndergraduateStudent130> ns1:takesCourse <http://www.Department7.University0.edu/Course59> .
 
-<http://www.Department7.University0.edu/UndergraduateStudent323> ns1:takesCourse <http://www.Department7.University0.edu/Course59> .
+<http://www.Department7.University0.edu/UndergraduateStudent19> ns1:memberOf <http://www.Department7.University0.edu> .
 
-<http://www.Department7.University0.edu/UndergraduateStudent331> ns1:takesCourse <http://www.Department7.University0.edu/Course55> .
+<http://www.Department7.University0.edu/UndergraduateStudent197> ns1:memberOf <http://www.Department7.University0.edu> .
 
-<http://www.Department7.University0.edu/UndergraduateStudent347> ns1:memberOf <http://www.Department7.University0.edu> .
+<http://www.Department7.University0.edu/UndergraduateStudent208> ns1:takesCourse <http://www.Department7.University0.edu/Course29> .
 
-<http://www.Department7.University0.edu/UndergraduateStudent433> ns1:takesCourse <http://www.Department7.University0.edu/Course58> .
+<http://www.Department7.University0.edu/UndergraduateStudent214> ns1:takesCourse <http://www.Department7.University0.edu/Course13> .
 
-<http://www.Department7.University0.edu/UndergraduateStudent446> ns1:memberOf <http://www.Department7.University0.edu> .
+<http://www.Department7.University0.edu/UndergraduateStudent223> ns1:takesCourse <http://www.Department7.University0.edu/Course49> .
 
-<http://www.Department7.University0.edu/UndergraduateStudent68> ns1:takesCourse <http://www.Department7.University0.edu/Course50> .
+<http://www.Department7.University0.edu/UndergraduateStudent263> a ns1:UndergraduateStudent .
 
-<http://www.Department7.University0.edu/UndergraduateStudent85> ns1:memberOf <http://www.Department7.University0.edu> .
+<http://www.Department7.University0.edu/UndergraduateStudent269> a ns1:UndergraduateStudent .
 
-<http://www.Department7.University0.edu/UndergraduateStudent99> ns1:takesCourse <http://www.Department7.University0.edu/Course21> .
+<http://www.Department7.University0.edu/UndergraduateStudent282> ns1:takesCourse <http://www.Department7.University0.edu/Course27> .
 
-<http://www.Department8.University0.edu/AssistantProfessor3/Publication7> a ns1:Publication .
+<http://www.Department7.University0.edu/UndergraduateStudent284> ns1:takesCourse <http://www.Department7.University0.edu/Course25> .
 
-<http://www.Department8.University0.edu/AssistantProfessor8/Publication4> ns1:publicationAuthor <http://www.Department8.University0.edu/GraduateStudent137> .
+<http://www.Department7.University0.edu/UndergraduateStudent285> a ns1:UndergraduateStudent .
 
-<http://www.Department8.University0.edu/AssociateProfessor1/Publication5> ns1:publicationAuthor <http://www.Department8.University0.edu/GraduateStudent14> .
+<http://www.Department7.University0.edu/UndergraduateStudent30> ns1:takesCourse <http://www.Department7.University0.edu/Course24> .
 
-<http://www.Department8.University0.edu/AssociateProfessor3/Publication10> ns1:publicationAuthor <http://www.Department8.University0.edu/AssociateProfessor3> .
+<http://www.Department7.University0.edu/UndergraduateStudent330> ns1:memberOf <http://www.Department7.University0.edu> .
 
-<http://www.Department8.University0.edu/AssociateProfessor3/Publication4> a ns1:Publication ;
-    ns1:publicationAuthor <http://www.Department8.University0.edu/GraduateStudent42> .
+<http://www.Department7.University0.edu/UndergraduateStudent357> a ns1:UndergraduateStudent .
 
-<http://www.Department8.University0.edu/AssociateProfessor4/Publication0> ns1:publicationAuthor <http://www.Department8.University0.edu/GraduateStudent138> .
+<http://www.Department7.University0.edu/UndergraduateStudent91> ns1:memberOf <http://www.Department7.University0.edu> .
 
-<http://www.Department8.University0.edu/AssociateProfessor6/Publication13> ns1:publicationAuthor <http://www.Department8.University0.edu/GraduateStudent138> .
+<http://www.Department8.University0.edu/AssistantProfessor10> ns1:undergraduateDegreeFrom <http://www.University435.edu> .
 
-<http://www.Department8.University0.edu/AssociateProfessor7/Publication7> ns1:publicationAuthor <http://www.Department8.University0.edu/GraduateStudent59> .
+<http://www.Department8.University0.edu/AssociateProfessor3/Publication15> ns1:publicationAuthor <http://www.Department8.University0.edu/AssociateProfessor3> .
 
-<http://www.Department8.University0.edu/FullProfessor3/Publication0> ns1:publicationAuthor <http://www.Department8.University0.edu/FullProfessor3> .
+<http://www.Department8.University0.edu/AssociateProfessor7/Publication0> ns1:publicationAuthor <http://www.Department8.University0.edu/AssociateProfessor7> .
 
-<http://www.Department8.University0.edu/FullProfessor3/Publication4> a ns1:Publication .
+<http://www.Department8.University0.edu/FullProfessor0/Publication3> a ns1:Publication .
 
-<http://www.Department8.University0.edu/FullProfessor4/Publication8> a ns1:Publication .
+<http://www.Department8.University0.edu/FullProfessor1/Publication6> ns1:publicationAuthor <http://www.Department8.University0.edu/GraduateStudent125> .
 
-<http://www.Department8.University0.edu/FullProfessor6/Publication10> ns1:publicationAuthor <http://www.Department8.University0.edu/GraduateStudent73> .
+<http://www.Department8.University0.edu/FullProfessor5> ns1:worksFor <http://www.Department8.University0.edu> .
 
-<http://www.Department8.University0.edu/FullProfessor7/Publication0> a ns1:Publication .
+<http://www.Department8.University0.edu/FullProfessor8/Publication0> a ns1:Publication .
 
-<http://www.Department8.University0.edu/FullProfessor7/Publication7> a ns1:Publication .
+<http://www.Department8.University0.edu/GraduateStudent132> ns1:memberOf <http://www.Department8.University0.edu> .
 
-<http://www.Department8.University0.edu/GraduateCourse38> a ns1:GraduateCourse .
+<http://www.Department8.University0.edu/GraduateStudent28> ns1:advisor <http://www.Department8.University0.edu/FullProfessor2> .
 
-<http://www.Department8.University0.edu/GraduateStudent119> a ns1:GraduateStudent .
+<http://www.Department8.University0.edu/GraduateStudent32> ns1:teachingAssistantOf <http://www.Department8.University0.edu/Course32> .
 
-<http://www.Department8.University0.edu/GraduateStudent126> a ns1:GraduateStudent .
+<http://www.Department8.University0.edu/GraduateStudent50> ns1:takesCourse <http://www.Department8.University0.edu/GraduateCourse18> .
 
-<http://www.Department8.University0.edu/GraduateStudent27> ns1:memberOf <http://www.Department8.University0.edu> .
+<http://www.Department8.University0.edu/GraduateStudent52> ns1:advisor <http://www.Department8.University0.edu/AssistantProfessor7> .
 
-<http://www.Department8.University0.edu/GraduateStudent7> ns1:takesCourse <http://www.Department8.University0.edu/GraduateCourse43> .
+<http://www.Department8.University0.edu/GraduateStudent55> a ns1:GraduateStudent .
 
-<http://www.Department8.University0.edu/GraduateStudent98> a ns1:ResearchAssistant .
+<http://www.Department8.University0.edu/GraduateStudent65> ns1:advisor <http://www.Department8.University0.edu/AssistantProfessor8> .
 
-<http://www.Department8.University0.edu/UndergraduateStudent1> ns1:memberOf <http://www.Department8.University0.edu> .
+<http://www.Department8.University0.edu/GraduateStudent91> a ns1:GraduateStudent .
 
-<http://www.Department8.University0.edu/UndergraduateStudent138> ns1:advisor <http://www.Department8.University0.edu/FullProfessor7> .
+<http://www.Department8.University0.edu/GraduateStudent98> ns1:memberOf <http://www.Department8.University0.edu> .
 
-<http://www.Department8.University0.edu/UndergraduateStudent144> a ns1:UndergraduateStudent .
+<http://www.Department8.University0.edu/UndergraduateStudent101> ns1:takesCourse <http://www.Department8.University0.edu/Course34> .
 
-<http://www.Department8.University0.edu/UndergraduateStudent155> ns1:takesCourse <http://www.Department8.University0.edu/Course4> .
+<http://www.Department8.University0.edu/UndergraduateStudent128> ns1:takesCourse <http://www.Department8.University0.edu/Course1> .
 
-<http://www.Department8.University0.edu/UndergraduateStudent176> ns1:takesCourse <http://www.Department8.University0.edu/Course27> .
+<http://www.Department8.University0.edu/UndergraduateStudent169> a ns1:UndergraduateStudent .
 
-<http://www.Department8.University0.edu/UndergraduateStudent210> ns1:takesCourse <http://www.Department8.University0.edu/Course25> .
+<http://www.Department8.University0.edu/UndergraduateStudent183> ns1:takesCourse <http://www.Department8.University0.edu/Course31> .
 
-<http://www.Department8.University0.edu/UndergraduateStudent217> ns1:takesCourse <http://www.Department8.University0.edu/Course3> .
+<http://www.Department8.University0.edu/UndergraduateStudent227> a ns1:UndergraduateStudent .
 
-<http://www.Department8.University0.edu/UndergraduateStudent223> ns1:takesCourse <http://www.Department8.University0.edu/Course41> .
+<http://www.Department8.University0.edu/UndergraduateStudent250> ns1:takesCourse <http://www.Department8.University0.edu/Course17> .
 
-<http://www.Department8.University0.edu/UndergraduateStudent228> ns1:takesCourse <http://www.Department8.University0.edu/Course44> .
+<http://www.Department8.University0.edu/UndergraduateStudent297> ns1:takesCourse <http://www.Department8.University0.edu/Course2> .
 
-<http://www.Department8.University0.edu/UndergraduateStudent245> a ns1:UndergraduateStudent .
+<http://www.Department8.University0.edu/UndergraduateStudent300> ns1:takesCourse <http://www.Department8.University0.edu/Course5> .
 
-<http://www.Department8.University0.edu/UndergraduateStudent319> ns1:memberOf <http://www.Department8.University0.edu> .
+<http://www.Department8.University0.edu/UndergraduateStudent318> ns1:memberOf <http://www.Department8.University0.edu> .
 
-<http://www.Department8.University0.edu/UndergraduateStudent334> ns1:takesCourse <http://www.Department8.University0.edu/Course40> .
+<http://www.Department8.University0.edu/UndergraduateStudent329> ns1:memberOf <http://www.Department8.University0.edu> .
 
-<http://www.Department8.University0.edu/UndergraduateStudent336> ns1:takesCourse <http://www.Department8.University0.edu/Course2> .
+<http://www.Department8.University0.edu/UndergraduateStudent350> ns1:advisor <http://www.Department8.University0.edu/FullProfessor6> .
 
-<http://www.Department8.University0.edu/UndergraduateStudent349> ns1:memberOf <http://www.Department8.University0.edu> .
+<http://www.Department8.University0.edu/UndergraduateStudent358> a ns1:UndergraduateStudent .
 
 <http://www.Department8.University0.edu/UndergraduateStudent365> ns1:takesCourse <http://www.Department8.University0.edu/Course22> .
 
-<http://www.Department8.University0.edu/UndergraduateStudent379> ns1:takesCourse <http://www.Department8.University0.edu/Course55> .
+<http://www.Department8.University0.edu/UndergraduateStudent366> a ns1:UndergraduateStudent .
 
-<http://www.Department8.University0.edu/UndergraduateStudent434> a ns1:UndergraduateStudent .
+<http://www.Department8.University0.edu/UndergraduateStudent387> ns1:takesCourse <http://www.Department8.University0.edu/Course18> .
 
-<http://www.Department8.University0.edu/UndergraduateStudent58> ns1:takesCourse <http://www.Department8.University0.edu/Course54> .
+<http://www.Department8.University0.edu/UndergraduateStudent393> ns1:takesCourse <http://www.Department8.University0.edu/Course31> .
 
-<http://www.Department8.University0.edu/UndergraduateStudent63> ns1:memberOf <http://www.Department8.University0.edu> .
+<http://www.Department8.University0.edu/UndergraduateStudent433> ns1:takesCourse <http://www.Department8.University0.edu/Course0> .
 
-<http://www.Department8.University0.edu/UndergraduateStudent9> ns1:memberOf <http://www.Department8.University0.edu> .
+<http://www.Department8.University0.edu/UndergraduateStudent434> ns1:advisor <http://www.Department8.University0.edu/AssistantProfessor5> .
 
-<http://www.Department9.University0.edu/AssistantProfessor7> ns1:doctoralDegreeFrom <http://www.University339.edu> .
+<http://www.Department8.University0.edu/UndergraduateStudent48> a ns1:UndergraduateStudent .
 
-<http://www.Department9.University0.edu/AssociateProfessor0/Publication4> a ns1:Publication .
+<http://www.Department8.University0.edu/UndergraduateStudent63> ns1:takesCourse <http://www.Department8.University0.edu/Course49> .
 
-<http://www.Department9.University0.edu/AssociateProfessor8/Publication12> a ns1:Publication .
+<http://www.Department8.University0.edu/UndergraduateStudent69> a ns1:UndergraduateStudent .
 
-<http://www.Department9.University0.edu/GraduateCourse56> a ns1:GraduateCourse .
+<http://www.Department8.University0.edu/UndergraduateStudent9> a ns1:UndergraduateStudent .
 
-<http://www.Department9.University0.edu/GraduateStudent104> a ns1:TeachingAssistant .
+<http://www.Department9.University0.edu/AssociateProfessor6/Publication10> ns1:publicationAuthor <http://www.Department9.University0.edu/GraduateStudent20> .
 
-<http://www.Department9.University0.edu/GraduateStudent2> ns1:undergraduateDegreeFrom <http://www.University196.edu> .
+<http://www.Department9.University0.edu/Course29> a ns1:Course .
 
-<http://www.Department9.University0.edu/GraduateStudent43> ns1:takesCourse <http://www.Department9.University0.edu/GraduateCourse16> .
+<http://www.Department9.University0.edu/FullProfessor2/Publication11> a ns1:Publication .
 
-<http://www.Department9.University0.edu/GraduateStudent64> ns1:takesCourse <http://www.Department9.University0.edu/GraduateCourse0> .
+<http://www.Department9.University0.edu/FullProfessor3/Publication8> ns1:publicationAuthor <http://www.Department9.University0.edu/GraduateStudent103> .
 
-<http://www.Department9.University0.edu/GraduateStudent91> a ns1:ResearchAssistant .
+<http://www.Department9.University0.edu/FullProfessor4/Publication6> ns1:publicationAuthor <http://www.Department9.University0.edu/GraduateStudent1> .
 
-<http://www.Department9.University0.edu/Lecturer2> ns1:undergraduateDegreeFrom <http://www.University405.edu> .
+<http://www.Department9.University0.edu/FullProfessor6/Publication7> ns1:publicationAuthor <http://www.Department9.University0.edu/GraduateStudent34> .
 
-<http://www.Department9.University0.edu/Lecturer3/Publication1> ns1:publicationAuthor <http://www.Department9.University0.edu/Lecturer3> .
+<http://www.Department9.University0.edu/GraduateCourse2> a ns1:GraduateCourse .
 
-<http://www.Department9.University0.edu/UndergraduateStudent109> a ns1:UndergraduateStudent .
+<http://www.Department9.University0.edu/GraduateStudent110> ns1:undergraduateDegreeFrom <http://www.University511.edu> .
 
-<http://www.Department9.University0.edu/UndergraduateStudent144> ns1:takesCourse <http://www.Department9.University0.edu/Course32> .
+<http://www.Department9.University0.edu/GraduateStudent42> ns1:takesCourse <http://www.Department9.University0.edu/GraduateCourse44> .
 
-<http://www.Department9.University0.edu/UndergraduateStudent152> ns1:advisor <http://www.Department9.University0.edu/FullProfessor4> .
+<http://www.Department9.University0.edu/GraduateStudent52> a ns1:GraduateStudent .
 
-<http://www.Department9.University0.edu/UndergraduateStudent17> ns1:takesCourse <http://www.Department9.University0.edu/Course23> .
+<http://www.Department9.University0.edu/GraduateStudent72> ns1:advisor <http://www.Department9.University0.edu/FullProfessor4> .
 
-<http://www.Department9.University0.edu/UndergraduateStudent189> ns1:takesCourse <http://www.Department9.University0.edu/Course5> .
+<http://www.Department9.University0.edu/UndergraduateStudent113> ns1:memberOf <http://www.Department9.University0.edu> .
 
-<http://www.Department9.University0.edu/UndergraduateStudent200> ns1:memberOf <http://www.Department9.University0.edu> .
+<http://www.Department9.University0.edu/UndergraduateStudent117> ns1:takesCourse <http://www.Department9.University0.edu/Course28> .
 
-<http://www.Department9.University0.edu/UndergraduateStudent205> a ns1:UndergraduateStudent .
+<http://www.Department9.University0.edu/UndergraduateStudent129> ns1:takesCourse <http://www.Department9.University0.edu/Course8> .
 
-<http://www.Department9.University0.edu/UndergraduateStudent207> ns1:memberOf <http://www.Department9.University0.edu> .
+<http://www.Department9.University0.edu/UndergraduateStudent18> ns1:memberOf <http://www.Department9.University0.edu> .
 
-<http://www.Department9.University0.edu/UndergraduateStudent209> ns1:takesCourse <http://www.Department9.University0.edu/Course45> .
+<http://www.Department9.University0.edu/UndergraduateStudent197> ns1:takesCourse <http://www.Department9.University0.edu/Course35> .
 
-<http://www.Department9.University0.edu/UndergraduateStudent230> ns1:takesCourse <http://www.Department9.University0.edu/Course23> .
+<http://www.Department9.University0.edu/UndergraduateStudent21> ns1:takesCourse <http://www.Department9.University0.edu/Course45> .
 
-<http://www.Department9.University0.edu/UndergraduateStudent245> ns1:takesCourse <http://www.Department9.University0.edu/Course16> .
+<http://www.Department9.University0.edu/UndergraduateStudent257> ns1:takesCourse <http://www.Department9.University0.edu/Course31> .
 
-<http://www.Department9.University0.edu/UndergraduateStudent281> ns1:takesCourse <http://www.Department9.University0.edu/Course0> .
+<http://www.Department9.University0.edu/UndergraduateStudent262> a ns1:UndergraduateStudent .
 
-<http://www.Department9.University0.edu/UndergraduateStudent287> a ns1:UndergraduateStudent .
+<http://www.Department9.University0.edu/UndergraduateStudent281> ns1:takesCourse <http://www.Department9.University0.edu/Course24> .
 
-<http://www.Department9.University0.edu/UndergraduateStudent307> ns1:memberOf <http://www.Department9.University0.edu> .
+<http://www.Department9.University0.edu/UndergraduateStudent287> ns1:memberOf <http://www.Department9.University0.edu> .
 
-<http://www.Department9.University0.edu/UndergraduateStudent310> ns1:takesCourse <http://www.Department9.University0.edu/Course29> .
+<http://www.Department9.University0.edu/UndergraduateStudent315> ns1:advisor <http://www.Department9.University0.edu/FullProfessor3> .
 
-<http://www.Department9.University0.edu/UndergraduateStudent46> ns1:takesCourse <http://www.Department9.University0.edu/Course42> .
+<http://www.Department9.University0.edu/UndergraduateStudent38> a ns1:UndergraduateStudent .
 
-<http://www.Department9.University0.edu/UndergraduateStudent5> a ns1:UndergraduateStudent .
+<http://www.Department9.University0.edu/UndergraduateStudent4> a ns1:UndergraduateStudent .
 
-<http://www.Department9.University0.edu/UndergraduateStudent52> ns1:memberOf <http://www.Department9.University0.edu> .
+<http://www.Department9.University0.edu/UndergraduateStudent66> ns1:memberOf <http://www.Department9.University0.edu> .
 
-<http://www.Department9.University0.edu/UndergraduateStudent72> ns1:takesCourse <http://www.Department9.University0.edu/Course26> .
+<http://www.Department9.University0.edu/UndergraduateStudent81> ns1:memberOf <http://www.Department9.University0.edu> .
 
-<http://www.University111.edu> a ns1:University .
+<http://www.Department9.University0.edu/UndergraduateStudent95> ns1:takesCourse <http://www.Department9.University0.edu/Course11> .
 
-<http://www.University216.edu> a ns1:University .
+<http://www.University195.edu> a ns1:University .
 
-<http://www.University273.edu> a ns1:University .
+<http://www.University292.edu> a ns1:University .
 
-<http://www.University344.edu> a ns1:University .
+<http://www.University331.edu> a ns1:University .
 
-<http://www.University348.edu> a ns1:University .
+<http://www.University46.edu> a ns1:University .
 
-<http://www.University529.edu> a ns1:University .
+<http://www.University50.edu> a ns1:University .
 
-<http://www.University539.edu> a ns1:University .
+<http://www.University764.edu> a ns1:University .
 
-<http://www.University624.edu> a ns1:University .
+<http://www.University831.edu> a ns1:University .
 
-<http://www.University713.edu> a ns1:University .
+<http://www.University978.edu> a ns1:University .
 
-<http://www.University842.edu> a ns1:University .
+<http://www.Department0.University0.edu/GraduateStudent114> ns1:takesCourse <http://www.Department0.University0.edu/GraduateCourse16> .
 
-<http://www.University928.edu> a ns1:University .
+<http://www.Department11.University0.edu/FullProfessor5> ns1:teacherOf <http://www.Department11.University0.edu/Course9>,
+        <http://www.Department11.University0.edu/GraduateCourse5> .
 
-<http://www.Department10.University0.edu/FullProfessor5> ns1:teacherOf <http://www.Department10.University0.edu/Course9> .
+<http://www.Department14.University0.edu/AssistantProfessor5> ns1:teacherOf <http://www.Department14.University0.edu/Course36> .
 
-<http://www.Department12.University0.edu/FullProfessor2> ns1:doctoralDegreeFrom <http://www.University94.edu> .
+<http://www.Department2.University0.edu/AssociateProfessor2> a ns1:AssociateProfessor .
 
-<http://www.Department12.University0.edu/FullProfessor6> ns1:doctoralDegreeFrom <http://www.University717.edu> .
+<http://www.Department2.University0.edu/Course5> a ns1:Course .
 
-<http://www.Department13.University0.edu/AssociateProfessor4> ns1:teacherOf <http://www.Department13.University0.edu/GraduateCourse18> .
-
-<http://www.Department3.University0.edu/Course10> a ns1:Course .
-
-<http://www.Department8.University0.edu/Course54> a ns1:Course .
-
-<http://www.Department0.University0.edu/FullProfessor1> ns1:worksFor <http://www.Department0.University0.edu> .
+<http://www.Department6.University0.edu/GraduateStudent35> ns1:advisor <http://www.Department6.University0.edu/AssociateProfessor9> .
 

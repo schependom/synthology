@@ -173,7 +173,7 @@ def train_rrn_lubm(ctx: Context, args=""):
 def gen_lubm(ctx: Context, args=""):
     """
     Generates LUBM datasets and parses them into CSV (facts/targets).
-    Parsing stage applies OWL RL reasoning to compute inferred targets.
+    Parsing stage applies Apache Jena materialization to compute inferred targets.
     """
     print("\nRunning LUBM generator orchestrator.")
     cmd = "export LOGURU_COLORIZE=1 && "
