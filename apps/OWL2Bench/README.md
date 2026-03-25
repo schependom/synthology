@@ -7,7 +7,7 @@ Pipeline stages:
 
 1. Run OWL2Bench Java generator (`ABoxGen.InstanceGenerator.Generator`) in RL mode.
 2. Use `data/owl2bench/UNIV-BENCH-OWL2RL.owl` as the TBox.
-3. Materialize with Apache Jena (`OWL_MEM_RULE_INF`).
+3. Materialize with NeMo (`nmo`) using a configurable rule program.
 4. Export standard RRN CSV format:
     - `facts.csv`
     - `targets.csv`

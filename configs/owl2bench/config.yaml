@@ -1,6 +1,6 @@
 dataset:
   name: "owl2bench"
-  universities: [1]
+  universities: [10]
   output_dir: "data/OWL2Bench/output"
 
   split:
@@ -11,6 +11,17 @@ dataset:
   target_ratio: 0.0
   mask_base_facts: false
   num_samples: 1
+  # bfs_subgraphs: paper-aligned many small graphs; university_prefix: one graph per university; chunk: legacy.
+  partition_mode: "bfs_subgraphs"
+  bfs:
+    sample_count: 5000
+    max_individuals_per_sample: 200
+  # Enforce multiple sample_id graphs in each non-empty split CSV.
+  require_multiple_graphs_per_csv: true
+  # Set >0 to cap inferred positive targets for fair cross-generator matching.
+  inferred_target_limit: 0
+  # Negative targets generated per positive target.
+  negatives_per_positive: 1
   diagnostics:
     enabled: true
     output_dir: "data/OWL2Bench/output/diagnostics"
@@ -22,9 +33,12 @@ dataset:
     # Defensive mapping for generator variants that emit legacy LUBM-style namespaces.
     namespace_map:
       "http://swat.cse.lehigh.edu/onto/univ-bench.owl#": "https://kracr.iiitd.edu.in/OWL2Bench#"
-    jena:
-      executable: "java"
-      command_template: "{jena_executable} --class-path 'vendor/apache-jena-6.0.0/lib/*' apps/OWL2Bench/src/owl2bench/vendor/JenaMaterializer.java {input_tbox} {input_abox} {output_ttl}"
+    nemo:
+      executable: "nmo"
+      # Path to your NeMo rules program that imports TBox/ABox and exports closure to {output_ttl}.
+      # The pipeline injects: {nmo_executable}, {program}, {input_tbox}, {input_abox}, {output_ttl}, {output_name}, {output_dir}, {tmp_dir}.
+      program: "apps/OWL2Bench/src/owl2bench/vendor/owl2rl.nemo"
+      command_template: "{nmo_executable} {program} --param {param_input_tbox} --param {param_input_abox} --param {param_output_ttl} --export-dir {output_dir} --overwrite-results"
 
 generator:
   vendor_dir: "vendor/OWL2Bench"

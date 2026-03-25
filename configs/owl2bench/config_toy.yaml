@@ -1,0 +1,47 @@
+dataset:
+  name: "owl2bench_toy"
+  universities: [1]
+  output_dir: "data/OWL2Bench/output_toy"
+
+  split:
+    train: 0.7
+    val: 0.15
+    test: 0.15
+
+  target_ratio: 0.0
+  mask_base_facts: false
+  num_samples: 1
+  partition_mode: "bfs_subgraphs"
+  bfs:
+    # Tiny set of small graphs for fast end-to-end verification.
+    sample_count: 30
+    max_individuals_per_sample: 40
+
+  # Keep this false for tiny runs where split sizes can be small.
+  require_multiple_graphs_per_csv: false
+
+  # Cap inferred positives to keep targets compact while still exercising the path.
+  inferred_target_limit: 400
+
+  # Keep negatives enabled so base->inferred->negative path is all exercised.
+  negatives_per_positive: 1
+
+  diagnostics:
+    enabled: true
+    output_dir: "data/OWL2Bench/output_toy/diagnostics"
+    max_rows_per_file: 2000
+
+  reasoning:
+    tbox_path: "data/OWL2Bench/input/UNIV-BENCH-OWL2RL.owl"
+    namespace_map:
+      "http://swat.cse.lehigh.edu/onto/univ-bench.owl#": "https://kracr.iiitd.edu.in/OWL2Bench#"
+    nemo:
+      executable: "nmo"
+      program: "apps/OWL2Bench/src/owl2bench/vendor/owl2rl.nemo"
+      command_template: "{nmo_executable} {program} --param {param_input_tbox} --param {param_input_abox} --param {param_output_ttl} --export-dir {output_dir} --overwrite-results"
+
+generator:
+  vendor_dir: "vendor/OWL2Bench"
+  profile: "RL"
+  seed: 1
+  maven_executable: "mvn"

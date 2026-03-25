@@ -3,6 +3,7 @@ import json
 import math
 import os
 import random
+import re
 import shlex
 import shutil
 import subprocess
@@ -10,7 +11,7 @@ import tempfile
 import time
 import urllib.parse
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import hydra
 import rdflib
@@ -19,6 +20,11 @@ from omegaconf import DictConfig
 
 RDF_TYPE_URI = str(rdflib.RDF.type)
 REPO_ROOT = Path(__file__).resolve().parents[4]
+UNIVERSITY_ID_RES = [
+    re.compile(r"\bU(\d+)"),
+    re.compile(r"\bUniversity(\d+)\b", re.IGNORECASE),
+    re.compile(r"\.University(\d+)", re.IGNORECASE),
+]
 
 
 def parse_uri(uri: str) -> str:
@@ -146,7 +152,7 @@ def compute_inferred_triples(
     base_graph: rdflib.Graph,
     tbox_graph: rdflib.Graph,
     known_individuals: set[rdflib.term.Node],
-    jena_cfg: dict[str, Any],
+    nemo_cfg: dict[str, Any],
 ) -> tuple[
     list[tuple[rdflib.term.Node, rdflib.term.Node, rdflib.term.Node, int]],
     dict[str, int],
@@ -154,40 +160,57 @@ def compute_inferred_triples(
     list[tuple[str, rdflib.term.Node, rdflib.term.Node, rdflib.term.Node]],
     list[tuple[str, rdflib.term.Node, rdflib.term.Node, rdflib.term.Node]],
 ]:
-    jena_executable = str(jena_cfg.get("executable", "java"))
-    command_template = str(jena_cfg.get("command_template", "")).strip()
+    nmo_executable = str(nemo_cfg.get("executable", "nmo"))
+    command_template = str(nemo_cfg.get("command_template", "")).strip()
+    program = str(nemo_cfg.get("program", "")).strip()
 
     if not command_template:
-        raise RuntimeError("No `dataset.reasoning.jena.command_template` configured for OWL2Bench pipeline.")
+        raise RuntimeError("No `dataset.reasoning.nemo.command_template` configured for OWL2Bench pipeline.")
 
-    with tempfile.TemporaryDirectory(prefix="owl2bench_jena_") as td:
+    with tempfile.TemporaryDirectory(prefix="owl2bench_nemo_") as td:
         tmp_dir = Path(td)
         abox_path = tmp_dir / "abox.ttl"
         tbox_path = tmp_dir / "tbox.ttl"
-        output_path = tmp_dir / "materialized.ttl"
+        output_path = tmp_dir / "nemo_materialized.ttl"
 
         base_graph.serialize(destination=str(abox_path), format="turtle")
         tbox_graph.serialize(destination=str(tbox_path), format="turtle")
 
         command = command_template.format(
-            jena_executable=shlex.quote(jena_executable),
+            nmo_executable=shlex.quote(nmo_executable),
+            program=shlex.quote(program),
             input_abox=shlex.quote(str(abox_path)),
             input_tbox=shlex.quote(str(tbox_path)),
             output_ttl=shlex.quote(str(output_path)),
+            output_name=shlex.quote(output_path.name),
+            output_dir=shlex.quote(str(tmp_dir)),
+            tmp_dir=shlex.quote(str(tmp_dir)),
+            param_input_tbox=shlex.quote(f'input_tbox="{tbox_path}"'),
+            param_input_abox=shlex.quote(f'input_abox="{abox_path}"'),
+            param_output_ttl=shlex.quote(f'output_ttl="{output_path.name}"'),
         )
 
         proc = subprocess.run(command, shell=True, text=True, capture_output=True)
         if proc.returncode != 0:
             raise RuntimeError(
-                "Apache Jena materialization command failed\n"
+                "NeMo materialization command failed\n"
                 f"Command: {command}\n"
                 f"Exit code: {proc.returncode}\n"
                 f"STDOUT:\n{proc.stdout}\n"
                 f"STDERR:\n{proc.stderr}"
             )
 
+        if not output_path.exists():
+            raise RuntimeError(
+                "NeMo command completed but produced no materialized Turtle output\n"
+                f"Expected output: {output_path}\n"
+                f"Command: {command}\n"
+                f"STDOUT:\n{proc.stdout}\n"
+                f"STDERR:\n{proc.stderr}"
+            )
+
         if proc.stdout.strip():
-            logger.info("Jena materializer STDOUT:\n{}", proc.stdout.strip())
+            logger.info("NeMo materializer STDOUT:\n{}", proc.stdout.strip())
 
         closure_graph = rdflib.Graph()
         closure_graph.parse(output_path, format="turtle")
@@ -205,10 +228,10 @@ def compute_inferred_triples(
     dropped_object_bnode = 0
     dropped_object_literal = 0
 
-    jena_raw_triples = len(closure_graph)
+    reasoner_raw_triples = len(closure_graph)
 
     for s, p, o in closure_graph:
-        raw_inferred_rows.append(("jena_output", s, p, o))
+        raw_inferred_rows.append(("reasoner_output", s, p, o))
         if (s, p, o) in base_graph:
             continue
         if (s, p, o) in tbox_graph:
@@ -256,7 +279,7 @@ def compute_inferred_triples(
         dropped_object_literal,
     )
     stats = {
-        "jena_raw_triples": jena_raw_triples,
+        "reasoner_raw_triples": reasoner_raw_triples,
         "novel_before_filter": novel_before_filter,
         "accepted": len(inferred),
         "dropped_invalid_abox": dropped_invalid_abox,
@@ -288,12 +311,221 @@ def _split_samples(all_triples: list[tuple], num_samples: int, base_sample_id: i
     return samples
 
 
+def _extract_university_id(value: str) -> Optional[int]:
+    for regex in UNIVERSITY_ID_RES:
+        match = regex.search(value)
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def _partition_triples_by_university(
+    triples: list[tuple[str, str, str]],
+) -> tuple[dict[int, list[tuple[str, str, str]]], list[tuple[str, str, str]]]:
+    grouped: dict[int, list[tuple[str, str, str]]] = {}
+    unassigned: list[tuple[str, str, str]] = []
+
+    for s, p, o in triples:
+        uid = _extract_university_id(s)
+        if uid is None:
+            uid = _extract_university_id(o)
+
+        if uid is None:
+            unassigned.append((s, p, o))
+            continue
+
+        grouped.setdefault(uid, []).append((s, p, o))
+
+    return grouped, unassigned
+
+
+def _build_samples_by_university(
+    base_clean: list[tuple[str, str, str]],
+    inferred_clean: list[tuple[str, str, str, int]],
+    base_sample_id: int,
+) -> tuple[
+    list[tuple[int, list[tuple[str, str, str]]]],
+    dict[int, list[tuple[str, str, str, int]]],
+]:
+    inferred_triples_only = [(s, p, o) for (s, p, o, _hops) in inferred_clean]
+
+    base_by_uid, base_unassigned = _partition_triples_by_university(base_clean)
+    inferred_by_uid_raw, inferred_unassigned = _partition_triples_by_university(inferred_triples_only)
+
+    uid_set = sorted(set(base_by_uid.keys()) | set(inferred_by_uid_raw.keys()))
+    samples: list[tuple[int, list[tuple[str, str, str]]]] = []
+    inferred_by_sample: dict[int, list[tuple[str, str, str, int]]] = {}
+
+    inferred_hops_index: dict[tuple[str, str, str], list[int]] = {}
+    for s, p, o, hops in inferred_clean:
+        inferred_hops_index.setdefault((s, p, o), []).append(hops)
+
+    for uid in uid_set:
+        sid = base_sample_id + uid
+        sample_base = base_by_uid.get(uid, [])
+        samples.append((sid, sample_base))
+
+        sample_inferred: list[tuple[str, str, str, int]] = []
+        for s, p, o in inferred_by_uid_raw.get(uid, []):
+            hops_list = inferred_hops_index.get((s, p, o), [1])
+            hops = hops_list.pop(0)
+            sample_inferred.append((s, p, o, hops))
+        inferred_by_sample[sid] = sample_inferred
+
+    if samples and base_unassigned:
+        logger.warning(
+            "University partitioning: {} base triples had no university prefix and were assigned to first sample",
+            len(base_unassigned),
+        )
+        first_sid = samples[0][0]
+        first_triples = samples[0][1]
+        first_triples.extend(base_unassigned)
+        samples[0] = (first_sid, first_triples)
+
+    if samples and inferred_unassigned:
+        logger.warning(
+            "University partitioning: {} inferred triples had no university prefix and were assigned to first sample",
+            len(inferred_unassigned),
+        )
+        first_sid = samples[0][0]
+        for s, p, o in inferred_unassigned:
+            inferred_by_sample[first_sid].append((s, p, o, 1))
+
+    random.shuffle(samples)
+    return samples, inferred_by_sample
+
+
+def _build_bfs_subgraph_samples(
+    base_clean: list[tuple[str, str, str]],
+    inferred_clean: list[tuple[str, str, str, int]],
+    base_sample_id: int,
+    sample_count: int,
+    max_individuals_per_sample: int,
+) -> tuple[
+    list[tuple[int, list[tuple[str, str, str]]]],
+    dict[int, list[tuple[str, str, str, int]]],
+]:
+    if sample_count <= 0:
+        return [], {}
+
+    adjacency: dict[str, set[str]] = {}
+    individuals: set[str] = set()
+
+    for s, p, o in base_clean:
+        individuals.add(s)
+        adjacency.setdefault(s, set())
+        if p != "rdf:type":
+            individuals.add(o)
+            adjacency.setdefault(o, set())
+            adjacency[s].add(o)
+            adjacency[o].add(s)
+
+    if not individuals:
+        return [], {}
+
+    individual_list = list(individuals)
+    random.shuffle(individual_list)
+
+    samples: list[tuple[int, list[tuple[str, str, str]]]] = []
+    sample_nodes_by_sid: dict[int, set[str]] = {}
+
+    for i in range(sample_count):
+        sid = base_sample_id + i
+        seed = individual_list[i % len(individual_list)]
+
+        visited: set[str] = {seed}
+        queue = [seed]
+        head = 0
+
+        while head < len(queue) and len(visited) < max_individuals_per_sample:
+            current = queue[head]
+            head += 1
+            for nb in adjacency.get(current, set()):
+                if nb in visited:
+                    continue
+                visited.add(nb)
+                queue.append(nb)
+                if len(visited) >= max_individuals_per_sample:
+                    break
+
+        sample_triples: list[tuple[str, str, str]] = []
+        for s, p, o in base_clean:
+            if s not in visited:
+                continue
+            if p == "rdf:type":
+                sample_triples.append((s, p, o))
+            elif o in visited:
+                sample_triples.append((s, p, o))
+
+        samples.append((sid, sample_triples))
+        sample_nodes_by_sid[sid] = visited
+
+    inferred_by_sample: dict[int, list[tuple[str, str, str, int]]] = {sid: [] for sid, _ in samples}
+    sid_order = [sid for sid, _ in samples]
+
+    for s, p, o, hops in inferred_clean:
+        assigned_sid = None
+        for sid in sid_order:
+            nodes = sample_nodes_by_sid[sid]
+            if s not in nodes:
+                continue
+            if p != "rdf:type" and o not in nodes:
+                continue
+            assigned_sid = sid
+            break
+
+        if assigned_sid is None and sid_order:
+            assigned_sid = sid_order[0]
+
+        if assigned_sid is not None:
+            inferred_by_sample[assigned_sid].append((s, p, o, hops))
+
+    return samples, inferred_by_sample
+
+
+def _compute_split_counts(
+    total_samples: int,
+    split_ratios: dict[str, float],
+    require_multiple_graphs_per_csv: bool,
+) -> tuple[int, int, int]:
+    train_ratio = split_ratios.get("train", 0.8)
+    val_ratio = split_ratios.get("val", 0.1)
+    test_ratio = split_ratios.get("test", 0.1)
+    total_ratio = train_ratio + val_ratio + test_ratio
+
+    if total_samples <= 0 or total_ratio <= 0:
+        return 0, 0, 0
+
+    train_count = int(total_samples * (train_ratio / total_ratio))
+    val_count = int(total_samples * (val_ratio / total_ratio))
+    test_count = total_samples - train_count - val_count
+
+    if require_multiple_graphs_per_csv and total_samples >= 6:
+        minimum = 2
+        counts = {"train": train_count, "val": val_count, "test": test_count}
+
+        for name in ["train", "val", "test"]:
+            while counts[name] < minimum:
+                donor = max(counts, key=lambda k: counts[k])
+                if counts[donor] <= minimum:
+                    break
+                counts[donor] -= 1
+                counts[name] += 1
+
+        train_count = counts["train"]
+        val_count = counts["val"]
+        test_count = counts["test"]
+
+    return train_count, val_count, test_count
+
+
 def _write_split(
     split_dir: Path,
     split_samples: list[tuple[int, list[tuple]]],
     inferred_by_sample: dict[int, list[tuple[str, str, str, int]]],
     target_ratio: float,
     mask_base_facts: bool,
+    negatives_per_positive: int,
 ) -> tuple[int, int]:
     facts_rows = []
     targets_rows = []
@@ -362,31 +594,32 @@ def _write_split(
         all_classes = list(all_classes)
 
         for pos_tgt in positive_targets:
-            corrupt_object = random.choice([True, False])
-            if pos_tgt["predicate"] == "rdf:type" and corrupt_object:
-                choices = all_classes
-            else:
-                choices = all_individuals
+            for _ in range(max(0, negatives_per_positive)):
+                corrupt_object = random.choice([True, False])
+                if pos_tgt["predicate"] == "rdf:type" and corrupt_object:
+                    choices = all_classes
+                else:
+                    choices = all_individuals
 
-            if len(choices) < 2:
-                continue
+                if len(choices) < 2:
+                    continue
 
-            corrupted_entity = random.choice(choices)
-            while corrupted_entity == (pos_tgt["object"] if corrupt_object else pos_tgt["subject"]):
                 corrupted_entity = random.choice(choices)
+                while corrupted_entity == (pos_tgt["object"] if corrupt_object else pos_tgt["subject"]):
+                    corrupted_entity = random.choice(choices)
 
-            neg_target = {
-                "sample_id": pos_tgt["sample_id"],
-                "subject": pos_tgt["subject"] if not corrupt_object else corrupted_entity,
-                "predicate": pos_tgt["predicate"],
-                "object": corrupted_entity if corrupt_object else pos_tgt["object"],
-                "label": 0,
-                "truth_value": "False",
-                "type": "inferred",
-                "hops": pos_tgt.get("hops", 0),
-                "corruption_method": "random",
-            }
-            targets_rows.append(neg_target)
+                neg_target = {
+                    "sample_id": pos_tgt["sample_id"],
+                    "subject": pos_tgt["subject"] if not corrupt_object else corrupted_entity,
+                    "predicate": pos_tgt["predicate"],
+                    "object": corrupted_entity if corrupt_object else pos_tgt["object"],
+                    "label": 0,
+                    "truth_value": "False",
+                    "type": "inferred",
+                    "hops": pos_tgt.get("hops", 0),
+                    "corruption_method": "random",
+                }
+                targets_rows.append(neg_target)
 
     split_dir.mkdir(parents=True, exist_ok=True)
 
@@ -423,9 +656,15 @@ def _parse_generated_to_csv(
     output_dir: Path,
     split_ratios: dict[str, float],
     target_ratio: float,
-    num_samples: int,
     mask_base_facts: bool,
-    jena_cfg: dict[str, Any],
+    nemo_cfg: dict[str, Any],
+    partition_mode: str,
+    num_samples: int,
+    bfs_sample_count: int,
+    bfs_max_individuals_per_sample: int,
+    inferred_target_limit: int,
+    negatives_per_positive: int,
+    require_multiple_graphs_per_csv: bool,
     base_sample_id: int,
     diagnostics_cfg: dict[str, Any],
     diagnostics_id: str,
@@ -455,7 +694,7 @@ def _parse_generated_to_csv(
         reasoning_input_graph,
         tbox_graph,
         known_individuals,
-        jena_cfg,
+        nemo_cfg,
     )
 
     base_clean = []
@@ -467,8 +706,6 @@ def _parse_generated_to_csv(
             p_clean = "rdf:type"
         base_clean.append((s_clean, p_clean, o_clean))
 
-    samples = _split_samples(base_clean, num_samples, base_sample_id)
-
     inferred_clean = []
     for s, p, o, hops in inferred_raw:
         s_clean = parse_uri(s)
@@ -478,24 +715,72 @@ def _parse_generated_to_csv(
             p_clean = "rdf:type"
         inferred_clean.append((s_clean, p_clean, o_clean, hops))
 
-    inferred_by_sample = {sid: [] for sid, _ in samples}
-    if samples:
-        inferred_by_sample[samples[0][0]] = inferred_clean
+    if inferred_target_limit > 0 and len(inferred_clean) > inferred_target_limit:
+        inferred_clean = random.sample(inferred_clean, inferred_target_limit)
+        logger.info(
+            "Trimmed inferred positives to configured limit | limit={} | kept={}",
+            inferred_target_limit,
+            len(inferred_clean),
+        )
 
-    train_ratio = split_ratios.get("train", 0.8)
-    val_ratio = split_ratios.get("val", 0.1)
-    test_ratio = split_ratios.get("test", 0.1)
-    total_ratio = train_ratio + val_ratio + test_ratio
+    if partition_mode == "university_prefix":
+        samples, inferred_by_sample = _build_samples_by_university(base_clean, inferred_clean, base_sample_id)
+        logger.info("Partitioned graph into {} university-based samples", len(samples))
+    elif partition_mode == "bfs_subgraphs":
+        samples, inferred_by_sample = _build_bfs_subgraph_samples(
+            base_clean,
+            inferred_clean,
+            base_sample_id,
+            bfs_sample_count,
+            bfs_max_individuals_per_sample,
+        )
+        logger.info(
+            "Partitioned graph into {} BFS subgraph samples (target_count={}, max_individuals={})",
+            len(samples),
+            bfs_sample_count,
+            bfs_max_individuals_per_sample,
+        )
+    else:
+        samples = _split_samples(base_clean, num_samples, base_sample_id)
+        inferred_by_sample = {sid: [] for sid, _ in samples}
+        if samples:
+            inferred_by_sample[samples[0][0]] = inferred_clean
+        logger.warning(
+            "Using fallback chunk partitioning mode='{}'; this may cut graph chains.",
+            partition_mode,
+        )
 
     total_samples = len(samples)
-    train_idx = int(total_samples * (train_ratio / total_ratio))
-    val_idx = train_idx + int(total_samples * (val_ratio / total_ratio))
+    train_count, val_count, test_count = _compute_split_counts(
+        total_samples,
+        split_ratios,
+        require_multiple_graphs_per_csv,
+    )
+    train_idx = train_count
+    val_idx = train_count + val_count
 
     splits = {
         "train": samples[:train_idx],
         "val": samples[train_idx:val_idx],
-        "test": samples[val_idx:],
+        "test": samples[val_idx : val_idx + test_count],
     }
+
+    split_sample_counts = {name: len(s) for name, s in splits.items()}
+    logger.info(
+        "Sample distribution by split | total_samples={} | train={} | val={} | test={}",
+        len(samples),
+        split_sample_counts["train"],
+        split_sample_counts["val"],
+        split_sample_counts["test"],
+    )
+
+    if require_multiple_graphs_per_csv:
+        for split_name, split_samples in splits.items():
+            if len(split_samples) == 1:
+                raise ValueError(
+                    "Split '{}' contains only one graph sample. Increase dataset.universities or adjust split ratios "
+                    "to keep multiple sample_ids in each CSV.".format(split_name)
+                )
 
     total_facts = 0
     total_inferred = 0
@@ -508,6 +793,7 @@ def _parse_generated_to_csv(
             inferred_by_sample,
             target_ratio,
             mask_base_facts,
+            negatives_per_positive,
         )
         total_facts += facts_count
         total_inferred += inferred_count
@@ -527,7 +813,7 @@ def _parse_generated_to_csv(
 
         base_rows = [("base_fact", s, p, o) for (s, p, o) in base_graph]
         base_written = _write_triples_tsv(run_dir / "base_facts.tsv", base_rows, max_rows)
-        raw_written = _write_triples_tsv(run_dir / "jena_raw_inferred.tsv", raw_inferred_rows, max_rows)
+        raw_written = _write_triples_tsv(run_dir / "reasoner_raw_inferred.tsv", raw_inferred_rows, max_rows)
         rejected_written = _write_triples_tsv(run_dir / "rejected_inferred.tsv", rejected_rows, max_rows)
         accepted_written = _write_triples_tsv(run_dir / "accepted_inferred.tsv", accepted_rows, max_rows)
 
@@ -550,7 +836,7 @@ def _parse_generated_to_csv(
             json.dump(summary, f, indent=2)
 
         logger.info(
-            "Diagnostics exported | dir={} | base={} | jena_raw={} | rejected={} | accepted={}",
+            "Diagnostics exported | dir={} | base={} | reasoner_raw={} | rejected={} | accepted={}",
             run_dir,
             base_written,
             raw_written,
@@ -588,8 +874,15 @@ def main(cfg: DictConfig) -> None:
     target_ratio = float(cfg.dataset.get("target_ratio", 0.0))
     num_samples = int(cfg.dataset.get("num_samples", 1))
     mask_base_facts = bool(cfg.dataset.get("mask_base_facts", False))
+    partition_mode = str(cfg.dataset.get("partition_mode", "university_prefix"))
+    bfs_cfg = dict(cfg.dataset.get("bfs", {}))
+    bfs_sample_count = int(bfs_cfg.get("sample_count", 5000))
+    bfs_max_individuals_per_sample = int(bfs_cfg.get("max_individuals_per_sample", 200))
+    inferred_target_limit = int(cfg.dataset.get("inferred_target_limit", 0))
+    negatives_per_positive = int(cfg.dataset.get("negatives_per_positive", 1))
+    require_multiple_graphs_per_csv = bool(cfg.dataset.get("require_multiple_graphs_per_csv", False))
     namespace_map = dict(cfg.dataset.reasoning.get("namespace_map", {}))
-    jena_cfg = dict(cfg.dataset.reasoning.get("jena", {}))
+    nemo_cfg = dict(cfg.dataset.reasoning.get("nemo", {}))
     diagnostics_cfg = dict(cfg.dataset.get("diagnostics", {}))
 
     for universities in cfg.dataset.universities:
@@ -618,9 +911,15 @@ def main(cfg: DictConfig) -> None:
             output_dir=csv_output_dir,
             split_ratios=split_ratios,
             target_ratio=target_ratio,
-            num_samples=num_samples,
             mask_base_facts=mask_base_facts,
-            jena_cfg=jena_cfg,
+            nemo_cfg=nemo_cfg,
+            partition_mode=partition_mode,
+            num_samples=num_samples,
+            bfs_sample_count=bfs_sample_count,
+            bfs_max_individuals_per_sample=bfs_max_individuals_per_sample,
+            inferred_target_limit=inferred_target_limit,
+            negatives_per_positive=negatives_per_positive,
+            require_multiple_graphs_per_csv=require_multiple_graphs_per_csv,
             base_sample_id=700000 + universities * 10000,
             diagnostics_cfg=diagnostics_cfg,
             diagnostics_id=diagnostics_id,

@@ -156,11 +156,49 @@ def train_rrn_owl2bench(ctx: Context, args=""):
 def gen_owl2bench(ctx: Context, args=""):
     """
     Runs the OWL2Bench OWL 2 RL pipeline:
-    ABox generation -> Jena materialization -> CSV export.
+    ABox generation -> NeMo materialization -> CSV export.
     """
     print("\nRunning OWL2Bench OWL 2 RL generation pipeline.")
     cmd = "export LOGURU_COLORIZE=1 && "
     cmd += "uv run --package owl2bench python -m owl2bench.pipeline"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
+@task
+def gen_owl2bench_toy(ctx: Context, args=""):
+    """
+    Runs a tiny OWL2Bench pipeline config for quick end-to-end verification:
+    base -> NeMo materialization -> inferred targets -> negatives.
+    """
+    print("\nRunning OWL2Bench TOY generation pipeline.")
+    cmd = "export LOGURU_COLORIZE=1 && "
+    cmd += "uv run --package owl2bench python -m owl2bench.pipeline --config-name=config_toy"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+    print("\nAuto-visualizing toy sample 710021.")
+    viz_cmd = "export LOGURU_COLORIZE=1 && "
+    viz_cmd += (
+        "uv run --package kgvisualiser python -m kgvisualiser.visualize "
+        "io.input_csv=data/owl2bench/output_toy/owl2bench_1/val/targets.csv "
+        "io.sample_id=710021"
+    )
+    ctx.run(viz_cmd)
+
+
+@task
+def visualize_kg_sample(ctx: Context, args=""):
+    """
+    Visualizes one KG sample with base, inferred and negative facts.
+    Uses configs/kgvisualiser/config.yaml by default.
+    """
+
+    print("\nRunning KG sample visualization.")
+    cmd = "export LOGURU_COLORIZE=1 && "
+    cmd += "uv run --package kgvisualiser python -m kgvisualiser.visualize"
     if args:
         cmd += f" {args}"
     ctx.run(cmd)

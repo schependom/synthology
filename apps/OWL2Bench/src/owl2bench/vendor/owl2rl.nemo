@@ -1,0 +1,48 @@
+% NeMo OWL2 RL starter rules for OWL2Bench materialization.
+% Parameters are provided by the Python pipeline via CLI:
+%   --param input_tbox="..." --param input_abox="..." --param output_ttl="..."
+
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+
+@parameter $input_tbox = "tbox.ttl" .
+@parameter $input_abox = "abox.ttl" .
+@parameter $output_ttl = "materialized.ttl" .
+
+@import tbox_triples :- turtle{resource=$input_tbox}.
+@import abox_triples :- turtle{resource=$input_abox}.
+
+% Seed closure with all source triples.
+triple(?s, ?p, ?o) :- tbox_triples(?s, ?p, ?o) .
+triple(?s, ?p, ?o) :- abox_triples(?s, ?p, ?o) .
+
+% RDFS class hierarchy propagation.
+triple(?x, rdf:type, ?c2) :-
+	triple(?x, rdf:type, ?c1),
+	triple(?c1, rdfs:subClassOf, ?c2) .
+
+% RDFS property hierarchy propagation.
+triple(?s, ?q, ?o) :-
+	triple(?s, ?p, ?o),
+	triple(?p, rdfs:subPropertyOf, ?q) .
+
+% RDFS domain and range typing.
+triple(?s, rdf:type, ?d) :-
+	triple(?s, ?p, ?o),
+	triple(?p, rdfs:domain, ?d) .
+
+triple(?o, rdf:type, ?r) :-
+	triple(?s, ?p, ?o),
+	triple(?p, rdfs:range, ?r) .
+
+% OWL inverseOf.
+triple(?o, ?p2, ?s) :-
+	triple(?s, ?p1, ?o),
+	triple(?p1, owl:inverseOf, ?p2) .
+
+triple(?s, ?p1, ?o) :-
+	triple(?o, ?p2, ?s),
+	triple(?p1, owl:inverseOf, ?p2) .
+
+@export triple :- turtle{resource=$output_ttl}.

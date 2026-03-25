@@ -1,0 +1,55 @@
+io:
+  # Path to either facts.csv or targets.csv.
+  input_csv: data/OWL2Bench/output/owl2bench_10/train/facts.csv
+  # Optional explicit targets path. If null and input_csv is facts.csv,
+  # sibling targets.csv is loaded when include_sibling_targets=true.
+  targets_csv: null
+  include_sibling_targets: true
+  sample_id: "0"
+
+output:
+  dir: visualizations
+  name_template: kg_sample_{sample_id}
+  format: pdf
+
+filters:
+  include_negatives: true
+  # Per edge type cap. 0 means unlimited.
+  max_edges: 0
+
+render:
+  engine: sfdp
+  rankdir: LR
+  splines: curved
+  overlap: prism
+  sep: +12
+  # If false, rdf:type is shown as subject label annotation instead of separate class nodes.
+  class_nodes: true
+  class_annotation_max_items: 6
+  show_edge_labels: true
+  title: "KG Sample {sample_id}: Base, Inferred, Negative"
+  title_fontsize: 20
+
+style:
+  font_name: Helvetica
+  node_fontsize: 11
+  edge_fontsize: 10
+
+  entity_node_shape: box
+  class_node_shape: ellipse
+
+  entity_node_fill: "#FFF9C4"
+  class_node_fill: "#E3F2FD"
+
+  base_edge_color: black
+  base_edge_style: solid
+  base_edge_width: 2.4
+
+  inferred_edge_color: "#1565C0"
+  inferred_edge_style: dashed
+  inferred_edge_width: 1.4
+
+  negative_edge_color: "#D32F2F"
+  negative_edge_style: dotted
+  negative_edge_width: 1.6
+  negative_label_prefix: "NOT "
