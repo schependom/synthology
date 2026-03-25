@@ -1,0 +1,5 @@
+name: "Exp1 Proof Based Negative Sampling"
+
+train_path: "data/exp1/proof_based/train"
+val_path: "data/exp1/proof_based/val"
+test_path: "data/exp1/test_set/test"

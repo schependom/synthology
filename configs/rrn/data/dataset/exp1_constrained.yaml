@@ -1,0 +1,5 @@
+name: "Exp1 Constrained Negative Sampling"
+
+train_path: "data/exp1/constrained/train"
+val_path: "data/exp1/constrained/val"
+test_path: "data/exp1/test_set/test"

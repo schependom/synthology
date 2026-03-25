@@ -79,16 +79,19 @@ def gen_ft_ont(ctx: Context, args=""):
 
 
 @task
-def gen_ft_ont_single(ctx: Context, args=""):
+def ont_visual_inspection(ctx: Context, args=""):
     """
-    Generates one single, big family tree dataset with Ontology-based
-    Generator using default configurations in configs/ont_generator/config_single_graph.yaml.
-    Handy for debugging purposes (visual inspection of proof trees and KG's).
+    Generates a few decently sized knowledge graphs that contain both 
+    positive, negative, base and inferred samples and visualizes them.
+    Uses configs/ont_generator/config_visual_inspection.yaml.
     """
 
-    print("\nRunning family tree Ontology-based generator.")
-    cmd = "export LOGURU_COLORIZE=1 && "  # Ensure logs are colored
-    cmd += "uv run --package ont_generator python -m ont_generator.generate"
+    print("\nRunning Visual Inspection Generator.")
+    cmd = (
+        f"export LOGURU_COLORIZE=1 && "
+        f"uv run --package ont_generator python -m ont_generator.create_data "
+        f"--config-name=config_visual_inspection"
+    )
     if args:
         cmd += f" {args}"
     ctx.run(cmd)
@@ -237,3 +240,52 @@ def dvc(ctx, folder="data", message="Add new data"):
     ctx.run(f"git commit -m '{message}'")
     ctx.run("git push")
     ctx.run("dvc push")
+
+
+@task
+def exp1_generate_trainval_sets(ctx: Context):
+    """Generates train/val sets for Exp 1 for all negative sampling strategies."""
+    for strategy in ("random", "constrained", "proof_based"):
+        exp1_generate_trainval(ctx, strategy=strategy)
+
+@task
+def exp1_generate_trainval(ctx: Context, strategy="proof_based", args=""):
+    """Generates train/val sets for Exp 1 with a specific negative sampling strategy."""
+    print(f"\nGenerating Exp 1 data using strategy: {strategy}")
+    cmd = (
+        f"export LOGURU_COLORIZE=1 && "
+        f"uv run --package ont_generator python -m ont_generator.create_data "
+        f"--config-name=exp1_{strategy}"
+    )
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+@task
+def exp1_generate_test_set(ctx: Context, args=""):
+    """Generates the frozen 'near-miss' hard negative test set for Exp 1."""
+    print("\nGenerating Exp 1 frozen test set (near-miss hard negatives)")
+    cmd = (
+        f"export LOGURU_COLORIZE=1 && "
+        f"uv run --package ont_generator python -m ont_generator.create_data "
+        f"--config-name=exp1_test"
+    )
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+@task
+def exp1_train_rrn(ctx: Context, strategy="random", args=""):
+    """Trains RRN for Exp 1. Provide a strategy to match datasets/logs."""
+    print(f"\nTraining Exp 1 RRN. Strategy: {strategy}")
+    cmd = (
+        f"export PYTHONUNBUFFERED=1 && export LOGURU_COLORIZE=1 && "
+        f"uv run --package rrn python -m rrn.train "
+        f"data/dataset=exp1_{strategy} "
+        f"+logger.name=exp1_{strategy} "
+        f"+logger.group=exp1_negative_sampling "
+        f"+logger.tags=[exp1,{strategy}]"
+    )
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)

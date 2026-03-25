@@ -1,0 +1,11 @@
+defaults:
+  - config
+  - _self_
+
+dataset:
+  output_dir: "data/exp1/test_set"
+  n_train: 0
+  n_val: 0
+
+negative_sampling:
+  strategy: "proof_based"

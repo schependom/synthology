@@ -35,11 +35,11 @@ class GraphVisualizer:
         dot = graphviz.Digraph(comment=name_no_ext)
 
         # Layout settings
-        dot.attr(layout="sfdp")
-        dot.attr(overlap="prism")
+        dot.attr(layout="dot")
+        dot.attr(overlap="false")
         dot.attr(sep="+12")
-        dot.attr(splines="curved")
-        dot.attr(nodesep="0.8")
+        dot.attr(splines="true")
+        dot.attr(nodesep="0.4")
 
         if title:
             dot.attr(label=title, labelloc="t", fontsize="20")

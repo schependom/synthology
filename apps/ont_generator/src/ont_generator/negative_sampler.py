@@ -138,7 +138,7 @@ class NegativeSampler:
         elif strategy == "type_aware":
             return self._type_aware_corruption(kg, ratio)
         elif strategy == "mixed":
-            return self._mixed_corruption(kg, ratio, corrupt_base_facts)
+            return self._mixed_corruption(kg, ratio, corrupt_base_facts, export_proofs, output_dir)
         else:
             raise ValueError(f"Unknown strategy: {strategy}")
 
@@ -658,146 +658,35 @@ class NegativeSampler:
         kg: KnowledgeGraph,
         ratio: float,
         corrupt_base_facts: bool,
+        export_proofs: bool = False,
+        output_dir: Optional[str] = None,
     ) -> KnowledgeGraph:
         """
         Strategy 5: Mixed corruption.
 
-        Randomly selects a strategy for each negative sample to create a diverse dataset.
+        Splits the ratio equally among available strategies, delegating to their specific methods.
         """
         positive_triples = [t for t in kg.triples if t.positive]
-        n_negatives = int(len(positive_triples) * ratio)
-        negative_triples = []
-
-        # Pre-calculate data structures needed for different strategies
-        ind_classes = self._build_individual_classes_map(kg)
-
-        # Group individuals by their class sets (for type_aware)
-        class_groups = defaultdict(list)
-        for ind in kg.individuals:
-            classes = frozenset(ind_classes.get(ind, set()))
-            class_groups[classes].append(ind)
-
-        triples_with_proofs = [(t, t.proofs) for t in positive_triples if t.proofs]
+        if not positive_triples:
+            return kg
 
         strategies = ["random", "constrained", "type_aware"]
+        triples_with_proofs = [t for t in positive_triples if t.proofs]
         if triples_with_proofs:
             strategies.append("proof_based")
 
-        for _ in range(n_negatives):
-            if not positive_triples:
-                break
+        fractional_ratio = ratio / len(strategies)
 
-            # Pick a random strategy for this sample
-            strategy = random.choice(strategies)
+        if "random" in strategies:
+            kg = self._random_corruption(kg, fractional_ratio)
+        if "constrained" in strategies:
+            kg = self._constrained_corruption(kg, fractional_ratio)
+        if "type_aware" in strategies:
+            kg = self._type_aware_corruption(kg, fractional_ratio)
+        if "proof_based" in strategies:
+            kg = self._proof_based_corruption(kg, fractional_ratio, corrupt_base_facts, export_proofs, output_dir)
 
-            neg_triple = None
-
-            if strategy == "random":
-                pos_triple = random.choice(positive_triples)
-                neg_triple = self._corrupt_triple_random(pos_triple, kg.individuals, original_triple=pos_triple)
-
-            elif strategy == "constrained":
-                pos_triple = random.choice(positive_triples)
-                if random.random() < 0.5:
-                    # Corrupt subject
-                    candidates = self._get_domain_candidates(pos_triple.predicate, kg.individuals, ind_classes)
-                    candidates = [c for c in candidates if c != pos_triple.subject]
-                    if candidates:
-                        new_subj = random.choice(candidates)
-                        neg_triple = Triple(
-                            new_subj,
-                            pos_triple.predicate,
-                            pos_triple.object,
-                            positive=False,
-                            proofs=[],
-                            metadata={"source_type": "base" if pos_triple.is_base_fact else "inferred"},
-                        )
-                else:
-                    # Corrupt object
-                    candidates = self._get_range_candidates(pos_triple.predicate, kg.individuals, ind_classes)
-                    candidates = [c for c in candidates if c != pos_triple.object]
-                    if candidates:
-                        new_obj = random.choice(candidates)
-                        neg_triple = Triple(
-                            pos_triple.subject,
-                            pos_triple.predicate,
-                            new_obj,
-                            positive=False,
-                            proofs=[],
-                            metadata={"source_type": "base" if pos_triple.is_base_fact else "inferred"},
-                        )
-
-            elif strategy == "type_aware":
-                pos_triple = random.choice(positive_triples)
-                if random.random() < 0.5:
-                    # Corrupt subject
-                    subj_classes = frozenset(ind_classes.get(pos_triple.subject, set()))
-                    candidates = [c for c in class_groups[subj_classes] if c != pos_triple.subject]
-                    if candidates:
-                        new_subj = random.choice(candidates)
-                        neg_triple = Triple(
-                            new_subj,
-                            pos_triple.predicate,
-                            pos_triple.object,
-                            positive=False,
-                            proofs=[],
-                            metadata={"source_type": "base" if pos_triple.is_base_fact else "inferred"},
-                        )
-                else:
-                    # Corrupt object
-                    obj_classes = frozenset(ind_classes.get(pos_triple.object, set()))
-                    candidates = [c for c in class_groups[obj_classes] if c != pos_triple.object]
-                    if candidates:
-                        new_obj = random.choice(candidates)
-                        neg_triple = Triple(
-                            pos_triple.subject,
-                            pos_triple.predicate,
-                            new_obj,
-                            positive=False,
-                            proofs=[],
-                            metadata={"source_type": "base" if pos_triple.is_base_fact else "inferred"},
-                        )
-
-            elif strategy == "proof_based":
-                # Simplified proof based logic for single sample
-                if triples_with_proofs:
-                    pos_triple, proofs = random.choice(triples_with_proofs)
-                    if proofs:
-                        proof = random.choice(proofs)
-                        base_facts = proof.get_base_facts()
-
-                        if corrupt_base_facts:
-                            base_facts = {bf for bf in base_facts if bf.predicate != RDF.type}
-
-                        if not base_facts or not corrupt_base_facts:
-                            neg_triple = self._corrupt_triple_random(
-                                pos_triple, kg.individuals, original_triple=pos_triple
-                            )
-                            if neg_triple:
-                                neg_triple.metadata["source_type"] = "inferred"
-                        else:
-                            base_fact = random.choice(list(base_facts))
-                            # Find matching triple
-                            matching_triples = [
-                                t
-                                for t in kg.triples
-                                if t.positive
-                                and t.subject.name == base_fact.subject.name
-                                and t.predicate.name == base_fact.predicate.name
-                                and t.object.name == base_fact.object.name
-                            ]
-                            if matching_triples:
-                                neg_triple = self._corrupt_triple_random(
-                                    matching_triples[0], kg.individuals, original_triple=matching_triples[0]
-                                )
-                                if neg_triple:
-                                    neg_triple.metadata["source_type"] = "base"
-
-            if neg_triple and self.is_valid_negative(neg_triple):
-                negative_triples.append(neg_triple)
-                self.strategy_usage[strategy] += 1
-
-        kg.triples.extend(negative_triples)
+        return kg
 
         # For memberships, we just use random corruption for now as it's less critical
         # TODO

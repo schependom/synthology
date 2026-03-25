@@ -1163,7 +1163,7 @@ class Proof:
 
         # Layout settings
         dot.attr(rankdir="BT")  # Bottom to top (premises support conclusions)
-        dot.attr(splines="ortho")
+        dot.attr(splines="polyline")
         dot.attr(nodesep="0.6", ranksep="0.8")
         dot.attr("node", shape="plain", fontname="FiraCode")
 
