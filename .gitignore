@@ -190,7 +190,7 @@ data/ont/out-csv/
 # Hydra
 outputs/
 
-.agent/
+.agents/
 presentatie.tex
 
 logs/
