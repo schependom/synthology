@@ -334,7 +334,13 @@ class OntologyParser:
         handler based on the predicate. This is where axioms are converted
         into ExecutableRules and Constraints.
         """
+        # Predicates to silently ignore (e.g., RDF list internals handled elsewhere)
+        skip_list = {RDF.first, RDF.rest}
+
         for s, p, o in self.graph:
+            if p in skip_list:
+                continue
+
             # We only handle triples with URI predicates
             if not isinstance(p, URIRef):
                 logger.warning(f"Skipping non-URI predicate: {p}")

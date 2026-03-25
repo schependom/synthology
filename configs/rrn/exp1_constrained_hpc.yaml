@@ -1,0 +1,37 @@
+defaults:
+  - config
+  - override data/dataset: exp1_constrained
+  - _self_
+
+max_epochs: 200
+do_test: true
+test_base_facts: false
+
+callbacks:
+  early_stopping:
+    _target_: pytorch_lightning.callbacks.EarlyStopping
+    monitor: "val_loss"
+    patience: 50
+  model_checkpoint:
+    _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    dirpath: "./checkpoints/exp1/constrained"
+    filename: "best-checkpoint-constrained"
+    monitor: "val_loss"
+    save_top_k: 1
+    save_last: true
+    mode: "min"
+  log_graph_artifacts:
+    _target_: rrn.utils.callbacks.LogGraphArtifacts
+    log_every_n_epochs: 10
+    num_samples: 1
+
+logger:
+  _target_: pytorch_lightning.loggers.WandbLogger
+  project: "${oc.env:WANDB_PROJECT, 'rrn-experiments'}"
+  entity: "${oc.env:WANDB_ENTITY, null}"
+  log_model: true
+  save_dir: "${log_dir}"
+  offline: false
+  name: "exp1_constrained_hpc"
+  group: "exp1_negative_sampling"
+  tags: [exp1, constrained, hpc]
