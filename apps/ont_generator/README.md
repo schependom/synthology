@@ -31,8 +31,8 @@ Configuration is managed via [Hydra](https://hydra.cc/). You can override defaul
 - `dataset.n_test`: Number of testing samples to generate.
 - `dataset.min_individuals` / `max_individuals`: Size range for each graph.
 - `generator.max_recursion`: Max depth for recursive rules.
-- `negative_sampling.strategy`: Strategy to use (`random`, `constrained`, `type_aware`, `mixed`).
-- `negative_sampling.ratio`: Ratio of negative to positive triples (e.g., 0.5 for 1:2 ratio).
+- `neg_sampling.strategy`: Strategy to use (`random`, `constrained`, `type_aware`, `mixed`).
+- `neg_sampling.ratio`: Ratio of negative to positive triples (e.g., 0.5 for 1:2 ratio).
 
 **Example: Generate larger dataset with type-aware negatives**
 
@@ -42,7 +42,7 @@ uv run invoke gen-ft-ont \
     dataset.n_test=20 \
     dataset.min_individuals=20 \
     dataset.max_individuals=50 \
-    negative_sampling.strategy=type_aware
+    neg_sampling.strategy=type_aware
 ```
 
 ## Output

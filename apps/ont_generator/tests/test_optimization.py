@@ -1,6 +1,7 @@
-import sys
 import os
+import sys
 import unittest
+
 from omegaconf import OmegaConf
 
 # Add src to path
@@ -24,7 +25,7 @@ class TestOptimization(unittest.TestCase):
                     "use_signature_sampling": True,
                     "min_proof_roots": 1,
                     "max_proof_roots": 2,
-                    "always_generate_base_facts": False,
+                    "always_generate_base": False,
                 },
                 "export_proofs": False,
                 "logging": {"level": "INFO"},

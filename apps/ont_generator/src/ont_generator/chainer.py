@@ -82,7 +82,7 @@ class BackwardChainer:
         # Individual pooling parameters
         self.individual_pool_size = cfg.generator.individual_pool_size
         self.individual_reuse_prob = cfg.generator.individual_reuse_prob
-        self.always_generate_base_facts = cfg.generator.get("always_generate_base_facts", False)
+        self.always_generate_base = cfg.generator.get("always_generate_base", False)
         self.individual_pool: List[Individual] = []
         self._individual_counter = 0
         self.individual_name_prefix = entity_prefix
@@ -481,26 +481,26 @@ class BackwardChainer:
             # Collect relation triples
             elif isinstance(atom.predicate, Relation) and isinstance(atom.subject, Individual):
                 property_values[(atom.subject, atom.predicate)].add(atom.object)
-                
+
                 # Inferred types are now handled by current_proof_types loop below
 
         # Helper to get all types for an individual from the current proof
         # merging explicit memberships and inferred domain/range types
         current_proof_types: Dict[Individual, Set[str]] = defaultdict(set)
-        
+
         for atom in collected_atoms:
             if atom.predicate == RDF.type and isinstance(atom.object, Class):
                 if isinstance(atom.subject, Individual):
-                     current_proof_types[atom.subject].add(atom.object.name)
-            
+                    current_proof_types[atom.subject].add(atom.object.name)
+
             elif isinstance(atom.predicate, Relation):
                 if isinstance(atom.subject, Individual):
-                     domains = self.domains.get(atom.predicate.name, set())
-                     current_proof_types[atom.subject].update(domains)
-                
+                    domains = self.domains.get(atom.predicate.name, set())
+                    current_proof_types[atom.subject].update(domains)
+
                 if isinstance(atom.object, Individual):
-                     ranges = self.ranges.get(atom.predicate.name, set())
-                     current_proof_types[atom.object].update(ranges)
+                    ranges = self.ranges.get(atom.predicate.name, set())
+                    current_proof_types[atom.object].update(ranges)
 
         # ------------------------- CHECK DISJOINT CLASSES ------------------------- #
 
@@ -916,14 +916,14 @@ class BackwardChainer:
 
         # ------------------------- BASE CASE ------------------------- #
         # Allow this atom to be proven as a base fact
-        # If always_generate_base_facts is False, we only yield base proof if no rules apply
+        # If always_generate_base is False, we only yield base proof if no rules apply
         # (checked below) or if we want to allow hybrid (checked here).
 
         # We need to know if rules apply to decide if this is a "leaf" by necessity.
         key = self._get_atom_key(goal_atom)
         matching_rules = self.rules_by_head.get(key, []) if key is not None else []
 
-        if self.always_generate_base_facts or not matching_rules:
+        if self.always_generate_base or not matching_rules:
             yield Proof.create_base_proof(goal_atom)
             yielded_count += 1
             if self.max_proofs_per_atom and yielded_count >= self.max_proofs_per_atom:
@@ -1058,13 +1058,13 @@ class BackwardChainer:
                                 break
                             rule_subst[var] = new_ind
                         except ValueError:
-                             generation_failed = True
-                             break
+                            generation_failed = True
+                            break
 
                         # STORE for future reuse if functional
                         if needs_functional_value and functional_key:
                             self._functional_property_values[functional_key] = new_ind
-            
+
             if generation_failed:
                 continue
 
@@ -1232,7 +1232,7 @@ class BackwardChainer:
         3. Verify complex rule-local constraints (Irreflexive, Functional).
         """
         required_classes = self._get_required_classes(var, rule)
-        
+
         # Check if requirements themselves are contradictory (e.g. required to be both Male and Female)
         for req_cls in required_classes:
             disjoint_with = self.disjoint_class_names.get(req_cls, set())
@@ -1247,11 +1247,7 @@ class BackwardChainer:
         if self.individual_pool and random.random() < self.individual_reuse_prob:
             # OPTIMIZATION: Filter first, then select
             # This avoids the wasteful "generate-and-fail" loop
-            candidates = [
-                ind
-                for ind in self.individual_pool
-                if self._is_individual_compatible(ind, required_classes)
-            ]
+            candidates = [ind for ind in self.individual_pool if self._is_individual_compatible(ind, required_classes)]
 
             if candidates:
                 # Shuffle to ensure randomness

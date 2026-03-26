@@ -21,7 +21,6 @@ from typing import Dict, List, Optional, Set
 
 from loguru import logger
 from omegaconf import DictConfig
-import sys
 
 from synthology.data_structures import (
     RDF,
@@ -69,7 +68,6 @@ class NegativeSampler:
         self.domains = domains or {}
         self.ranges = ranges or {}
         self.verbose = verbose
-
 
         # Optimization: Sets for fast lookup of existing facts
         self.existing_triples: Set[str] = set()
@@ -359,51 +357,58 @@ class NegativeSampler:
             # Get base facts from this proof
             base_facts = proof.get_base_facts()
 
-            # Filter candidates to ensure we corrupt goal terms
+            # Build corruption candidates from proof leaves.
+            # Even when corrupt_base_facts=False, we still need a corrupted leaf to propagate
+            # a counterfactual conclusion. The flag controls whether we additionally keep
+            # direct base-fact negatives, not whether proof-based generation can run at all.
             candidate_corruptions = []
-            if corrupt_base_facts:
-                goal_terms = {proof.goal.subject, proof.goal.object}
-                for bf in base_facts:
-                    # Skip RDF type
-                    if bf.predicate == RDF.type:
-                        continue
-                        
-                    if bf.subject in goal_terms:
-                        candidate_corruptions.append((bf, "subject"))
-                    if bf.object in goal_terms:
-                        candidate_corruptions.append((bf, "object"))
-            
-            # If no candidates found (e.g. proof uses only intermediate vars or logic error), fall back
-            if not candidate_corruptions and corrupt_base_facts:
-                # Fallback: any base fact, random position
-                 real_base_facts = [bf for bf in base_facts if bf.predicate != RDF.type]
-                 for bf in real_base_facts:
-                      candidate_corruptions.append((bf, "subject"))
-                      candidate_corruptions.append((bf, "object"))
-            
+            goal_terms = {proof.goal.subject, proof.goal.object}
+            for bf in base_facts:
+                # Skip RDF type
+                if bf.predicate == RDF.type:
+                    continue
+
+                if bf.subject in goal_terms:
+                    candidate_corruptions.append((bf, "subject"))
+                if bf.object in goal_terms:
+                    candidate_corruptions.append((bf, "object"))
+
+            # If no candidates found (e.g. proof uses only intermediate vars), fall back
+            # to any non-rdf:type base fact in this proof.
             if not candidate_corruptions:
-                 continue
+                # Fallback: any base fact, random position
+                real_base_facts = [bf for bf in base_facts if bf.predicate != RDF.type]
+                for bf in real_base_facts:
+                    candidate_corruptions.append((bf, "subject"))
+                    candidate_corruptions.append((bf, "object"))
+
+            if not candidate_corruptions:
+                continue
 
             max_corruption_attempts = 5
+            neg_triple = None
+            appended_negative = False
             for corruption_attempt in range(max_corruption_attempts):
+                propagated_exported = False
                 base_fact, target_pos = random.choice(candidate_corruptions)
-                
+
                 # Find the triple in KG for this atom
                 matching_triples = [
-                    t for t in kg.triples 
-                    if t.predicate.name == base_fact.predicate.name 
+                    t
+                    for t in kg.triples
+                    if t.predicate.name == base_fact.predicate.name
                     and t.subject.name == base_fact.subject.name
                     and t.object.name == base_fact.object.name
                 ]
-                
+
                 if matching_triples:
                     # print(f"DEBUG: Found {len(matching_triples)} matching base triples for {base_fact}")
                     base_triple = matching_triples[0]
-                    
+
                     neg_triple = None
                     changed_term = None
                     new_term = None
-                    
+
                     if target_pos == "subject":
                         neg_triple = self._corrupt_subject(base_triple, kg.individuals)
                         changed_term = base_triple.subject
@@ -424,31 +429,28 @@ class NegativeSampler:
                             new_term = neg_triple.object
                         else:
                             if self.verbose:
-                                logger.debug(f"Propagation failed: Corruption did not change subject or object? {base_triple} => {neg_triple}")
-                            continue # Retry
+                                logger.debug(
+                                    f"Propagation failed: Corruption did not change subject or object? {base_triple} => {neg_triple}"
+                                )
+                            continue  # Retry
                     else:
                         if self.verbose:
                             logger.debug("Corruption failed for base triple.")
-                        continue # Retry
+                        continue  # Retry
                     neg_base_atom = Atom(
                         predicate=neg_triple.predicate,
                         subject=neg_triple.subject,
                         object=neg_triple.object,
                     )
-                    
+
                     term_mapping = {changed_term: new_term}
 
                     # Generate the propagated proof (recursive)
-                    propagated_proof = self._create_propagated_proof(
-                         proof,
-                         base_fact,
-                         neg_base_atom,
-                         term_mapping
-                    )
-                    
-                    if propagated_proof and propagated_proof.goal:
-                        new_goal_atom = propagated_proof.goal
-                        
+                    corrupted_proof = self._create_corrupted_proof(proof, base_fact, neg_base_atom, term_mapping)
+
+                    if corrupted_proof and corrupted_proof.goal:
+                        new_goal_atom = corrupted_proof.goal
+
                         # Create Triple from the new goal atom
                         if isinstance(new_goal_atom.predicate, Relation):
                             neg_goal = Triple(
@@ -476,18 +478,20 @@ class NegativeSampler:
                                 # Retry - the corruption didn't propagate to the goal
                                 # Check if we should log failure
                                 continue
-                            
+
                             elif self.is_valid_negative(neg_goal):
                                 # We successfully derived a valid negative goal!
                                 negative_triples.append(neg_goal)
+                                self.strategy_usage["proof_based"] += 1
+                                appended_negative = True
 
                                 # VISUALIZATION: Export the propagated proof
                                 if export_proofs and output_dir and exported_propagated_count < MAX_EXPORTS:
                                     neg_dir = os.path.join(output_dir, "negative")
                                     os.makedirs(neg_dir, exist_ok=True)
-                                    filename = f"propagated_proof_{len(negative_triples)}_{neg_goal.subject.name}_{neg_goal.predicate.name}_{neg_goal.object.name}"
+                                    filename = f"corrupted_proof_{len(negative_triples)}_{neg_goal.subject.name}_{neg_goal.predicate.name}_{neg_goal.object.name}"
                                     full_path = os.path.join(neg_dir, filename)
-                                    propagated_proof.save_visualization(
+                                    corrupted_proof.save_visualization(
                                         full_path,
                                         format="pdf",
                                         title="Counterfactual Proof (False Pattern)",
@@ -497,29 +501,28 @@ class NegativeSampler:
                                     )
                                     exported_propagated_count += 1
                                     propagated_exported = True
-                                
+
                                 # Success! Break the retry loop
                                 break
                             else:
                                 if self.verbose:
                                     logger.debug(
-                                            f"Propagation failed: Derived goal {neg_goal} contradicts existing positive fact."
+                                        f"Propagation failed: Derived goal {neg_goal} contradicts existing positive fact."
                                     )
                         else:
                             if self.verbose:
                                 logger.debug(
-                                        f"Propagation failed: Derived goal predicate {new_goal_atom.predicate} is not a Relation."
+                                    f"Propagation failed: Derived goal predicate {new_goal_atom.predicate} is not a Relation."
                                 )
                     else:
-                         if self.verbose:
-                              logger.debug("Propagation failed: _create_propagated_proof returned None or no goal.")
-                    
+                        if self.verbose:
+                            logger.debug("Corruption failed: _create_corrupted_proof returned None or no goal.")
+
                     # If we exhausted retries without success, we might still have a 'neg_triple' (base corruption)
-                    # We can use that as a fallback if we didn't get a propagated one? 
-                    # The original code would use 'neg_triple' if available. 
+                    # We can use that as a fallback if we didn't get a propagated one?
+                    # The original code would use 'neg_triple' if available.
                     # But notice the original code had 'neg_triple' scope outside. Here we have it inside loop.
                     # Let's just ensure if we succeeded (break), we are good.
-
 
                     # If we have a negative triple (base fact corruption) and we want to export proofs
                     # Only export corrupted proof if we didn't export a propagated one (avoid redundancy)
@@ -556,7 +559,7 @@ class NegativeSampler:
                         )
                         exported_corrupted_count += 1
 
-            if neg_triple and self.is_valid_negative(neg_triple):
+            if not appended_negative and corrupt_base_facts and neg_triple and self.is_valid_negative(neg_triple):
                 negative_triples.append(neg_triple)
                 self.strategy_usage["proof_based"] += 1
 
@@ -748,19 +751,19 @@ class NegativeSampler:
     ) -> Optional[Triple]:
         """Corrupts triple respecting domain/range constraints."""
         if random.random() < 0.5:
-             # Corrupt subject
-             candidates = self._get_domain_candidates(triple.predicate, individuals, ind_classes)
-             candidates = [c for c in candidates if c != triple.subject]
-             if candidates:
-                 new_subj = random.choice(candidates)
-                 return Triple(new_subj, triple.predicate, triple.object, positive=False, proofs=[])
+            # Corrupt subject
+            candidates = self._get_domain_candidates(triple.predicate, individuals, ind_classes)
+            candidates = [c for c in candidates if c != triple.subject]
+            if candidates:
+                new_subj = random.choice(candidates)
+                return Triple(new_subj, triple.predicate, triple.object, positive=False, proofs=[])
         else:
-             # Corrupt object
-             candidates = self._get_range_candidates(triple.predicate, individuals, ind_classes)
-             candidates = [c for c in candidates if c != triple.object]
-             if candidates:
-                 new_obj = random.choice(candidates)
-                 return Triple(triple.subject, triple.predicate, new_obj, positive=False, proofs=[])
+            # Corrupt object
+            candidates = self._get_range_candidates(triple.predicate, individuals, ind_classes)
+            candidates = [c for c in candidates if c != triple.object]
+            if candidates:
+                new_obj = random.choice(candidates)
+                return Triple(triple.subject, triple.predicate, new_obj, positive=False, proofs=[])
         return None
 
     def _corrupt_triple_random(
@@ -797,7 +800,9 @@ class NegativeSampler:
         if not candidates:
             return None
         new_subj = random.choice(candidates)
-        return Triple(new_subj, triple.predicate, triple.object, positive=False, proofs=[], metadata={"source_type": "base"})
+        return Triple(
+            new_subj, triple.predicate, triple.object, positive=False, proofs=[], metadata={"source_type": "base"}
+        )
 
     def _corrupt_object(self, triple: Triple, individuals: List[Individual]) -> Optional[Triple]:
         """Corrupt the object of a triple."""
@@ -805,9 +810,9 @@ class NegativeSampler:
         if not candidates:
             return None
         new_obj = random.choice(candidates)
-        return Triple(triple.subject, triple.predicate, new_obj, positive=False, proofs=[], metadata={"source_type": "base"})
-
-
+        return Triple(
+            triple.subject, triple.predicate, new_obj, positive=False, proofs=[], metadata={"source_type": "base"}
+        )
 
     def _corrupt_membership_random(
         self, membership: Membership, classes: List[Class], original_membership: Optional[Membership] = None
@@ -824,7 +829,7 @@ class NegativeSampler:
             metadata["source_type"] = "base" if original_membership.is_base_fact else "inferred"
         return Membership(membership.individual, new_cls, is_member=False, proofs=[], metadata=metadata)
 
-    def _create_propagated_proof(
+    def _create_corrupted_proof(
         self,
         original_proof: Proof,
         original_base_fact: Atom,
@@ -847,38 +852,25 @@ class NegativeSampler:
                     is_corrupted_leaf=True,
                     original_goal=original_base_fact,
                 )
-            
-            # Check if this base fact is affected by the term mapping (side-effect)
-            # e.g. We changed X->Y, and this fact uses X. It must now use Y to be consistent.
-            # but since Y might not be in the KG for this relation, it's a "broken" link.
-            
-            # Check subject
-            s = original_proof.goal.subject
-            p = original_proof.goal.predicate
-            o = original_proof.goal.object
-            changed = False
-            
-            if s in term_mapping:
-                s = term_mapping[s]
-                changed = True
-            if o in term_mapping:
-                o = term_mapping[o]
-                changed = True
-                
-            if changed:
-                # Create a "Phantom" or "Broken" base fact
-                new_goal = Atom(s, p, o)
-                return Proof(
-                    goal=new_goal,
-                    rule=None,
-                    sub_proofs=tuple(),
-                    recursive_use_counts=original_proof.recursive_use_counts,
-                    substitutions=original_proof.substitutions, # Substs might be wrong here but base facts don't strictly use them
-                    is_valid=False,
-                    original_goal=original_proof.goal # Track what it used to be
-                )
 
-            # Other base facts remain unchanged
+            # CRITICAL BUG FIX: Do NOT apply term_mapping to non-target base facts.
+            #
+            # Context: When we corrupt a base fact (e.g., parent(Alice, Bob) → parent(Charlie, Bob)),
+            # the term_mapping ({Alice: Charlie}) applies ONLY to the corrupted leaf node.
+            #
+            # Why this matters: We previously applied term_mapping to OTHER unrelated base facts
+            # that happened to contain the mapped term. This created phantom proof branches where
+            # the replacement individual (Charlie) would leak into completely unrelated rule
+            # derivations, corrupting the proof tree's integrity.
+            #
+            # Example of the bug:
+            #   Original: proof of parent(Charlie, David) depends on base fact parent(Alice, Bob)
+            #   Bug: We'd apply {Alice: Charlie} to parent(Alice, Bob), then incorrectly also
+            #        apply it to parent(Alice, David), creating a false parent(Charlie, David)
+            #        in an unrelated branch.
+            #
+            # Solution: Return non-target base facts UNCHANGED. Substitution propagates only
+            # through rule applications (recursive case), not through base facts.
             return original_proof
 
         # Recursive step
@@ -888,14 +880,12 @@ class NegativeSampler:
 
             # 1. Update Sub-proofs
             for sp in original_proof.sub_proofs:
-                new_sp = self._create_propagated_proof(
-                    sp, original_base_fact, corrupted_base_fact, term_mapping
-                )
+                new_sp = self._create_corrupted_proof(sp, original_base_fact, corrupted_base_fact, term_mapping)
                 new_sub_proofs.append(new_sp)
                 if new_sp is not sp:
                     changed = True
 
-            # 2. Update Substitutions
+            # 2. Update Substitutions (only propagate mapping through rule derivations)
             new_substs = {}
             substs_changed = False
 
@@ -905,30 +895,30 @@ class NegativeSampler:
                     substs_changed = True
                 else:
                     new_substs[var] = term
-            
+
             if changed or substs_changed:
                 # 3. Recalculate Goal
                 # We need to apply the new substitutions to the rule conclusion.
-                # Since proof.substitutions uses renamed variables (e.g. X_12) and rule.conclusion uses 
+                # Since proof.substitutions uses renamed variables (e.g. X_12) and rule.conclusion uses
                 # original variables (e.g. X), we need to normalize the keys.
-                
+
                 normalized_new_substs = {}
                 rule_vars = original_proof.rule.conclusion.get_variables()
-                
+
                 for var, term in new_substs.items():
                     # Heuristic: base name is part before first underscore
                     # This assumes standard naming: Name_ID
                     base_name = var.name.split("_")[0]
                     for rule_var in rule_vars:
-                         if rule_var.name == base_name:
-                             normalized_new_substs[rule_var] = term
-                
+                        if rule_var.name == base_name:
+                            normalized_new_substs[rule_var] = term
+
                 try:
                     new_goal = original_proof.rule.conclusion.substitute(normalized_new_substs)
                 except Exception as e:
-                     logger.warning(f"Failed to substitute new goal in propagation: {e}")
-                     # Fallback to old goal (incorrect but prevents crash)
-                     new_goal = original_proof.goal
+                    logger.warning(f"Failed to substitute new goal in propagation: {e}")
+                    # Fallback to old goal (incorrect but prevents crash)
+                    new_goal = original_proof.goal
 
                 return Proof(
                     goal=new_goal,

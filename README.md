@@ -265,7 +265,7 @@ A wrapper script `scripts/sweep_ont_rrn.py` handles the coordination between the
         # Generator Parameters
         gen.dataset.n_train:
             values: [1000, 2000]
-        gen.negative_sampling.ratio:
+        gen.neg_sampling.ratio:
             min: 0.5
             max: 2.0
 
@@ -349,11 +349,11 @@ The evaluation metric for the RRN is **AUC-ROC and F1-Score** (classification me
 **Goal:** Prove that proof-based corruption generates harder, more educational negative samples than random corruption.
 **Steps:**
 
-1.  **Generate Data:** Use `Synthology` on the `family-tree` ontology to generate 4 identical datasets, varying *only* the negative sampling strategy in the `config.yaml`:
-      * Dataset 1: `random`
-      * Dataset 2: `constrained_random`
-      * Dataset 3: `proof_based`
-      * Dataset 4: `mixed`
+1.  **Generate Data:** Use `Synthology` on the `family-tree` ontology to generate 4 identical datasets, varying _only_ the negative sampling strategy in the `config.yaml`:
+    - Dataset 1: `random`
+    - Dataset 2: `constrained_random`
+    - Dataset 3: `proof_based`
+    - Dataset 4: `mixed`
 2.  **Create the Test Set:** Generate a separate, small test set containing a high volume of "near-miss" hard negatives (e.g., swapping a parent for an uncle).
 3.  **Train & Evaluate:** Train an RRN model on each of the 4 datasets using `wandb` sweeps.
 4.  **Metrics:** Evaluate on the hard-negative test set. Track the **False Positive Rate (FPR)**.
@@ -365,17 +365,17 @@ The evaluation metric for the RRN is **AUC-ROC and F1-Score** (classification me
 **Steps:**
 
 1.  **Create the Frozen Gold-Standard Test Set:**
-      * Run Synthology with `max_recursion: 4` to generate a small pool of graphs.
-      * Filter this pool to isolate ONLY target facts that required $\ge 3$ hops (e.g., `hasGreatGrandparent`).
-      * Manually verify these facts. Freeze this as the absolute test set for both models.
+    - Run Synthology with `max_recursion: 4` to generate a small pool of graphs.
+    - Filter this pool to isolate ONLY target facts that required $\ge 3$ hops (e.g., `hasGreatGrandparent`).
+    - Manually verify these facts. Freeze this as the absolute test set for both models.
 2.  **Generate Baseline (Dataset A - Nemo):**
-      * Write a Python script to generate random base facts (e.g., random `hasParent` links).
-      * Feed these into the Nemo CLI (`nmo`) using the family tree rules to forward-chain inferred targets.
-      * Apply standard random negative sampling to the outputs.
+    - Write a Python script to generate random base facts (e.g., random `hasParent` links).
+    - Feed these into the Nemo CLI (`nmo`) using the family tree rules to forward-chain inferred targets.
+    - Apply standard random negative sampling to the outputs.
 3.  **Generate Synthology (Dataset B):**
-      * Use Synthology (with the winning negative sampling strategy) to generate a dataset that *exactly matches* Dataset A in: Total KGs ($N=5000$), Entity Pool size, Total Base Facts, and Total Target Facts.
+    - Use Synthology (with the winning negative sampling strategy) to generate a dataset that _exactly matches_ Dataset A in: Total KGs ($N=5000$), Entity Pool size, Total Base Facts, and Total Target Facts.
 4.  **Train & Evaluate:** Train an RRN on Dataset A, and a separate RRN on Dataset B. Test BOTH strictly on the Frozen Gold-Standard Test Set.
-5.  **Outcome:** A higher AUC-ROC for Dataset B proves that *how* the base facts are engineered (backward-chaining) matters more than just randomly generating data for a standard reasoner.
+5.  **Outcome:** A higher AUC-ROC for Dataset B proves that _how_ the base facts are engineered (backward-chaining) matters more than just randomly generating data for a standard reasoner.
 
 ### Experiment 3: Generalization to Complex Ontologies
 
@@ -383,23 +383,23 @@ The evaluation metric for the RRN is **AUC-ROC and F1-Score** (classification me
 **Steps:**
 
 1.  **Setup the Baseline Engine (Nemo):**
-      * Ensure `data/ont/owl2rl.rls` (the standard OWL 2 RL Datalog ruleset) is configured.
-      * Run the standard `OWL2Bench` Java generator to create 50 universities (base facts).
-      * Feed `UNIV-BENCH-OWL2RL.owl`, the base facts, and `owl2rl.rls` into Nemo.
-      * Filter Nemo's output: Drop all `BNode` inferences and `owl:differentFrom` schema assertions.
-      * Extract the University prefix (`U0...`, `U1...`) to partition the massive graph into 50 smaller `sample_id` subgraphs for the RRN. Count the exact yield of positive targets. This is **Dataset A**.
+    - Ensure `data/ont/owl2rl.rls` (the standard OWL 2 RL Datalog ruleset) is configured.
+    - Run the standard `OWL2Bench` Java generator to create 50 universities (base facts).
+    - Feed `UNIV-BENCH-OWL2RL.owl`, the base facts, and `owl2rl.rls` into Nemo.
+    - Filter Nemo's output: Drop all `BNode` inferences and `owl:differentFrom` schema assertions.
+    - Extract the University prefix (`U0...`, `U1...`) to partition the massive graph into 50 smaller `sample_id` subgraphs for the RRN. Count the exact yield of positive targets. This is **Dataset A**.
 2.  **Setup Synthology (Dataset B):**
-      * Feed `UNIV-BENCH-OWL2RL.owl` into Synthology.
-      * Configure it to generate 50 graphs (`n_train: 50`) with an `individual_pool_size` mimicking a university.
-      * Over-generate slightly (e.g., aim for 20% more targets than Dataset A).
+    - Feed `UNIV-BENCH-OWL2RL.owl` into Synthology.
+    - Configure it to generate 50 graphs (`n_train: 50`) with an `individual_pool_size` mimicking a university.
+    - Over-generate slightly (e.g., aim for 20% more targets than Dataset A).
 3.  **The "Balancer" Script (Crucial for Fairness):**
-      * Write a Python script to randomly downsample Synthology's target facts to *perfectly match* the exact target count of Dataset A. Both models must train on the exact same volume of targets and graphs.
+    - Write a Python script to randomly downsample Synthology's target facts to _perfectly match_ the exact target count of Dataset A. Both models must train on the exact same volume of targets and graphs.
 4.  **Create OWL2Bench Hard Test Set:** Generate a frozen test set of deep inferences for the university domain (e.g., 3-hop `knows` relations).
 5.  **Train & Evaluate:** Train an RRN on Dataset A and Dataset B. Evaluate on the frozen test set.
 6.  **Track Generator Metrics:** During generation, record Synthology's:
-      * **Generation Runtime** vs. `max_proof_depth`.
-      * **Yield Rate:** Ratio of base facts synthesized to inferred targets produced.
-      * **Ontology Coverage:** Percentage of OWL2Bench rules triggered.
+    - **Generation Runtime** vs. `max_proof_depth`.
+    - **Yield Rate:** Ratio of base facts synthesized to inferred targets produced.
+    - **Ontology Coverage:** Percentage of OWL2Bench rules triggered.
 
 By proving that an RRN trained on a balanced Synthology dataset outperforms the Nemo baseline, we demonstrate that Synthology efficiently engineers high-quality, complex data from any arbitrary TBox.
 

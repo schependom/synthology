@@ -6,13 +6,22 @@ from loguru import logger
 WINDOWS = os.name == "nt"
 PROJECT_NAME = "synthology"
 PYTHON_VERSION = "3.12"
+
 # Ensure SYNTHOLOGY_ROOT is set for subprocesses to locate configs
 os.environ["SYNTHOLOGY_ROOT"] = os.path.dirname(os.path.abspath(__file__))
 
 
+# ------------------------------------------------------------ #
+# Replication of RRN paper results
+# ------------------------------------------------------------ #
+
+
+# Generate the ASP dataset used by P. Hohenecker et al.
 @task
 def gen_ft_asp(ctx: Context):
-    """Generates family tree datasets with ASP solver using default configurations in configs/asp_generator/"""
+    """Generates family tree ASP datasets with ASP solver
+    as described in the RRN paper by P. Hohenecker et al. using
+    default configurations in configs/asp_generator/"""
 
     # If ./data/asp/out-reldata has content,
     # ask user to confirm cleanup
@@ -50,9 +59,11 @@ def gen_ft_asp(ctx: Context):
     logger.success("Family tree dataset generation with ASP completed.")
 
 
+# Convert proprietary reldata format by P. Hohenecker's generator
+# to CSV for RRN training/evaluation
 @task
 def convert_reldata(ctx: Context):
-    """Converts family tree datasets in data/asp/out-reldata to CSV format."""
+    """Converts family tree datasets in reldata format to CSV format."""
 
     print("\n-------------------------------------------")
     print("Converting generated ASP data to CSV format")
@@ -63,10 +74,30 @@ def convert_reldata(ctx: Context):
     logger.success("Conversion of family tree dataset from reldata to CSV completed.")
 
 
+# Train the RRN on the ASP dataset
+@task
+def train_rrn_asp(ctx: Context, args=""):
+    """Trains RRN on ASP-generated Family Tree dataset."""
+
+    print("\nRunning RRN training with ASP dataset.")
+
+    cmd = "export PYTHONUNBUFFERED=1 && "  # Ensure logs are unbuffered
+    cmd += "export LOGURU_COLORIZE=1 && "  # Ensure logs are colored
+    cmd += "uv run --package rrn python -m rrn.train data/dataset=asp"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
+# ------------------------------------------------------------ #
+# Generate/Train on Family Tree data with Synthology/RRN
+# ------------------------------------------------------------ #
+
+
 @task
 def gen_ft_ont(ctx: Context, args=""):
     """
-    Generates family tree datasets with Ontology-based Generator
+    Generates family tree datasets with Ontology-based 'Synthology' Generator
     using default configurations in configs/ont_generator/config.yaml
     """
 
@@ -79,18 +110,38 @@ def gen_ft_ont(ctx: Context, args=""):
 
 
 @task
-def ont_visual_inspection(ctx: Context, args=""):
+def train_rrn_ont(ctx: Context, args=""):
+    """Trains RRN based on default configurations in configs/rrn/"""
+
+    print("\nRunning RRN training with Ontology-based dataset.")
+
+    cmd = "export PYTHONUNBUFFERED=1 && "  # Ensure logs are unbuffered
+    cmd += "export LOGURU_COLORIZE=1 && "  # Ensure logs are colored
+    cmd += "uv run --package rrn python -m rrn.train data/dataset=ont"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
+# ------------------------------------------------------------ #
+# Helper commands to verify correctness.
+# ------------------------------------------------------------ #
+
+
+@task
+def synthology_visual_verification(ctx: Context, args=""):
     """
-    Generates a few decently sized knowledge graphs that contain both 
+    Generates a few decently sized knowledge graphs that contain both
     positive, negative, base and inferred samples and visualizes them.
     Uses configs/ont_generator/config_visual_inspection.yaml.
+    Output saved to visual-verification/ folder.
     """
 
     print("\nRunning Visual Inspection Generator.")
     cmd = (
-        f"export LOGURU_COLORIZE=1 && "
-        f"uv run --package ont_generator python -m ont_generator.create_data "
-        f"--config-name=config_visual_inspection"
+        "export LOGURU_COLORIZE=1 && "
+        "uv run --package ont_generator python -m ont_generator.create_data "
+        "--config-name=config_visual_inspection"
     )
     if args:
         cmd += f" {args}"
@@ -113,32 +164,9 @@ def visualize_proofs(ctx: Context, args=""):
     ctx.run(cmd)
 
 
-@task
-def train_rrn_ont(ctx: Context, args=""):
-    """Trains RRN based on default configurations in configs/rrn/"""
-
-    print("\nRunning RRN training with Ontology-based dataset.")
-
-    cmd = "export PYTHONUNBUFFERED=1 && "  # Ensure logs are unbuffered
-    cmd += "export LOGURU_COLORIZE=1 && "  # Ensure logs are colored
-    cmd += "uv run --package rrn python -m rrn.train data/dataset=ont"
-    if args:
-        cmd += f" {args}"
-    ctx.run(cmd)
-
-
-@task
-def train_rrn_asp(ctx: Context, args=""):
-    """Trains RRN based on default configurations in configs/rrn/"""
-
-    print("\nRunning RRN training with ASP dataset.")
-
-    cmd = "export PYTHONUNBUFFERED=1 && "  # Ensure logs are unbuffered
-    cmd += "export LOGURU_COLORIZE=1 && "  # Ensure logs are colored
-    cmd += "uv run --package rrn python -m rrn.train data/dataset=asp"
-    if args:
-        cmd += f" {args}"
-    ctx.run(cmd)
+# ------------------------------------------------------------ #
+# Helper commands for experiments.
+# ------------------------------------------------------------ #
 
 
 @task
@@ -155,41 +183,43 @@ def train_rrn_owl2bench(ctx: Context, args=""):
     ctx.run(cmd)
 
 
+# TODO: nemo doesn't work yet!
+# @task
+# def gen_owl2bench(ctx: Context, args=""):
+#     """
+#     Runs the OWL2Bench OWL 2 RL pipeline:
+#     ABox generation -> NeMo materialization -> CSV export.
+#     """
+#     print("\nRunning OWL2Bench OWL 2 RL generation pipeline.")
+#     cmd = "export LOGURU_COLORIZE=1 && "
+#     cmd += "uv run --package owl2bench python -m owl2bench.pipeline"
+#     if args:
+#         cmd += f" {args}"
+#     ctx.run(cmd)
+
+
+# TODO: nemo doens't work yet!
 @task
-def gen_owl2bench(ctx: Context, args=""):
-    """
-    Runs the OWL2Bench OWL 2 RL pipeline:
-    ABox generation -> NeMo materialization -> CSV export.
-    """
-    print("\nRunning OWL2Bench OWL 2 RL generation pipeline.")
-    cmd = "export LOGURU_COLORIZE=1 && "
-    cmd += "uv run --package owl2bench python -m owl2bench.pipeline"
-    if args:
-        cmd += f" {args}"
-    ctx.run(cmd)
+# def gen_owl2bench_toy(ctx: Context, args=""):
+#     """
+#     Runs a tiny OWL2Bench pipeline config for quick end-to-end verification:
+#     base -> NeMo materialization -> inferred targets -> negatives.
+#     """
+#     print("\nRunning OWL2Bench TOY generation pipeline.")
+#     cmd = "export LOGURU_COLORIZE=1 && "
+#     cmd += "uv run --package owl2bench python -m owl2bench.pipeline --config-name=config_toy"
+#     if args:
+#         cmd += f" {args}"
+#     ctx.run(cmd)
 
-
-@task
-def gen_owl2bench_toy(ctx: Context, args=""):
-    """
-    Runs a tiny OWL2Bench pipeline config for quick end-to-end verification:
-    base -> NeMo materialization -> inferred targets -> negatives.
-    """
-    print("\nRunning OWL2Bench TOY generation pipeline.")
-    cmd = "export LOGURU_COLORIZE=1 && "
-    cmd += "uv run --package owl2bench python -m owl2bench.pipeline --config-name=config_toy"
-    if args:
-        cmd += f" {args}"
-    ctx.run(cmd)
-
-    print("\nAuto-visualizing toy sample 710021.")
-    viz_cmd = "export LOGURU_COLORIZE=1 && "
-    viz_cmd += (
-        "uv run --package kgvisualiser python -m kgvisualiser.visualize "
-        "io.input_csv=data/owl2bench/output_toy/owl2bench_1/val/targets.csv "
-        "io.sample_id=710021"
-    )
-    ctx.run(viz_cmd)
+#     print("\nAuto-visualizing toy sample 710021.")
+#     viz_cmd = "export LOGURU_COLORIZE=1 && "
+#     viz_cmd += (
+#         "uv run --package kgvisualiser python -m kgvisualiser.visualize "
+#         "io.input_csv=data/owl2bench/output_toy/owl2bench_1/val/targets.csv "
+#         "io.sample_id=710021"
+#     )
+#     ctx.run(viz_cmd)
 
 
 @task
@@ -207,39 +237,9 @@ def visualize_kg_sample(ctx: Context, args=""):
     ctx.run(cmd)
 
 
-# Data version control with DVC+SSH
-#
-#   1. uv add dvc[ssh] --dev
-#
-#   2. `dvc init`
-#
-#   3. add SSH information to ~/.ssh/config file
-#
-#   4. dvc remote modify --local <host-name> auth ssh
-#
-#         e.g. `dvc remote modify --local gbar1 auth ssh`
-#
-#   5. Add the folder you want to track with DVC
-#      to .gitignore
-#
-#   6. Remove folder you want to track with DVC from git tracking:
-#
-#         git rm -r --cached <folder>
-#
-#   7. Commit changes to git
-#
-#   8. Now, `uv run invoke dvc` to add, commit and push data changes
-#      as being done below:
-#
-@task
-def dvc(ctx, folder="data", message="Add new data"):
-    """Adds, commits and pushes data changes to DVC remote storage."""
-
-    ctx.run(f"dvc add {folder}")
-    ctx.run(f"git add {folder}.dvc .gitignore")
-    ctx.run(f"git commit -m '{message}'")
-    ctx.run("git push")
-    ctx.run("dvc push")
+# ------------------------------------------------------------ #
+# EXP 1: Negative Sampling Strategies for RRN Training
+# ------------------------------------------------------------ #
 
 
 @task
@@ -247,6 +247,7 @@ def exp1_generate_trainval_sets(ctx: Context):
     """Generates train/val sets for Exp 1 for all negative sampling strategies."""
     for strategy in ("random", "constrained", "proof_based"):
         exp1_generate_trainval(ctx, strategy=strategy)
+
 
 @task
 def exp1_generate_trainval(ctx: Context, strategy="proof_based", args=""):
@@ -261,18 +262,20 @@ def exp1_generate_trainval(ctx: Context, strategy="proof_based", args=""):
         cmd += f" {args}"
     ctx.run(cmd)
 
+
 @task
 def exp1_generate_test_set(ctx: Context, args=""):
     """Generates the frozen 'near-miss' hard negative test set for Exp 1."""
     print("\nGenerating Exp 1 frozen test set (near-miss hard negatives)")
     cmd = (
-        f"export LOGURU_COLORIZE=1 && "
-        f"uv run --package ont_generator python -m ont_generator.create_data "
-        f"--config-name=exp1_test"
+        "export LOGURU_COLORIZE=1 && "
+        "uv run --package ont_generator python -m ont_generator.create_data "
+        "--config-name=exp1_test"
     )
     if args:
         cmd += f" {args}"
     ctx.run(cmd)
+
 
 @task
 def exp1_train_rrn(ctx: Context, strategy="random", args=""):
@@ -289,3 +292,13 @@ def exp1_train_rrn(ctx: Context, strategy="random", args=""):
     if args:
         cmd += f" {args}"
     ctx.run(cmd)
+
+
+# ------------------------------------------------------------ #
+# EXP 2: ...
+# ------------------------------------------------------------ #
+
+
+# ------------------------------------------------------------ #
+# EXP 3: ...
+# ------------------------------------------------------------ #

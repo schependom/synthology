@@ -12,7 +12,7 @@ dataset: # asp uses 72% train, 8% val, 20% test by default
   max_individuals: 1000
   min_rules: 1
   max_rules: 5
-  min_proofs_per_rule: 5
+  target_min_proofs_rule: 5
   output_dir: "data/ont/output/family-tree"
   seed: 23
   save_individual_samples: false
@@ -29,9 +29,9 @@ generator:
   use_signature_sampling: true
   min_proof_roots: 5
   max_proof_roots: 20
-  always_generate_base_facts: false
+  always_generate_base: false
 
-negative_sampling:
+neg_sampling:
   strategy: "mixed"
   ratio: 1.0
   corrupt_base_facts: false

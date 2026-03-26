@@ -15,7 +15,7 @@ parameters:
     values: [1000, 2000, 5000]
   gen.generator.max_recursion:
     values: [2, 3, 4]
-  gen.negative_sampling.ratio:
+  gen.neg_sampling.ratio:
     distribution: uniform
     min: 0.5
     max: 2.0

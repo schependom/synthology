@@ -25,13 +25,8 @@ from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
-import ont_generator
-
 from ont_generator.generate import KGenerator, atoms_to_knowledge_graph, extract_proof_map
-from ont_generator.chainer import BackwardChainer, ExecutableRule
 from ont_generator.negative_sampler import NegativeSampler
-import sys
-
 from ont_generator.utils.validator import Validator
 from synthology.data_structures import KnowledgeGraph
 
@@ -62,7 +57,9 @@ class KGEDatasetGenerator:
         self.individual_reuse_prob = cfg.generator.individual_reuse_prob
         self.export_proofs = cfg.export_proofs
         self.output_dir = cfg.dataset.output_dir
-        self.proof_output_dir = cfg.get("proof_output_path", os.path.join(self.output_dir, "proofs")) if self.export_proofs else None
+        self.proof_output_dir = (
+            cfg.get("proof_output_path", os.path.join(self.output_dir, "proofs")) if self.export_proofs else None
+        )
 
         self.min_proof_roots = cfg.generator.get("min_proof_roots", 5)
         self.max_proof_roots = cfg.generator.get("max_proof_roots", 15)
@@ -100,9 +97,9 @@ class KGEDatasetGenerator:
         )
 
         # Negative sampling config
-        self.neg_strategy = cfg.negative_sampling.strategy
-        self.neg_ratio = cfg.negative_sampling.ratio
-        self.neg_corrupt_base_facts = cfg.negative_sampling.corrupt_base_facts
+        self.neg_strategy = cfg.neg_sampling.strategy
+        self.neg_ratio = cfg.neg_sampling.ratio
+        self.neg_corrupt_base_facts = cfg.neg_sampling.corrupt_base_facts
 
         # Track rule usage for coverage analysis
         self.train_rule_usage: Dict[str, int] = defaultdict(int)
@@ -124,7 +121,7 @@ class KGEDatasetGenerator:
                 f"{len(self.schema_attributes)} attributes"
             )
             logger.info(f"Constraints: {len(self.generator.parser.constraints)}")
-            
+
         # Classify rules by complexity
         self.simple_rules = [r for r in self.rules if len(r.premises) == 1]
         self.complex_rules = [r for r in self.rules if len(r.premises) > 1]
@@ -140,7 +137,7 @@ class KGEDatasetGenerator:
         max_individuals: int,
         min_rules: int = 1,
         max_rules: int = 5,
-        min_proofs_per_rule: int = 5,
+        target_min_proofs_rule: int = 5,
     ) -> Tuple[List[KnowledgeGraph], List[KnowledgeGraph], List[KnowledgeGraph]]:
         """
         Generate complete training and testing datasets.
@@ -152,7 +149,7 @@ class KGEDatasetGenerator:
             max_individuals:        Maximum individuals per sample
             min_rules:              Min rules to trigger per sample
             max_rules:              Max rules to trigger per sample
-            min_proofs_per_rule:    Minimum proofs to select per rule
+            target_min_proofs_rule:    Minimum proofs to select per rule
 
         Returns:
             Tuple of (train_samples, val_samples, test_samples)
@@ -162,7 +159,7 @@ class KGEDatasetGenerator:
         logger.info(f"\tTarget: {n_train} train, {n_val} val, {n_test} test samples")
         logger.info(f"\tIndividual range: {min_individuals}-{max_individuals}")
         logger.info(f"\tRules per sample: {min_rules}-{max_rules}")
-        logger.info(f"\tMin proofs per rule: {min_proofs_per_rule}")
+        logger.info(f"\tMin proofs per rule: {target_min_proofs_rule}")
         # logger.info(f"\t{'=' * 80}")
 
         # Generate training samples
@@ -173,7 +170,7 @@ class KGEDatasetGenerator:
             max_individuals=max_individuals,
             min_rules=min_rules,
             max_rules=max_rules,
-            min_proofs_per_rule=min_proofs_per_rule,
+            target_min_proofs_rule=target_min_proofs_rule,
             sample_type="TRAIN",
         )
 
@@ -185,7 +182,7 @@ class KGEDatasetGenerator:
             max_individuals=max_individuals,
             min_rules=min_rules,
             max_rules=max_rules,
-            min_proofs_per_rule=min_proofs_per_rule,
+            target_min_proofs_rule=target_min_proofs_rule,
             sample_type="VAL",
         )
 
@@ -197,7 +194,7 @@ class KGEDatasetGenerator:
             max_individuals=max_individuals,
             min_rules=min_rules,
             max_rules=max_rules,
-            min_proofs_per_rule=min_proofs_per_rule,
+            target_min_proofs_rule=target_min_proofs_rule,
             sample_type="TEST",
         )
 
@@ -218,7 +215,7 @@ class KGEDatasetGenerator:
         max_individuals: int,
         min_rules: int,
         max_rules: int,
-        min_proofs_per_rule: int,
+        target_min_proofs_rule: int,
         sample_type: str,
     ) -> List[KnowledgeGraph]:
         """
@@ -230,7 +227,7 @@ class KGEDatasetGenerator:
             max_individuals:        Maximum individuals per sample
             min_rules:              Minimum rules to trigger per sample
             max_rules:              Maximum rules to trigger per sample
-            min_proofs_per_rule:    Minimum proofs to select per rule
+            target_min_proofs_rule:    Minimum proofs to select per rule
             stratified_selection:   Whether to use stratified rule selection
             sample_type:            "TRAIN", "VAL", or "TEST" (for logging)
 
@@ -261,7 +258,7 @@ class KGEDatasetGenerator:
                 max_individuals=max_individuals,
                 min_rules=min_rules,
                 max_rules=max_rules,
-                min_proofs_per_rule=min_proofs_per_rule,
+                target_min_proofs_rule=target_min_proofs_rule,
                 sample_type=sample_type,
             )
 
@@ -299,7 +296,7 @@ class KGEDatasetGenerator:
         max_individuals: int,
         min_rules: int,
         max_rules: int,
-        min_proofs_per_rule: int,
+        target_min_proofs_rule: int,
         sample_type: str,
     ) -> Optional[KnowledgeGraph]:
         """
@@ -327,21 +324,21 @@ class KGEDatasetGenerator:
 
         # VARIANCE STRATEGY 2: Rule selection (Stratified)
         n_rules = random.randint(min_rules, min(max_rules, len(self.rules)))
-        
+
         selected_rules = []
-        
+
         # If possible, force at least one complex rule (for depth > 1)
         # but only if recursion depth allows it and we have complex rules
         if current_recursion > 1 and self.complex_rules:
-             # Force 1 complex rule
-             selected_rules.append(random.choice(self.complex_rules))
-             # Fill rest with random mix
-             remaining_count = n_rules - 1
-             if remaining_count > 0:
-                 remaining_pool = [r for r in self.rules if r not in selected_rules]
-                 if remaining_count <= len(remaining_pool):
+            # Force 1 complex rule
+            selected_rules.append(random.choice(self.complex_rules))
+            # Fill rest with random mix
+            remaining_count = n_rules - 1
+            if remaining_count > 0:
+                remaining_pool = [r for r in self.rules if r not in selected_rules]
+                if remaining_count <= len(remaining_pool):
                     selected_rules.extend(random.sample(remaining_pool, remaining_count))
-                 else:
+                else:
                     selected_rules.extend(remaining_pool)
         else:
             # Pure random selection
@@ -386,7 +383,7 @@ class KGEDatasetGenerator:
             # Select random subset of proofs if still too many
             # We enforce a cap to avoid memory issues with extremely prolific rules
             MAX_PROOFS_CAP = 10000
-            n_select = random.randint(min(len(proofs), min_proofs_per_rule), min(len(proofs), MAX_PROOFS_CAP))
+            n_select = random.randint(min(len(proofs), target_min_proofs_rule), min(len(proofs), MAX_PROOFS_CAP))
             selected = random.sample(proofs, n_select)
 
             for proof in selected:
@@ -403,6 +400,7 @@ class KGEDatasetGenerator:
                     # We can use a simple cap based on existing files or random sampling.
                     # Here we just generate a unique filename
                     import uuid
+
                     uid = str(uuid.uuid4())[:8]
                     filename = f"positive_proof_{rule.name}_{uid}"
                     full_path = os.path.join(pos_dir, filename)
@@ -443,32 +441,32 @@ class KGEDatasetGenerator:
         self._complete_schema(kg)
 
         # VALIDATION: Check for complexity (inferred facts and depth)
-        
+
         # Count inferred facts (triples + memberships)
         n_inferred = 0
         max_depth = 0
-        
+
         for t in kg.triples:
             if not t.is_base_fact:
                 n_inferred += 1
                 max_depth = max(max_depth, t.get_hops())
-                
+
         for m in kg.memberships:
             if not m.is_base_fact:
                 n_inferred += 1
                 max_depth = max(max_depth, m.get_hops())
-        
+
         # Reject if no inferred facts (unless we explicitly allowed only base facts, which is rare for this task)
         if n_inferred == 0:
             if self.verbose:
-                logger.debug(f"  [DEBUG] Sample rejected: No inferred facts found.")
+                logger.debug("  [DEBUG] Sample rejected: No inferred facts found.")
             return None
-            
+
         # Reject if depth is too shallow (only if configured for deep recursion)
         # If max_recursion > 1, we expect at least depth 2 for better training data
         if self.generator.chainer.max_recursion_depth > 1 and max_depth < 2:
-             # Allow some shallow samples (e.g. 20%) to keep variety, but prefer deep ones
-             if random.random() > 0.2:
+            # Allow some shallow samples (e.g. 20%) to keep variety, but prefer deep ones
+            if random.random() > 0.2:
                 if self.verbose:
                     logger.debug(f"  [DEBUG] Sample rejected: Max depth {max_depth} too low (expected >= 2).")
                 return None
@@ -798,9 +796,15 @@ class KGEDatasetGenerator:
             print(f"    - Base Facts:    {stats.get('avg_base_facts', 0):.1f}")
             print(f"    - Inferred:      {stats.get('avg_inferred_facts', 0):.1f}")
             print("  Negative Logic (Avg per sample):")
-            print(f"    - Base Fact Corruption:      {stats.get('avg_neg_base_source', 0):.1f} (Direct corruption of base facts)")
-            print(f"    - Inferred Fact (Shallow):   {stats.get('avg_neg_inferred_shallow', 0):.1f} (Direct corruption of inferred facts)")
-            print(f"    - Inferred Fact (Deep/Prop): {stats.get('avg_neg_inferred_deep', 0):.1f} (Propagated consequences)")
+            print(
+                f"    - Base Fact Corruption:      {stats.get('avg_neg_base_source', 0):.1f} (Direct corruption of base facts)"
+            )
+            print(
+                f"    - Inferred Fact (Shallow):   {stats.get('avg_neg_inferred_shallow', 0):.1f} (Direct corruption of inferred facts)"
+            )
+            print(
+                f"    - Inferred Fact (Deep/Prop): {stats.get('avg_neg_inferred_deep', 0):.1f} (Propagated consequences)"
+            )
             print(f"    - Unknown/Other:             {stats.get('avg_neg_unknown', 0):.1f}")
 
         print_split_stats("TRAINING", train_stats)
@@ -846,7 +850,6 @@ def save_dataset_to_csv(
     logger.success(f"Dataset CSVs saved to {output_dir}")
 
 
-
 def save_standard_dataset(samples: List[KnowledgeGraph], output_base_dir: str) -> None:
     """
     Saves the dataset in the Standard Format:
@@ -866,19 +869,21 @@ def save_standard_dataset(samples: List[KnowledgeGraph], output_base_dir: str) -
     for idx, kg in enumerate(samples):
         # Sample ID is 1000 + idx to avoid 0-indexing issues if any
         sample_id = str(1000 + idx)
-        
+
         all_rows = kg.to_standard_rows(sample_id)
-        
+
         for row in all_rows:
             # FACTS: Only Positive Base Facts
             if row["type"] == "base_fact" and row["label"] == 1:
                 # Minimal columns for facts.csv: sample_id, subject, predicate, object
-                facts_rows.append({
-                    "sample_id": row["sample_id"],
-                    "subject": row["subject"],
-                    "predicate": row["predicate"],
-                    "object": row["object"]
-                })
+                facts_rows.append(
+                    {
+                        "sample_id": row["sample_id"],
+                        "subject": row["subject"],
+                        "predicate": row["predicate"],
+                        "object": row["object"],
+                    }
+                )
                 # Base facts are ALSO targets (trivial logic)
                 targets_rows.append(row)
             else:
@@ -892,18 +897,20 @@ def save_standard_dataset(samples: List[KnowledgeGraph], output_base_dir: str) -
             writer = csv.DictWriter(f, fieldnames=["sample_id", "subject", "predicate", "object"])
             writer.writeheader()
             writer.writerows(facts_rows)
-    
+
     # Write targets.csv
     targets_path = path / "targets.csv"
     if targets_rows:
-         # dynamic fieldnames based on row keys
+        # dynamic fieldnames based on row keys
         keys = list(targets_rows[0].keys())
         with open(targets_path, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=keys)
             writer.writeheader()
             writer.writerows(targets_rows)
 
-    logger.success(f"Saved standard dataset to {output_base_dir} ({len(facts_rows)} facts, {len(targets_rows)} targets)")
+    logger.success(
+        f"Saved standard dataset to {output_base_dir} ({len(facts_rows)} facts, {len(targets_rows)} targets)"
+    )
 
 
 def load_dataset_from_csv(
@@ -962,7 +969,9 @@ def main(cfg: DictConfig):
     output_dir = cfg.dataset.output_dir
     os.makedirs(output_dir, exist_ok=True)
     log_path = os.path.join(output_dir, "generation.log")
-    logger.add(log_path, mode="w", format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}")
+    logger.add(
+        log_path, mode="w", format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} - {message}"
+    )
 
     logger.info(f"Running Ontology Knowledge Graph Generator with configuration:\n{OmegaConf.to_yaml(cfg)}")
 
@@ -981,7 +990,7 @@ def main(cfg: DictConfig):
         max_individuals=cfg.dataset.max_individuals,
         min_rules=cfg.dataset.min_rules,
         max_rules=cfg.dataset.max_rules,
-        min_proofs_per_rule=cfg.dataset.min_proofs_per_rule,
+        target_min_proofs_rule=cfg.dataset.target_min_proofs_rule,
     )
 
     # Save to CSV (Individual Samples) - Optional
@@ -992,8 +1001,6 @@ def main(cfg: DictConfig):
         save_dataset_to_csv(train_samples, f"{output_dir}/train", prefix="train_sample")
         save_dataset_to_csv(val_samples, f"{output_dir}/val", prefix="val_sample")
         save_dataset_to_csv(test_samples, f"{output_dir}/test", prefix="test_sample")
-
-
 
     logger.success("Ontology-based Knowledge Graph Dataset generation complete!")
 

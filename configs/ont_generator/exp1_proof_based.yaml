@@ -6,5 +6,6 @@ dataset:
   output_dir: "data/exp1/proof_based"
   n_test: 0
 
-negative_sampling:
+neg_sampling:
   strategy: "proof_based"
+  corrupt_base_facts: true

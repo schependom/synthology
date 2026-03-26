@@ -491,10 +491,10 @@ def main(cfg: DictConfig):
         kg = generator.generate_full_graph()
 
         # Add negative samples if requested
-        # Using negative_sampling config from cfg
-        neg_strategy = cfg.negative_sampling.strategy
-        neg_ratio = cfg.negative_sampling.ratio
-        corrupt_base_facts = cfg.negative_sampling.corrupt_base_facts
+        # Using neg_sampling config from cfg
+        neg_strategy = cfg.neg_sampling.strategy
+        neg_ratio = cfg.neg_sampling.ratio
+        corrupt_base_facts = cfg.neg_sampling.corrupt_base_facts
 
         if neg_strategy and neg_ratio > 0:
             logger.info(f"\nAdding negative samples (Strategy: {neg_strategy}, Ratio: {neg_ratio})...")

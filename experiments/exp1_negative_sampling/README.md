@@ -11,7 +11,7 @@ Test whether proof-based corruption (corrupting a single leaf node in a proof tr
 
 **Configurations:**
 
-For generation, Hydra overrides append `generator.negative_sampling.strategy={strategy}` and `dataset.output_dir=data/exp1/{strategy}`.
+For generation, Hydra overrides append `generator.neg_sampling.strategy={strategy}` and `dataset.output_dir=data/exp1/{strategy}`.
 For RRN training, `data.dataset.path=cwd/data/exp1/{strategy}` overrides point it to appropriately generated sets. `WandB` is structured with `logger.name`, `logger.group`, and `logger.tags`.
 
 **Execution Commands:**

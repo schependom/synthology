@@ -24,9 +24,9 @@ generator:
   use_signature_sampling: true
   min_proof_roots: 1
   max_proof_roots: 10
-  always_generate_base_facts: false
+  always_generate_base: false
 
-negative_sampling:
+neg_sampling:
   strategy: "proof_based"
   ratio: 1.0
   corrupt_base_facts: true
