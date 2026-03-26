@@ -402,40 +402,75 @@ class KnowledgeGraph:
         """
         rows = []
 
+        def atom_key_from_fact(fact_obj):
+            """Stable key used to match facts against proof atoms."""
+            if isinstance(fact_obj, Membership):
+                return (fact_obj.individual.name, "rdf:type", fact_obj.cls.name)
+            return (fact_obj.subject.name, fact_obj.predicate.name, fact_obj.object.name)
+
+        def atom_key(atom: "Atom"):
+            return (atom.subject.name, atom.predicate.name, atom.object.name)
+
+        # Build set of inferred atoms that are used as premises/sub-goals in other proofs.
+        # These are the "intermediate" inferred nodes.
+        premise_atom_keys = set()
+
+        def collect_premise_atoms(proof: "Proof"):
+            for sp in proof.sub_proofs:
+                premise_atom_keys.add(atom_key(sp.goal))
+                collect_premise_atoms(sp)
+
+        for m in self.memberships:
+            if m.is_member and not m.is_base_fact:
+                for p in m.proofs:
+                    collect_premise_atoms(p)
+        for t in self.triples:
+            if t.positive and not t.is_base_fact:
+                for p in t.proofs:
+                    collect_premise_atoms(p)
+
         def get_type_str(fact_obj, is_positive):
             if is_positive and fact_obj.is_base_fact:
                 return "base_fact"
-            # For inferred facts, distiguish roots and intermediates if possible?
-            # Current implementation just marks them as inferred
             type_str = "inf_root" if is_positive else "neg_inf_root"
-            
+
+            # Positive inferred: distinguish root vs intermediate inferred node.
+            if is_positive:
+                current_key = atom_key_from_fact(fact_obj)
+                if current_key in premise_atom_keys:
+                    return "inf_intermediate"
+                return "inf_root"
+
             # Use metadata if available (e.g. from negative sampler)
             if hasattr(fact_obj, "metadata") and "source_type" in fact_obj.metadata:
                 source = fact_obj.metadata["source_type"]
-                if source == "base": 
-                    # Negative created from base fact
-                     return "neg_base_fact" # Or just neg_inf_root with corruption? User spec says neg_inf_root
-                
+                if source == "base":
+                    return "neg_base_fact"
+                if source == "inferred":
+                    return "neg_inf_intermediate"
+                if source == "propagated_inferred":
+                    return "neg_inf_root"
+
             return type_str
 
         def get_truth_value(is_positive, corruption_method):
-             if is_positive:
-                 return "True"
-             # Negative
-             if corruption_method == "domain_violation":
-                 return "False"
-             # Default assumption for others (broken chain etc) under CWA
-             return "Unknown"
+            if is_positive:
+                return "True"
+            # Negative
+            if corruption_method == "domain_violation":
+                return "False"
+            # Default assumption for others (broken chain etc) under CWA
+            return "Unknown"
 
         # Memberships
         for m in self.memberships:
             corruption = m.metadata.get("corruption_method", None)
             # Infer corruption method if not explicit but is negative
             if not m.is_member and corruption is None:
-                 # Check if domain/range related mechanism was used? 
-                 # For now leave None or "unknown"
-                 pass
-            
+                # Check if domain/range related mechanism was used?
+                # For now leave None or "unknown"
+                pass
+
             row = {
                 "sample_id": sample_id,
                 "subject": m.individual.name,
@@ -451,9 +486,9 @@ class KnowledgeGraph:
 
         # Triples
         for t in self.triples:
-             corruption = t.metadata.get("corruption_method", None)
-             
-             row = {
+            corruption = t.metadata.get("corruption_method", None)
+
+            row = {
                 "sample_id": sample_id,
                 "subject": t.subject.name,
                 "predicate": t.predicate.name,
@@ -464,22 +499,22 @@ class KnowledgeGraph:
                 "hops": t.get_hops(),
                 "corruption_method": corruption,
             }
-             rows.append(row)
-             
+            rows.append(row)
+
         # Attributes
         for at in self.attribute_triples:
-             row = {
+            row = {
                 "sample_id": sample_id,
                 "subject": at.subject.name,
                 "predicate": at.predicate.name,
                 "object": str(at.value),
                 "label": 1,
                 "truth_value": "True",
-                "type": "base_fact", # Attributes are usually base facts in this generator
+                "type": "base_fact",  # Attributes are usually base facts in this generator
                 "hops": at.get_hops(),
                 "corruption_method": None,
             }
-             rows.append(row)
+            rows.append(row)
 
         return rows
 
@@ -1204,15 +1239,15 @@ class Proof:
                     border_color = "#C62828"  # Dark red
                     type_label = root_label
                 elif proof == self and root_label:
-                     # ... (keep existing root label logic) ...
-                     header_color = "#FFEBEE"
-                     border_color = "#EF9A9A"
-                     if root_label == "BROKEN PROOF (UNKNOWN)":
-                          type_label = root_label
-                          header_color = "#F5F5F5"
-                          border_color = "#9E9E9E"
-                     else:
-                          type_label = root_label
+                    # ... (keep existing root label logic) ...
+                    header_color = "#FFEBEE"
+                    border_color = "#EF9A9A"
+                    if root_label == "BROKEN PROOF (UNKNOWN)":
+                        type_label = root_label
+                        header_color = "#F5F5F5"
+                        border_color = "#9E9E9E"
+                    else:
+                        type_label = root_label
                 elif proof.is_base_fact():
                     # This is a "Phantom" fact - collateral damage
                     header_color = "#FFF3E0"  # Light orange
@@ -1246,7 +1281,7 @@ class Proof:
             if proof.is_corrupted_leaf:
                 # Add tilde to predicate for corrupted leaf
                 goal_html = self._format_atom_html(proof.goal, is_negated=True)
-                
+
                 if proof.original_goal:
                     original_html = self._format_atom_html(proof.original_goal)
                     goal_html = f"{goal_html}<BR/><FONT POINT-SIZE='10' COLOR='#C62828'>(was: {original_html})</FONT>"
@@ -1282,7 +1317,7 @@ class Proof:
                     if "_" in k_name:
                         k_name = k_name.split("_")[0]
                     clean_subs.append(f"{k_name} &rarr; <B>{self._format_term(v)}</B>")
-                
+
                 sub_rows = clean_subs
 
                 # Split into columns if many substitutions
@@ -1346,7 +1381,7 @@ class Proof:
             p = '<FONT COLOR="#666666">rdf:type</FONT>'
 
         if is_negated:
-             p = f"~{p}"
+            p = f"~{p}"
 
         return f"<B>{s}</B> {p} <B>{o}</B>"
 
