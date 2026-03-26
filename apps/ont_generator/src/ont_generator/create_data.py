@@ -13,8 +13,10 @@ AUTHOR
 """
 
 import csv
+import json
 import os
 import random
+import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
@@ -154,6 +156,8 @@ class KGEDatasetGenerator:
         Returns:
             Tuple of (train_samples, val_samples, test_samples)
         """
+        generation_start = time.perf_counter()
+
         logger.info("GENERATING KGE DATASET")
         # logger.info(f"\t{'=' * 80}")
         logger.info(f"\tTarget: {n_train} train, {n_val} val, {n_test} test samples")
@@ -164,6 +168,7 @@ class KGEDatasetGenerator:
 
         # Generate training samples
         # logger.info("Generating training samples...")
+        split_start = time.perf_counter()
         train_samples = self._generate_samples(
             n_samples=n_train,
             min_individuals=min_individuals,
@@ -173,9 +178,11 @@ class KGEDatasetGenerator:
             target_min_proofs_rule=target_min_proofs_rule,
             sample_type="TRAIN",
         )
+        train_runtime = time.perf_counter() - split_start
 
         # Generate validation samples
         # logger.info("Generating validation samples...")
+        split_start = time.perf_counter()
         val_samples = self._generate_samples(
             n_samples=n_val,
             min_individuals=min_individuals,
@@ -185,9 +192,11 @@ class KGEDatasetGenerator:
             target_min_proofs_rule=target_min_proofs_rule,
             sample_type="VAL",
         )
+        val_runtime = time.perf_counter() - split_start
 
         # Generate test samples (independent)
         # logger.info("Generating test samples...")
+        split_start = time.perf_counter()
         test_samples = self._generate_samples(
             n_samples=n_test,
             min_individuals=min_individuals,
@@ -197,9 +206,27 @@ class KGEDatasetGenerator:
             target_min_proofs_rule=target_min_proofs_rule,
             sample_type="TEST",
         )
+        test_runtime = time.perf_counter() - split_start
 
         # Print summary
-        self._print_dataset_summary(train_samples, val_samples, test_samples)
+        summary_metrics = self._print_dataset_summary(train_samples, val_samples, test_samples)
+
+        total_runtime = time.perf_counter() - generation_start
+        metrics_report = {
+            "runtime_seconds": {
+                "total": total_runtime,
+                "train_split": train_runtime,
+                "val_split": val_runtime,
+                "test_split": test_runtime,
+            },
+            **summary_metrics,
+        }
+
+        os.makedirs(self.output_dir, exist_ok=True)
+        metrics_path = os.path.join(self.output_dir, "generation_metrics.json")
+        with open(metrics_path, "w", encoding="utf-8") as f:
+            json.dump(metrics_report, f, indent=2)
+        logger.info(f"Saved generation metrics to: {metrics_path}")
 
         # Save in Standard Format
         save_standard_dataset(train_samples, os.path.join(self.output_dir, "train"))
@@ -592,7 +619,7 @@ class KGEDatasetGenerator:
         train_samples: List[KnowledgeGraph],
         val_samples: List[KnowledgeGraph],
         test_samples: List[KnowledgeGraph],
-    ) -> None:
+    ) -> Dict[str, Dict[str, float]]:
         """Print summary statistics for generated datasets."""
 
         # Calculate stats
@@ -735,6 +762,19 @@ class KGEDatasetGenerator:
                     reason = "Failed to Generate"
                 logger.info(f"{rule_name:<60} | {reason:<20} | {attempts:<10}")
 
+            total_rules = len(self.rules)
+            train_coverage_pct = (len(self.train_rule_usage) / total_rules) * 100 if total_rules > 0 else 0.0
+            test_coverage_pct = (len(self.test_rule_usage) / total_rules) * 100 if total_rules > 0 else 0.0
+            overall_triggered = set(self.train_rule_usage.keys()) | set(self.test_rule_usage.keys())
+            overall_coverage_pct = (len(overall_triggered) / total_rules) * 100 if total_rules > 0 else 0.0
+
+            logger.info("=" * 80)
+            logger.info("ONTOLOGY COVERAGE")
+            logger.info("=" * 80)
+            logger.info(f"Train coverage:   {train_coverage_pct:.2f}% ({len(self.train_rule_usage)}/{total_rules})")
+            logger.info(f"Test coverage:    {test_coverage_pct:.2f}% ({len(self.test_rule_usage)}/{total_rules})")
+            logger.info(f"Overall coverage: {overall_coverage_pct:.2f}% ({len(overall_triggered)}/{total_rules})")
+
         # Negative Strategy Usage
         strategy_usage = self.negative_sampler.strategy_usage
         if strategy_usage:
@@ -783,6 +823,9 @@ class KGEDatasetGenerator:
         print(f"{'=' * 80}")
 
         def print_split_stats(name: str, stats: dict):
+            base_facts = stats.get("n_base_facts", 0)
+            inferred_facts = stats.get("n_inferred_facts", 0)
+            yield_base_to_inferred = (base_facts / inferred_facts) if inferred_facts > 0 else float("nan")
             print(f"\n{name} SET:")
             print(f"  Samples:           {stats.get('n_samples', 0)}")
             print(f"  Avg individuals:   {stats.get('avg_individuals', 0):.1f}")
@@ -795,6 +838,7 @@ class KGEDatasetGenerator:
             print("  Fact Types (Pos):")
             print(f"    - Base Facts:    {stats.get('avg_base_facts', 0):.1f}")
             print(f"    - Inferred:      {stats.get('avg_inferred_facts', 0):.1f}")
+            print(f"  Yield Rate (Base/Inferred): {yield_base_to_inferred:.3f}")
             print("  Negative Logic (Avg per sample):")
             print(
                 f"    - Base Fact Corruption:      {stats.get('avg_neg_base_source', 0):.1f} (Direct corruption of base facts)"
@@ -812,6 +856,30 @@ class KGEDatasetGenerator:
         print_split_stats("TEST", test_stats)
 
         print(f"{'=' * 80}\n")
+
+        def safe_div(numerator: float, denominator: float) -> Optional[float]:
+            return (numerator / denominator) if denominator > 0 else None
+
+        return {
+            "ontology_coverage_pct": {
+                "train": train_coverage_pct,
+                "test": test_coverage_pct,
+                "overall": overall_coverage_pct,
+            },
+            "yield_rate_base_to_inferred": {
+                "train": safe_div(train_stats.get("n_base_facts", 0), train_stats.get("n_inferred_facts", 0)),
+                "val": safe_div(val_stats.get("n_base_facts", 0), val_stats.get("n_inferred_facts", 0)),
+                "test": safe_div(test_stats.get("n_base_facts", 0), test_stats.get("n_inferred_facts", 0)),
+                "overall": safe_div(
+                    train_stats.get("n_base_facts", 0)
+                    + val_stats.get("n_base_facts", 0)
+                    + test_stats.get("n_base_facts", 0),
+                    train_stats.get("n_inferred_facts", 0)
+                    + val_stats.get("n_inferred_facts", 0)
+                    + test_stats.get("n_inferred_facts", 0),
+                ),
+            },
+        }
 
 
 # ============================================================================ #

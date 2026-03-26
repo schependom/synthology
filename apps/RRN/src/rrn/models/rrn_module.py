@@ -294,11 +294,17 @@ class RRNSystem(pl.LightningModule):
         negative_scores = scores[neg_mask]
         all_known_scores = scores[known_mask]
 
+        # Binary metrics are computed on known labels only (exclude unknown = 0.5)
+        known_probs = cls_probs[known_mask]
+        known_targets = cls_targets[known_mask]
+        binary_metrics = self._compute_binary_metrics(known_probs, known_targets)
+
         # Return dict, avoiding empty tensor errors
         return {
             "acc_all": all_known_scores.mean().item() if all_known_scores.numel() > 0 else float("nan"),
             "acc_pos": positive_scores.mean().item() if positive_scores.numel() > 0 else float("nan"),
             "acc_neg": negative_scores.mean().item() if negative_scores.numel() > 0 else float("nan"),
+            **binary_metrics,
             **{f"acc_hops_{k}": sum(v) / len(v) for k, v in hops_hits.items()},
             **{f"acc_type_{k}": sum(v) / len(v) for k, v in type_hits.items()},
         }
@@ -325,6 +331,8 @@ class RRNSystem(pl.LightningModule):
         all_hits = []
         pos_hits = []
         neg_hits = []
+        all_probs = []
+        all_targets = []
 
         for pred_idx, group in grouped_triples.items():
             if pred_idx == -1:
@@ -347,20 +355,24 @@ class RRNSystem(pl.LightningModule):
 
             # Forward Pass (mlps[pred_idx + 1] is relation MLP)
             logits = self.mlps[pred_idx + 1](batch_s_emb, batch_o_emb)
-            predictions = torch.sigmoid(logits).round()
+            probs = torch.sigmoid(logits).squeeze(1)
+            targets_1d = targets.squeeze(1)
+            predictions = probs.round()
 
             # Compare matches
-            hits = (predictions == targets).float().squeeze(1)
+            hits = (predictions == targets_1d).float()
 
             # Separate hits
-            is_positive = targets.squeeze(1) == 1.0
-            is_negative = targets.squeeze(1) == 0.0
+            is_positive = targets_1d == 1.0
+            is_negative = targets_1d == 0.0
 
             all_hits.append(hits)
             if is_positive.any():
                 pos_hits.append(hits[is_positive])
             if is_negative.any():
                 neg_hits.append(hits[is_negative])
+            all_probs.append(probs)
+            all_targets.append(targets_1d)
 
             # Bucketize by hops
             for i, t in enumerate(group):
@@ -379,14 +391,89 @@ class RRNSystem(pl.LightningModule):
         all_hits_t = torch.cat(all_hits) if all_hits else torch.tensor([], device=device)
         pos_hits_t = torch.cat(pos_hits) if pos_hits else torch.tensor([], device=device)
         neg_hits_t = torch.cat(neg_hits) if neg_hits else torch.tensor([], device=device)
+        probs_t = torch.cat(all_probs) if all_probs else torch.tensor([], device=device)
+        targets_t = torch.cat(all_targets) if all_targets else torch.tensor([], device=device)
+        binary_metrics = self._compute_binary_metrics(probs_t, targets_t)
 
         return {
             "acc_all": torch.cat(all_hits).mean().item() if all_hits else float("nan"),
             "acc_pos": torch.cat(pos_hits).mean().item() if pos_hits else float("nan"),
             "acc_neg": torch.cat(neg_hits).mean().item() if neg_hits else float("nan"),
+            **binary_metrics,
             **{f"acc_hops_{k}": sum(v) / len(v) for k, v in hops_hits.items()},
             **{f"acc_type_{k}": sum(v) / len(v) for k, v in type_hits.items()},
         }
+
+    def _compute_binary_metrics(self, probs: torch.Tensor, targets: torch.Tensor) -> Dict[str, float]:
+        """
+        Compute binary classification metrics for probabilities and binary targets.
+
+        Args:
+            probs: Model probabilities in [0, 1].
+            targets: Binary labels in {0.0, 1.0}.
+        """
+        if probs.numel() == 0 or targets.numel() == 0:
+            return {
+                "precision": float("nan"),
+                "recall": float("nan"),
+                "f1": float("nan"),
+                "fpr": float("nan"),
+                "auc_roc": float("nan"),
+            }
+
+        probs = probs.float()
+        targets = targets.float()
+        preds = (probs >= 0.5).float()
+
+        tp = ((preds == 1.0) & (targets == 1.0)).sum().float()
+        fp = ((preds == 1.0) & (targets == 0.0)).sum().float()
+        tn = ((preds == 0.0) & (targets == 0.0)).sum().float()
+        fn = ((preds == 0.0) & (targets == 1.0)).sum().float()
+
+        precision = tp / (tp + fp) if (tp + fp).item() > 0 else torch.tensor(float("nan"), device=probs.device)
+        recall = tp / (tp + fn) if (tp + fn).item() > 0 else torch.tensor(float("nan"), device=probs.device)
+        fpr = fp / (fp + tn) if (fp + tn).item() > 0 else torch.tensor(float("nan"), device=probs.device)
+
+        if not torch.isnan(precision).item() and not torch.isnan(recall).item() and (precision + recall).item() > 0:
+            f1 = 2 * precision * recall / (precision + recall)
+        else:
+            f1 = torch.tensor(float("nan"), device=probs.device)
+
+        auc_roc = self._compute_auc_roc(probs, targets)
+
+        return {
+            "precision": precision.item() if not torch.isnan(precision) else float("nan"),
+            "recall": recall.item() if not torch.isnan(recall) else float("nan"),
+            "f1": f1.item() if not torch.isnan(f1) else float("nan"),
+            "fpr": fpr.item() if not torch.isnan(fpr) else float("nan"),
+            "auc_roc": auc_roc,
+        }
+
+    def _compute_auc_roc(self, probs: torch.Tensor, targets: torch.Tensor) -> float:
+        """
+        Compute ROC-AUC from probabilities without external dependencies.
+        Returns NaN when only one class is present.
+        """
+        pos_count = (targets == 1.0).sum()
+        neg_count = (targets == 0.0).sum()
+
+        if pos_count.item() == 0 or neg_count.item() == 0:
+            return float("nan")
+
+        order = torch.argsort(probs, descending=True)
+        sorted_targets = targets[order]
+
+        tps = torch.cumsum((sorted_targets == 1.0).float(), dim=0)
+        fps = torch.cumsum((sorted_targets == 0.0).float(), dim=0)
+
+        tpr = tps / pos_count.float()
+        fpr = fps / neg_count.float()
+
+        # Anchor curve at origin for trapezoidal integration.
+        tpr = torch.cat([torch.zeros(1, device=tpr.device), tpr])
+        fpr = torch.cat([torch.zeros(1, device=fpr.device), fpr])
+
+        return torch.trapz(tpr, fpr).item()
 
     def _compute_loss(
         self,
