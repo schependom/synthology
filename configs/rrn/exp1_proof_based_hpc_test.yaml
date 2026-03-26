@@ -1,0 +1,17 @@
+defaults:
+  - exp1_proof_based_hpc
+  - _self_
+
+test:
+  checkpoint_glob: "./checkpoints/exp1/proof_based/best-checkpoint-proof_based*.ckpt"
+
+logger:
+  _target_: pytorch_lightning.loggers.WandbLogger
+  project: "${oc.env:WANDB_PROJECT, 'rrn-experiments'}"
+  entity: "${oc.env:WANDB_ENTITY, null}"
+  log_model: false
+  save_dir: "${log_dir}"
+  offline: false
+  name: "exp1_proof_based_hpc_test"
+  group: "exp1_negative_sampling"
+  tags: [exp1, proof_based, hpc, test]

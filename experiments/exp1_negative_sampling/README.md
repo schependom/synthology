@@ -32,7 +32,6 @@ This section provides concrete commands to run Exp 1 on the DTU-style LSF cluste
 cd /path/to/synthology
 
 module load python3/3.9.19
-module load cuda/11.7
 
 source .env
 source .venv/bin/activate
@@ -48,18 +47,28 @@ uv run invoke exp1-generate-test-set
 
 ### 2. Submit RRN training jobs (one job per strategy)
 
-The repository contains reusable LSF scripts in `jobscripts/` with the `expx-...` prefix:
+The repository contains reusable LSF scripts in `jobscripts/`:
 
 ```bash
 # Submit from repo root
-bsub < jobscripts/expx-exp1-train-random.sh
-bsub < jobscripts/expx-exp1-train-constrained.sh
-bsub < jobscripts/expx-exp1-train-proof-based.sh
+bsub < jobscripts/exp1-train-random.sh
+bsub < jobscripts/exp1-train-constrained.sh
+bsub < jobscripts/exp1-train-proof-based.sh
+```
+
+### 2b. Submit RRN test-only jobs (shared test set, from saved checkpoints)
+
+Use these when you want to re-evaluate without retraining:
+
+```bash
+bsub < jobscripts/exp1-test-random.sh
+bsub < jobscripts/exp1-test-constrained.sh
+bsub < jobscripts/exp1-test-proof-based.sh
 ```
 
 Each script already sets:
 
-- queue/resources (`gpua100`, 1 GPU, 32 GB RAM, 24h)
+- queue/resources (train: `gpua100`, 1 GPU, 32 GB RAM, 24h; test: `gpua100`, 1 GPU, 24 GB RAM, 8h)
 - module loading and environment activation
 - `uv sync`
 - dedicated Hydra config for the strategy
@@ -69,6 +78,12 @@ Hydra configs used by the scripts:
 - `configs/rrn/exp1_random_hpc.yaml`
 - `configs/rrn/exp1_constrained_hpc.yaml`
 - `configs/rrn/exp1_proof_based_hpc.yaml`
+
+Hydra configs used by test-only scripts:
+
+- `configs/rrn/exp1_random_hpc_test.yaml`
+- `configs/rrn/exp1_constrained_hpc_test.yaml`
+- `configs/rrn/exp1_proof_based_hpc_test.yaml`
 
 ### 3. Monitor and inspect jobs
 
@@ -83,8 +98,10 @@ tail -f logs/exp1_random_<JOB_ID>.out
 ### 4. Notes
 
 - The jobscripts run `rrn.train` with strategy-specific Hydra config files (`--config-name=...`).
+- Test-only jobscripts run `rrn.test_checkpoint` and load the latest matching checkpoint from `checkpoints/exp1/<strategy>/`.
 - If your cluster blocks outbound access to W&B, set `logger.offline: true` in the corresponding Hydra config file.
 - If your cluster requires a different queue/account/email policy, adjust the `bsub` options accordingly.
+- Local inference/testing on CPU is possible (use `python -m rrn.test_checkpoint ...` without GPU); it is typically slower but does not require CUDA.
 
 **Expected Results:**
 
