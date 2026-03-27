@@ -1,25 +1,23 @@
 defaults:
+  - config
   - _self_
 
 ontology:
   path: "data/ont/input/family.ttl"
 
-dataset: # asp uses 72% train, 8% val, 20% test by default
-  n_train: 2000
-  n_test: 200
-  n_val: 200
+dataset:
+  n_train: 0
+  n_val: 0
+  n_test: 600
   train_fact_cap: null
   val_fact_cap: null
   test_fact_cap: null
-  train_target_cap: null
-  val_target_cap: null
-  test_target_cap: null
   min_individuals: 1
   max_individuals: 1000
-  min_rules: 1
-  max_rules: 5
-  target_min_proofs_rule: 5
-  output_dir: "data/ont/output/family-tree"
+  min_rules: 2
+  max_rules: 6
+  target_min_proofs_rule: 8
+  output_dir: "data/exp2/frozen_test"
   seed: 23
   save_individual_samples: false
 
@@ -27,19 +25,19 @@ export_proofs: false
 export_graphs: false
 
 generator:
-  max_recursion: 3
+  max_recursion: 4
   global_max_depth: 10
   max_proofs_per_atom: 5
   individual_pool_size: 60
   individual_reuse_prob: 0.7
   use_signature_sampling: true
-  min_proof_roots: 5
-  max_proof_roots: 20
+  min_proof_roots: 8
+  max_proof_roots: 16
   proof_roots_per_rule: null
   always_generate_base: false
 
 neg_sampling:
-  strategy: "mixed"
+  strategy: "proof_based"
   ratio: 1.0
   corrupt_base_facts: false
 

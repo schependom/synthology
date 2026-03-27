@@ -1,0 +1,5 @@
+name: "Forward-Chaining Baseline Family Dataset"
+
+train_path: "data/fc/family_tree/train"
+val_path: "data/fc/family_tree/val"
+test_path: "data/fc/family_tree/test"

@@ -63,8 +63,13 @@ class KGEDatasetGenerator:
             cfg.get("proof_output_path", os.path.join(self.output_dir, "proofs")) if self.export_proofs else None
         )
 
-        self.min_proof_roots = cfg.generator.get("min_proof_roots", 5)
-        self.max_proof_roots = cfg.generator.get("max_proof_roots", 15)
+        fixed_proof_roots = cfg.generator.get("proof_roots_per_rule", None)
+        if fixed_proof_roots is None:
+            self.min_proof_roots = cfg.generator.get("min_proof_roots", 5)
+            self.max_proof_roots = cfg.generator.get("max_proof_roots", 15)
+        else:
+            self.min_proof_roots = int(fixed_proof_roots)
+            self.max_proof_roots = int(fixed_proof_roots)
 
         # Initialize KGenerator
         self.generator = KGenerator(
@@ -228,10 +233,32 @@ class KGEDatasetGenerator:
             json.dump(metrics_report, f, indent=2)
         logger.info(f"Saved generation metrics to: {metrics_path}")
 
-        # Save in Standard Format
-        save_standard_dataset(train_samples, os.path.join(self.output_dir, "train"))
-        save_standard_dataset(val_samples, os.path.join(self.output_dir, "val"))
-        save_standard_dataset(test_samples, os.path.join(self.output_dir, "test"))
+        # Save in Standard Format with optional split-level fact caps.
+        train_fact_cap = self.cfg.dataset.get("train_fact_cap", None)
+        val_fact_cap = self.cfg.dataset.get("val_fact_cap", None)
+        test_fact_cap = self.cfg.dataset.get("test_fact_cap", None)
+        train_target_cap = self.cfg.dataset.get("train_target_cap", None)
+        val_target_cap = self.cfg.dataset.get("val_target_cap", None)
+        test_target_cap = self.cfg.dataset.get("test_target_cap", None)
+
+        save_standard_dataset(
+            train_samples,
+            os.path.join(self.output_dir, "train"),
+            fact_cap=train_fact_cap,
+            target_cap=train_target_cap,
+        )
+        save_standard_dataset(
+            val_samples,
+            os.path.join(self.output_dir, "val"),
+            fact_cap=val_fact_cap,
+            target_cap=val_target_cap,
+        )
+        save_standard_dataset(
+            test_samples,
+            os.path.join(self.output_dir, "test"),
+            fact_cap=test_fact_cap,
+            target_cap=test_target_cap,
+        )
 
         return train_samples, val_samples, test_samples
 
@@ -918,7 +945,12 @@ def save_dataset_to_csv(
     logger.success(f"Dataset CSVs saved to {output_dir}")
 
 
-def save_standard_dataset(samples: List[KnowledgeGraph], output_base_dir: str) -> None:
+def save_standard_dataset(
+    samples: List[KnowledgeGraph],
+    output_base_dir: str,
+    fact_cap: Optional[int] = None,
+    target_cap: Optional[int] = None,
+) -> None:
     """
     Saves the dataset in the Standard Format:
     - facts.csv: Base facts (positives, hops=0)
@@ -927,6 +959,8 @@ def save_standard_dataset(samples: List[KnowledgeGraph], output_base_dir: str) -
     Args:
         samples (List[KnowledgeGraph]): List of samples to save.
         output_base_dir (str): output directory (e.g. data/train).
+        fact_cap (Optional[int]): Maximum number of rows in facts.csv.
+        target_cap (Optional[int]): Maximum number of rows in targets.csv.
     """
     path = Path(output_base_dir)
     path.mkdir(parents=True, exist_ok=True)
@@ -934,17 +968,22 @@ def save_standard_dataset(samples: List[KnowledgeGraph], output_base_dir: str) -
     facts_rows = []
     targets_rows = []
 
+    retained_samples = 0
+
     for idx, kg in enumerate(samples):
         # Sample ID is 1000 + idx to avoid 0-indexing issues if any
         sample_id = str(1000 + idx)
 
         all_rows = kg.to_standard_rows(sample_id)
 
+        sample_facts_rows = []
+        sample_targets_rows = []
+
         for row in all_rows:
             # FACTS: Only Positive Base Facts
             if row["type"] == "base_fact" and row["label"] == 1:
                 # Minimal columns for facts.csv: sample_id, subject, predicate, object
-                facts_rows.append(
+                sample_facts_rows.append(
                     {
                         "sample_id": row["sample_id"],
                         "subject": row["subject"],
@@ -953,10 +992,49 @@ def save_standard_dataset(samples: List[KnowledgeGraph], output_base_dir: str) -
                     }
                 )
                 # Base facts are ALSO targets (trivial logic)
-                targets_rows.append(row)
+                sample_targets_rows.append(row)
             else:
                 # Everything else is a target
-                targets_rows.append(row)
+                sample_targets_rows.append(row)
+
+        # Keep complete samples when applying caps so facts/targets stay aligned.
+        if fact_cap is not None and retained_samples > 0 and (len(facts_rows) + len(sample_facts_rows)) > fact_cap:
+            break
+        if (
+            target_cap is not None
+            and retained_samples > 0
+            and (len(targets_rows) + len(sample_targets_rows)) > target_cap
+        ):
+            break
+
+        facts_rows.extend(sample_facts_rows)
+        targets_rows.extend(sample_targets_rows)
+        retained_samples += 1
+
+    if fact_cap is not None and len(facts_rows) > fact_cap:
+        facts_rows = facts_rows[:fact_cap]
+
+    if target_cap is not None and len(targets_rows) > target_cap:
+        targets_rows = targets_rows[:target_cap]
+
+    if fact_cap is not None or target_cap is not None:
+        fact_sample_ids = {row["sample_id"] for row in facts_rows}
+        target_sample_ids = {row["sample_id"] for row in targets_rows}
+        retained_sample_ids = fact_sample_ids & target_sample_ids
+        facts_rows = [row for row in facts_rows if row.get("sample_id") in retained_sample_ids]
+        targets_rows = [row for row in targets_rows if row.get("sample_id") in retained_sample_ids]
+
+        logger.info(
+            "Applied caps for %s: fact_cap=%s, target_cap=%s, kept_samples=%s, kept_facts=%s, kept_targets=%s"
+            % (
+                output_base_dir,
+                fact_cap,
+                target_cap,
+                len(retained_sample_ids),
+                len(facts_rows),
+                len(targets_rows),
+            )
+        )
 
     # Write facts.csv
     facts_path = path / "facts.csv"

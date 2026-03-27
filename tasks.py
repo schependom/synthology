@@ -123,6 +123,36 @@ def train_rrn_ont(ctx: Context, args=""):
     ctx.run(cmd)
 
 
+@task
+def gen_ft_fc(ctx: Context, args=""):
+    """
+    Generates family tree datasets with random base facts + owlrl
+    forward-chaining materialization baseline.
+    Uses configs/fc_baseline/config.yaml by default.
+    """
+
+    print("\nRunning family tree FC baseline generator.")
+    cmd = "export LOGURU_COLORIZE=1 && "
+    cmd += "uv run --package fc_baseline python -m fc_baseline.create_data"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
+@task
+def train_rrn_fc(ctx: Context, args=""):
+    """Trains RRN on FC baseline dataset."""
+
+    print("\nRunning RRN training with FC baseline dataset.")
+
+    cmd = "export PYTHONUNBUFFERED=1 && "
+    cmd += "export LOGURU_COLORIZE=1 && "
+    cmd += "uv run --package rrn python -m rrn.train data/dataset=fc"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
 # ------------------------------------------------------------ #
 # Helper commands to verify correctness.
 # ------------------------------------------------------------ #
@@ -237,6 +267,22 @@ def visualize_kg_sample(ctx: Context, args=""):
     ctx.run(cmd)
 
 
+@task
+def report_data(ctx: Context, args=""):
+    """
+    Generates method-comparison dataset reports and plots
+    (predicate/type/hops/negative distributions, counts, ratios).
+    Uses configs/data_reporter/config.yaml by default.
+    """
+
+    print("\nRunning dataset comparison report generator.")
+    cmd = "export LOGURU_COLORIZE=1 && "
+    cmd += "uv run --package data_reporter python -m data_reporter.analyze"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
 # ------------------------------------------------------------ #
 # EXP 1: Negative Sampling Strategies for RRN Training
 # ------------------------------------------------------------ #
@@ -297,6 +343,157 @@ def exp1_train_rrn(ctx: Context, strategy="random", args=""):
 # ------------------------------------------------------------ #
 # EXP 2: ...
 # ------------------------------------------------------------ #
+
+
+@task
+def exp2_generate_gold_test(ctx: Context, args=""):
+    """Generates the frozen shared test set for Exp 2."""
+    print("\nGenerating Exp 2 frozen test set.")
+    cmd = (
+        "export LOGURU_COLORIZE=1 && "
+        "uv run --package ont_generator python -m ont_generator.create_data "
+        "--config-name=exp2_gold_test"
+    )
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
+@task
+def exp2_generate_baseline(ctx: Context, fact_cap=None, target_cap=None, base_facts_per_sample=None, args=""):
+    """
+    Generates Exp 2 forward-chaining baseline data.
+
+    Args:
+        fact_cap: Optional train split fact cap for budget-matched runs.
+        target_cap: Optional train split target cap for budget-matched runs.
+        base_facts_per_sample: Optional fixed base relation count per sample.
+    """
+    print("\nGenerating Exp 2 baseline (FC) dataset.")
+    cmd = (
+        "export LOGURU_COLORIZE=1 && "
+        "uv run --package fc_baseline python -m fc_baseline.create_data "
+        "--config-name=exp2_baseline"
+    )
+    if fact_cap is not None:
+        cmd += f" dataset.train_fact_cap={fact_cap}"
+    if target_cap is not None:
+        cmd += f" dataset.train_target_cap={target_cap}"
+    if base_facts_per_sample is not None:
+        cmd += f" generator.base_relations_per_sample={base_facts_per_sample}"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
+@task
+def exp2_generate_synthology(ctx: Context, fact_cap=None, target_cap=None, proof_roots_per_rule=None, args=""):
+    """
+    Generates Exp 2 Synthology backward-chaining data.
+
+    Args:
+        fact_cap: Optional train split fact cap for budget-matched runs.
+        target_cap: Optional train split target cap for budget-matched runs.
+        proof_roots_per_rule: Optional fixed proof roots per selected rule.
+    """
+    print("\nGenerating Exp 2 synthology dataset.")
+    cmd = (
+        "export LOGURU_COLORIZE=1 && "
+        "uv run --package ont_generator python -m ont_generator.create_data "
+        "--config-name=exp2_synthology"
+    )
+    if fact_cap is not None:
+        cmd += f" dataset.train_fact_cap={fact_cap}"
+    if target_cap is not None:
+        cmd += f" dataset.train_target_cap={target_cap}"
+    if proof_roots_per_rule is not None:
+        cmd += f" generator.proof_roots_per_rule={proof_roots_per_rule}"
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
+@task
+def exp2_report_data(ctx: Context, args=""):
+    """Generates parity/distribution reports for Exp 2 methods."""
+    print("\nGenerating Exp 2 comparison report.")
+    cmd = (
+        "export LOGURU_COLORIZE=1 && "
+        "uv run --package data_reporter python -m data_reporter.analyze "
+        "--config-name=exp2_compare"
+    )
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
+@task
+def exp2_train_rrn(ctx: Context, dataset="baseline", args=""):
+    """Trains RRN for Exp 2 on either baseline or synthology dataset."""
+    dataset_key = dataset.strip().lower()
+    if dataset_key not in {"baseline", "synthology"}:
+        raise ValueError("dataset must be either 'baseline' or 'synthology'")
+
+    rrn_dataset = "exp2_baseline" if dataset_key == "baseline" else "exp2_synthology"
+
+    print(f"\nTraining Exp 2 RRN on: {dataset_key}")
+    cmd = (
+        "export PYTHONUNBUFFERED=1 && export LOGURU_COLORIZE=1 && "
+        "uv run --package rrn python -m rrn.train "
+        f"data/dataset={rrn_dataset} "
+        f"+logger.name=exp2_{dataset_key} "
+        "+logger.group=exp2_multihop "
+        f"+logger.tags=[exp2,{dataset_key}]"
+    )
+    if args:
+        cmd += f" {args}"
+    ctx.run(cmd)
+
+
+@task
+def exp2_generate_both(
+    ctx: Context,
+    fact_cap=None,
+    target_cap=None,
+    baseline_base_facts=None,
+    synthology_proof_roots=None,
+    args="",
+):
+    """Convenience command to generate both Exp 2 methods with a shared cap."""
+    exp2_generate_baseline(
+        ctx,
+        fact_cap=fact_cap,
+        target_cap=target_cap,
+        base_facts_per_sample=baseline_base_facts,
+        args=args,
+    )
+    exp2_generate_synthology(
+        ctx,
+        fact_cap=fact_cap,
+        target_cap=target_cap,
+        proof_roots_per_rule=synthology_proof_roots,
+        args=args,
+    )
+
+
+@task
+def exp2_balance_datasets(
+    ctx: Context,
+    fact_cap,
+    target_cap=None,
+    baseline_base_facts=None,
+    synthology_proof_roots=None,
+    args="",
+):
+    """Generates both Exp 2 datasets using shared train fact/target caps for budget matching."""
+    exp2_generate_both(
+        ctx,
+        fact_cap=fact_cap,
+        target_cap=target_cap,
+        baseline_base_facts=baseline_base_facts,
+        synthology_proof_roots=synthology_proof_roots,
+        args=args,
+    )
 
 
 # ------------------------------------------------------------ #

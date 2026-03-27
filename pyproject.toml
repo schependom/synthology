@@ -61,6 +61,8 @@ members = [
     "apps/RRN",
     "apps/ont_generator",
     "apps/OWL2Bench",
+    "apps/fc_baseline",
+    "apps/data_reporter",
   "apps/KGVisualiser",
 ]
 

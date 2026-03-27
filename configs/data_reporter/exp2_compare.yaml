@@ -1,0 +1,22 @@
+defaults:
+  - config
+  - _self_
+
+methods:
+  - name: baseline
+    path: data/exp2/baseline/family_tree
+  - name: synthology
+    path: data/exp2/synthology/family_tree
+
+splits:
+  - train
+  - val
+  - test
+
+output:
+  dir: reports/exp2/compare
+  save_plots: true
+  top_k_predicates: 15
+
+logging:
+  level: INFO

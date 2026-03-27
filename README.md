@@ -53,8 +53,15 @@ This repository implements this generator and evaluates the quality of the gener
     - [1. Edit configuration files](#1-edit-configuration-files)
     - [2. Override configurations from command line](#2-override-configurations-from-command-line)
 - [Experiments](#experiments)
-    - [Descriptions](#descriptions)
-    - [Creating a 'hard test set'](#creating-a-hard-test-set)
+    - [Experiment 1: The Negative Sampling Ablation Study](#experiment-1-the-negative-sampling-ablation-study)
+    - [Experiment 2: The Multi-Hop Quality Test](#experiment-2-the-multi-hop-quality-test)
+    - [Experiment 3: Generalization to Complex Ontologies](#experiment-3-generalization-to-complex-ontologies)
+- [OWL2 RL Profile Coverage and Appendix Tables](#owl2-rl-profile-coverage-and-appendix-tables)
+    - [Implemented OWL2 RL Subset](#implemented-owl2-rl-subset)
+    - [Currently Missing or Partial Constructs](#currently-missing-or-partial-constructs)
+    - [Appendix Table A: Configuration Parameters (1/2)](#appendix-table-a-configuration-parameters-12)
+    - [Appendix Table B: Configuration Parameters (2/2)](#appendix-table-b-configuration-parameters-22)
+    - [Appendix Table C: Algorithm Terminology](#appendix-table-c-algorithm-terminology)
 - [Development](#development)
     - [`uv`](#uv)
 - [TODO](#todo)
@@ -402,6 +409,108 @@ The evaluation metric for the RRN is **AUC-ROC and F1-Score** (classification me
     - **Ontology Coverage:** Percentage of OWL2Bench rules triggered.
 
 By proving that an RRN trained on a balanced Synthology dataset outperforms the Nemo baseline, we demonstrate that Synthology efficiently engineers high-quality, complex data from any arbitrary TBox.
+
+## OWL2 RL Profile Coverage and Appendix Tables
+
+This section documents what is currently implemented in the ontology parser/chainer and what is not yet implemented.
+
+### Implemented OWL2 RL Subset
+
+The current implementation supports the following core axioms and property types:
+
+- `rdfs:subClassOf`
+- `rdfs:subPropertyOf`
+- `rdfs:domain`
+- `rdfs:range` (object-class ranges; datatype ranges are currently skipped as inference rules)
+- `owl:inverseOf`
+- `owl:propertyChainAxiom` for chain lengths `1` and `2`
+- `owl:disjointWith` (as a consistency constraint)
+- `rdf:type` handling for:
+    - `owl:SymmetricProperty`
+    - `owl:TransitiveProperty`
+    - `owl:ReflexiveProperty`
+    - `owl:IrreflexiveProperty` (constraint)
+    - `owl:AsymmetricProperty` (constraint)
+    - `owl:FunctionalProperty` (constraint)
+
+### Currently Missing or Partial Constructs
+
+Important OWL2 RL constructs that are not yet fully supported include:
+
+- Restriction-heavy constructs encoded with blank nodes, such as combinations of:
+    - `owl:onProperty`
+    - `owl:someValuesFrom`
+    - `owl:allValuesFrom`
+    - `owl:hasValue`
+    - qualified cardinality variants
+- Equivalence and identity constructs:
+    - `owl:equivalentClass`
+    - `owl:equivalentProperty`
+    - `owl:sameAs` closure/rewrite behavior
+- Set/boolean class constructors:
+    - `owl:intersectionOf`
+    - `owl:unionOf`
+    - `owl:complementOf`
+    - `owl:oneOf`
+- Disjointness/group constructs such as:
+    - `owl:propertyDisjointWith`
+    - `owl:AllDisjointClasses`
+    - `owl:AllDifferent`
+
+Design note: this is an implementation scope choice, not an architectural limitation. New support can be added incrementally through parser handlers and rule templates.
+
+### Appendix Table A: Configuration Parameters (1/2)
+
+| YAML Parameter           | Symbol               | Type        | Default | Description                                                                                                                                                                      |
+| ------------------------ | -------------------- | ----------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------------------------------------------------------------------------------------------------- |
+| `min_individuals`        | $I_{\min}$           | int         | 1       | Lower acceptance bound on sample size: graphs with fewer individuals are rejected.                                                                                               |
+| `max_individuals`        | $I_{\max}$           | int         | 1000    | Upper acceptance bound on sample size: graphs with more individuals are rejected.                                                                                                |
+| `min_rules`              | $R_{\min}$           | int         | 1       | Minimum number of ontology rules selected per generated sample before proof generation.                                                                                          |
+| `max_rules`              | $R_{\max}$           | int         | 5       | Maximum number of ontology rules selected per generated sample.                                                                                                                  |
+| `target_min_proofs_rule` | $P_{\min}$           | int         | 5       | Target lower bound on proofs kept per selected rule; effectively bounded by how many valid proofs exist.                                                                         |
+| `seed`                   | $s$                  | int         | 23      | Seed for pseudorandom sampling (rule selection, proof-root counts, and corruption choices), improving reproducibility.                                                           |
+| `max_recursion`          | $d_r$                | int         | 3       | Per-sample recursion cap for rule reuse in backward chaining; deeper recursion allows longer inference chains.                                                                   |
+| `global_max_depth`       | $d_{\max}$           | int         | 10      | Absolute depth limit for recursive proof search; branches beyond this depth are pruned.                                                                                          |
+| `max_proofs_per_atom`    | $\kappa$             | int         | 5       | Hard cap on number of proofs emitted for one goal atom, preventing combinatorial explosion.                                                                                      |
+| `individual_pool_size`   | $                    | \mathcal{U} | $       | int                                                                                                                                                                              | 60  | Target size of the reusable individual pool used when instantiating variables during proof construction. |
+| `individual_reuse_prob`  | $\pi_{\text{reuse}}$ | float       | 0.7     | Probability of reusing an existing individual from the pool rather than creating a new one.                                                                                      |
+| `use_signature_sampling` |                      | bool        | true    | If enabled, generated proofs are grouped by structural signature and one representative per group is sampled, improving diversity and reducing redundant Cartesian combinations. |
+| `min_proof_roots`        | $U_{\min}$           | int         | 5       | Minimum number of independent root-generation cycles attempted per selected rule.                                                                                                |
+| `max_proof_roots`        | $U_{\max}$           | int         | 20      | Maximum number of independent root-generation cycles attempted per selected rule.                                                                                                |
+
+### Appendix Table B: Configuration Parameters (2/2)
+
+| YAML Parameter         | Symbol              | Type  | Default | Description                                                                                                                                              |
+| ---------------------- | ------------------- | ----- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `always_generate_base` |                     | bool  | false   | If true, emits a base proof even when derivation rules apply; if false, base proofs are mainly used when no matching rule exists.                        |
+| `min_lcc_ratio`        | $\rho_{\text{lcc}}$ | float | 0.8     | Validation threshold for graph connectivity: the largest connected component must cover at least this fraction of individuals.                           |
+| `strategy`             | $s_{\text{neg}}$    | enum  | `mixed` | Negative sampling mode: `random`, `constrained`, `type_aware`, `proof_based`, or `mixed`.                                                                |
+| `ratio`                | $\rho_{\pm}$        | float | 1.0     | Target negative-to-positive ratio for generated examples; $\rho_{\pm}=1$ gives approximately balanced counts.                                            |
+| `corrupt_base_facts`   |                     | bool  | false   | Enables corruption of proof-leaf base facts in proof-based logic; this controls whether propagated counterfactual negatives are produced in that branch. |
+
+### Appendix Table C: Algorithm Terminology
+
+| Algorithm Term                      | Symbol                                          | Meaning                                                                                                                      |
+| ----------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Ontology                            | $\mathcal{O}$                                   | Input ontology (TBox) containing classes, properties, constraints, and executable rules.                                     |
+| Split identifier                    | $S \in \{\text{train},\text{val},\text{test}\}$ | Current split being generated.                                                                                               |
+| Requested split size                | $N_S$                                           | Target number of graph samples for split $S$.                                                                                |
+| Accepted split dataset              | $\mathcal{D}_S$                                 | Collection of accepted generated KG samples for split $S$.                                                                   |
+| Proof map                           | $\mathcal{P}$                                   | Atom-to-proofs map built during one generation attempt.                                                                      |
+| Selected rule                       | $r$                                             | One ontology rule selected for backward-chaining in the current attempt.                                                     |
+| Proof root attempt                  |                                                 | One independent restart of proof generation for a selected rule.                                                             |
+| Base facts                          | $\mathcal{B}$                                   | Leaf atoms in proof trees; support facts not derived from deeper rule applications in the current proof instance.            |
+| Inferred facts                      | $\mathcal{I}$                                   | Non-leaf atoms entailed by applying rules over base and/or previously inferred facts.                                        |
+| Candidate graph                     | $\mathcal{G}$                                   | One candidate knowledge graph (KG) sample assembled from $(\mathcal{B},\mathcal{I})$ before final acceptance.                |
+| Generated negatives                 | $\mathcal{N}$                                   | Negative facts created for $\mathcal{G}$ by the selected corruption strategy and ratio.                                      |
+| KG sample                           |                                                 | One self-contained graph instance containing labeled positives and negatives.                                                |
+| Fact-type metadata                  |                                                 | Provenance tag indicating whether a positive fact is base or inferred, and for negatives, which corruption path produced it. |
+| CSV type: base fact                 | `base_fact`                                     | Positive base support fact (leaf-level fact used as observed evidence).                                                      |
+| CSV type: inferred                  | `inf_root`                                      | Positive inferred fact classified as a proof root (i.e., not used as an intermediate sub-goal in another proof).             |
+| CSV type: inferred intermediate     | `inf_intermediate`                              | Positive inferred fact that appears as an intermediate/sub-goal node in a deeper proof chain.                                |
+| CSV type: neg from base             | `neg_base_fact`                                 | Negative generated from corruption of a base fact (proof-leaf corruption provenance).                                        |
+| CSV type: neg inferred              | `neg_inf_root`                                  | Negative inferred/goal-level sample (including propagated proof-based negatives and other non-base negatives).               |
+| CSV type: neg inferred intermediate | `neg_inf_intermediate`                          | Negative sample derived from corruption of inferred (non-base) support facts rather than directly from base leaves.          |
 
 ## Development
 

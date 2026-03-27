@@ -1,0 +1,43 @@
+defaults:
+  - config
+  - _self_
+
+ontology:
+  path: "data/ont/input/family.ttl"
+
+dataset:
+  n_train: 2000
+  n_val: 200
+  n_test: 200
+  train_fact_cap: null
+  val_fact_cap: null
+  test_fact_cap: null
+  train_target_cap: null
+  val_target_cap: null
+  test_target_cap: null
+  output_dir: "data/exp2/baseline/family_tree"
+  seed: 23
+
+generator:
+  min_individuals: 5
+  max_individuals: 25
+  min_base_relations: 8
+  max_base_relations: 40
+  base_relations_per_sample: null
+  min_types_per_individual: 1
+  max_types_per_individual: 2
+  enforce_domain_range: true
+  allow_reflexive: false
+  namespace_base: "http://synthology.org/exp2/fc/"
+
+materialization:
+  rdfs_closure: true
+  axiomatic_triples: false
+  datatype_axioms: false
+
+neg_sampling:
+  ratio: 1.0
+  max_attempts_per_negative: 40
+
+logging:
+  level: INFO
