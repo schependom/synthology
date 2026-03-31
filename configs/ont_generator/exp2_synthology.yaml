@@ -31,6 +31,12 @@ generator:
   max_recursion: 3
   global_max_depth: 10
   max_proofs_per_atom: 5
+  min_lcc_ratio: 0.6
+  proof_selection_strategy: "random"
+  proof_selection_weights:
+    easy: 20
+    medium: 40
+    hard: 40
   individual_pool_size: 60
   individual_reuse_prob: 0.7
   use_signature_sampling: true

@@ -36,7 +36,7 @@ class Validator:
         domains: Dict[str, Set[str]],
         ranges: Dict[str, Set[str]],
         verbose: bool = False,
-        min_lcc_ratio: float = 0.8,
+        min_lcc_ratio: float = 0.5,
     ):
         self.constraints = constraints
         self.domains = domains

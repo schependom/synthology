@@ -222,3 +222,5 @@ data/OWL2Bench/diagnostics/*
 
 paper/
 visual-verification/
+
+data/*/output

@@ -53,10 +53,20 @@ class KGEDatasetGenerator:
         if cfg.dataset.seed is not None:
             random.seed(cfg.dataset.seed)
 
+        self.cfg = cfg
         self.verbose = verbose
         self.max_recursion_cap = cfg.generator.max_recursion
         self.individual_pool_size = cfg.generator.individual_pool_size
         self.individual_reuse_prob = cfg.generator.individual_reuse_prob
+        self.proof_selection_strategy = str(cfg.generator.get("proof_selection_strategy", "random")).lower()
+        weights_cfg = cfg.generator.get("proof_selection_weights", {})
+        self.proof_selection_weights = {
+            "easy": float(weights_cfg.get("easy", 1.0)),
+            "medium": float(weights_cfg.get("medium", 1.0)),
+            "hard": float(weights_cfg.get("hard", 1.0)),
+        }
+        if sum(max(w, 0.0) for w in self.proof_selection_weights.values()) <= 0:
+            self.proof_selection_weights = {"easy": 1.0, "medium": 1.0, "hard": 1.0}
         self.export_proofs = cfg.export_proofs
         self.output_dir = cfg.dataset.output_dir
         self.proof_output_dir = (
@@ -344,6 +354,75 @@ class KGEDatasetGenerator:
 
         return samples
 
+    def _proof_difficulty_bucket(self, proof) -> str:
+        """Classifies a proof by depth for stratified sampling."""
+        depth = proof.depth() if hasattr(proof, "depth") else 1
+        if depth <= 1:
+            return "easy"
+        if 2 <= depth <= 4:
+            return "medium"
+        return "hard"
+
+    def _select_proofs(self, proofs: List, n_select: int) -> List:
+        """Selects proofs according to configured strategy."""
+        if not proofs:
+            return []
+
+        n_select = max(0, min(n_select, len(proofs)))
+        if n_select == 0:
+            return []
+
+        strategy = self.proof_selection_strategy
+        if strategy == "random":
+            return random.sample(proofs, n_select)
+
+        if strategy != "stratified":
+            logger.warning(f"Unknown proof_selection_strategy='{strategy}', falling back to random")
+            return random.sample(proofs, n_select)
+
+        buckets = {"easy": [], "medium": [], "hard": []}
+        for proof in proofs:
+            buckets[self._proof_difficulty_bucket(proof)].append(proof)
+
+        available_groups = [g for g in ("easy", "medium", "hard") if buckets[g]]
+        if not available_groups:
+            return []
+
+        group_weights = {g: max(self.proof_selection_weights.get(g, 0.0), 0.0) for g in available_groups}
+        total_weight = sum(group_weights.values())
+        if total_weight <= 0:
+            group_weights = {g: 1.0 for g in available_groups}
+            total_weight = float(len(available_groups))
+
+        quotas = {g: int(n_select * (group_weights[g] / total_weight)) for g in available_groups}
+        selected = []
+        selected_ids = set()
+
+        for group in available_groups:
+            take = min(quotas[group], len(buckets[group]))
+            if take <= 0:
+                continue
+            picks = random.sample(buckets[group], take)
+            selected.extend(picks)
+            selected_ids.update(id(p) for p in picks)
+
+        while len(selected) < n_select:
+            active_groups = [g for g in available_groups if any(id(p) not in selected_ids for p in buckets[g])]
+            if not active_groups:
+                break
+
+            weights = [group_weights[g] for g in active_groups]
+            chosen_group = random.choices(active_groups, weights=weights, k=1)[0]
+            candidates = [p for p in buckets[chosen_group] if id(p) not in selected_ids]
+            if not candidates:
+                continue
+
+            pick = random.choice(candidates)
+            selected.append(pick)
+            selected_ids.add(id(pick))
+
+        return selected
+
     def _generate_one_sample(
         self,
         min_individuals: int,
@@ -438,7 +517,7 @@ class KGEDatasetGenerator:
             # We enforce a cap to avoid memory issues with extremely prolific rules
             MAX_PROOFS_CAP = 10000
             n_select = random.randint(min(len(proofs), target_min_proofs_rule), min(len(proofs), MAX_PROOFS_CAP))
-            selected = random.sample(proofs, n_select)
+            selected = self._select_proofs(proofs, n_select)
 
             for proof in selected:
                 extracted_map = extract_proof_map(proof)

@@ -19,6 +19,7 @@ generator:
   max_recursion: 2
   global_max_depth: 5
   max_proofs_per_atom: 2
+  min_lcc_ratio: 0.6
   individual_pool_size: 50
   individual_reuse_prob: 0.9
   use_signature_sampling: true

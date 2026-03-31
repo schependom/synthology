@@ -10,3 +10,6 @@ dataset:
 neg_sampling:
   strategy: "proof_based"
   corrupt_base_facts: true
+
+generator:
+  min_lcc_ratio: 0.6

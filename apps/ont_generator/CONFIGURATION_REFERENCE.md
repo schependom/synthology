@@ -45,18 +45,22 @@ This document summarizes all Hydra configuration options used by the ontology-ba
 
 ## 3. generator
 
-| Key                              | Symbol               | Type           | Default        | Description                                                                                            |
-| -------------------------------- | -------------------- | -------------- | -------------- | ------------------------------------------------------------------------------------------------------ |
-| generator.max_recursion          | $d_r$                | int            | 3              | Max recursion for backward chaining; sampled per graph as an effective depth in $[1,d_r]$.             |
-| generator.global_max_depth       | $d_{\max}$           | int            | 10             | Hard upper bound for proof expansion depth.                                                            |
-| generator.max_proofs_per_atom    | $\kappa$             | int            | 5              | Upper bound on retained proofs per atom to control combinatorial growth.                               |
-| generator.individual_pool_size   | -                    | int            | 60             | Target size of reusable individual pool used by the chainer.                                           |
-| generator.individual_reuse_prob  | $\pi_{\text{reuse}}$ | float in [0,1] | 0.7            | Probability of reusing an existing individual instead of creating a new one.                           |
-| generator.use_signature_sampling | -                    | bool           | true           | If true, sampling uses proof signatures for diversity and dedup-style control.                         |
-| generator.min_proof_roots        | $U_{\min}$           | int            | 5              | Lower bound on number of proof roots attempted per selected rule.                                      |
-| generator.max_proof_roots        | $U_{\max}$           | int            | 20             | Upper bound on number of proof roots attempted per selected rule.                                      |
-| generator.always_generate_base   | -                    | bool           | false          | If true, forces explicit base fact generation behavior in the chainer.                                 |
-| generator.min_lcc_ratio          | $\tau_{\text{lcc}}$  | float in [0,1] | 0.8 (implicit) | Optional validation threshold for connectedness; consumed via cfg.generator.get("min_lcc_ratio", 0.8). |
+| Key                                      | Symbol               | Type           | Default | Description                                                                                           |
+| ---------------------------------------- | -------------------- | -------------- | ------- | ----------------------------------------------------------------------------------------------------- |
+| generator.max_recursion                  | $d_r$                | int            | 3       | Max recursion for backward chaining; sampled per graph as an effective depth in $[1,d_r]$.            |
+| generator.global_max_depth               | $d_{\max}$           | int            | 10      | Hard upper bound for proof expansion depth.                                                           |
+| generator.max_proofs_per_atom            | $\kappa$             | int            | 5       | Upper bound on retained proofs per atom to control combinatorial growth.                              |
+| generator.individual_pool_size           | -                    | int            | 60      | Target size of reusable individual pool used by the chainer.                                          |
+| generator.individual_reuse_prob          | $\pi_{\text{reuse}}$ | float in [0,1] | 0.7     | Probability of reusing an existing individual instead of creating a new one.                          |
+| generator.use_signature_sampling         | -                    | bool           | true    | If true, sampling uses proof signatures for diversity and dedup-style control.                        |
+| generator.min_proof_roots                | $U_{\min}$           | int            | 5       | Lower bound on number of proof roots attempted per selected rule.                                     |
+| generator.max_proof_roots                | $U_{\max}$           | int            | 20      | Upper bound on number of proof roots attempted per selected rule.                                     |
+| generator.proof_selection_strategy       | -                    | enum string    | random  | Proof subset selector per rule: `random` (uniform) or `stratified` (depth-bucket weighted).           |
+| generator.proof_selection_weights.easy   | -                    | float          | 1.0     | Weight for easy proofs in stratified mode (depth $\leq 1$).                                           |
+| generator.proof_selection_weights.medium | -                    | float          | 1.0     | Weight for medium proofs in stratified mode (depth $2 \leq d \leq 4$).                                |
+| generator.proof_selection_weights.hard   | -                    | float          | 1.0     | Weight for hard proofs in stratified mode (depth $> 4$).                                              |
+| generator.always_generate_base           | -                    | bool           | false   | If true, forces explicit base fact generation behavior in the chainer.                                |
+| generator.min_lcc_ratio                  | $\tau_{\text{lcc}}$  | float in [0,1] | 0.8     | Validation threshold for connectedness; lower values allow more fragmented graphs to pass validation. |
 
 ## 4. neg_sampling
 

@@ -8,3 +8,6 @@ dataset:
 
 neg_sampling:
   strategy: "constrained"
+
+generator:
+  min_lcc_ratio: 0.6

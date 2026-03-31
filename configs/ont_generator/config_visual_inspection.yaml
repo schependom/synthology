@@ -17,6 +17,7 @@ export_graphs: true
 
 generator:
   max_recursion: 3
+  min_lcc_ratio: 0.6
 
 neg_sampling:
   strategy: "mixed"

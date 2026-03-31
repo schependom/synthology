@@ -17,7 +17,7 @@ experiments/
 │   └── README.md                    # Details, commands, and configs for Exp 1
 ├── exp2_multihop_quality/
 │   └── README.md                    # Details, commands, and configs for Exp 2
-└── exp3_generalization/
+└── exp3_scaling_bench/
     └── README.md                    # Details, commands, and configs for Exp 3
 ```
 
@@ -54,7 +54,7 @@ To maintain consistency across the `tasks.py` file, all experiment commands must
 - `uv run invoke exp2-train-rrn --dataset=baseline`
 - `uv run invoke exp2-train-rrn --dataset=synthology`
 
-### Experiment 3: Generalization (OWL2Bench)
+### Experiment 3: Scaling Benchmark (OWL2Bench)
 
 **Goal:** Prove ontology-agnostic scaling using `UNIV-BENCH-OWL2RL.owl`.
 
