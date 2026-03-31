@@ -482,13 +482,13 @@ Design note: this is an implementation scope choice, not an architectural limita
 
 ### Appendix Table B: Configuration Parameters (2/2)
 
-| YAML Parameter         | Symbol              | Type  | Default | Description                                                                                                                                              |
-| ---------------------- | ------------------- | ----- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `always_generate_base` |                     | bool  | false   | If true, emits a base proof even when derivation rules apply; if false, base proofs are mainly used when no matching rule exists.                        |
-| `min_lcc_ratio`        | $\rho_{\text{lcc}}$ | float | 0.8     | Validation threshold for graph connectivity: the largest connected component must cover at least this fraction of individuals.                           |
-| `strategy`             | $s_{\text{neg}}$    | enum  | `proof_based` | Negative sampling mode used in the thesis experiments: `random`, `constrained`, `proof_based`.                                                            |
-| `ratio`                | $\rho_{\pm}$        | float | 1.0     | Target negative-to-positive ratio for generated examples; $\rho_{\pm}=1$ gives approximately balanced counts.                                            |
-| `corrupt_base_facts`   |                     | bool  | false   | Enables corruption of proof-leaf base facts in proof-based logic; this controls whether propagated counterfactual negatives are produced in that branch. |
+| YAML Parameter         | Symbol              | Type  | Default       | Description                                                                                                                                              |
+| ---------------------- | ------------------- | ----- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `always_generate_base` |                     | bool  | false         | If true, emits a base proof even when derivation rules apply; if false, base proofs are mainly used when no matching rule exists.                        |
+| `min_lcc_ratio`        | $\rho_{\text{lcc}}$ | float | 0.8           | Validation threshold for graph connectivity: the largest connected component must cover at least this fraction of individuals.                           |
+| `strategy`             | $s_{\text{neg}}$    | enum  | `proof_based` | Negative sampling mode used in the thesis experiments: `random`, `constrained`, `proof_based`.                                                           |
+| `ratio`                | $\rho_{\pm}$        | float | 1.0           | Target negative-to-positive ratio for generated examples; $\rho_{\pm}=1$ gives approximately balanced counts.                                            |
+| `corrupt_base_facts`   |                     | bool  | false         | Enables corruption of proof-leaf base facts in proof-based logic; this controls whether propagated counterfactual negatives are produced in that branch. |
 
 ### Appendix Table C: Algorithm Terminology
 
