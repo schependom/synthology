@@ -8,6 +8,8 @@ schema declarations and materializing inferred facts with owlrl.
 import csv
 import os
 import random
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -19,6 +21,85 @@ from rdflib import Graph, URIRef
 from rdflib.namespace import OWL, RDF, RDFS
 
 Triple = Tuple[URIRef, URIRef, URIRef]
+
+
+class JenaMaterializer:
+    """Small bridge to a local Maven-based Jena materializer helper."""
+
+    def __init__(self) -> None:
+        self.project_root = Path(os.environ.get("SYNTHOLOGY_ROOT", Path(__file__).resolve().parents[4]))
+        self.java_project_dir = self.project_root / "apps" / "rafm_baseline" / "java"
+        self.jar_path = self.java_project_dir / "target" / "jena-materializer-1.0.0-shaded.jar"
+        self._ensured = False
+
+    def _ensure_built(self) -> None:
+        if self._ensured and self.jar_path.exists():
+            return
+        if self.jar_path.exists():
+            self._ensured = True
+            return
+
+        if not self.java_project_dir.exists():
+            raise FileNotFoundError(
+                f"Jena helper project not found at {self.java_project_dir}. Expected apps/rafm_baseline/java to exist."
+            )
+
+        logger.info("Building Jena helper JAR (one-time setup) via Maven")
+        cmd = ["mvn", "-q", "-DskipTests", "package"]
+        try:
+            subprocess.run(cmd, cwd=self.java_project_dir, check=True, capture_output=True, text=True)
+        except FileNotFoundError as exc:
+            raise RuntimeError("Maven (mvn) is not installed or not in PATH.") from exc
+        except subprocess.CalledProcessError as exc:
+            raise RuntimeError(
+                f"Failed to build Jena helper JAR.\nstdout:\n{exc.stdout}\nstderr:\n{exc.stderr}"
+            ) from exc
+
+        if not self.jar_path.exists():
+            raise RuntimeError(f"Jena helper JAR build completed but {self.jar_path} was not produced.")
+
+        self._ensured = True
+
+    def materialize(self, ontology_path: str, base_triples: Set[Triple]) -> Set[Triple]:
+        """Materialize closure with Jena and return all URI-only closure triples."""
+        self._ensure_built()
+
+        with tempfile.TemporaryDirectory(prefix="jena_mat_") as tmp_dir:
+            tmp_dir_path = Path(tmp_dir)
+            base_path = tmp_dir_path / "base.nt"
+            out_path = tmp_dir_path / "closure.nt"
+
+            base_graph = Graph()
+            for triple in base_triples:
+                base_graph.add(triple)
+            base_graph.serialize(base_path, format="nt")
+
+            cmd = [
+                "java",
+                "-jar",
+                str(self.jar_path),
+                str(Path(ontology_path).resolve()),
+                str(base_path),
+                str(out_path),
+            ]
+
+            try:
+                subprocess.run(cmd, check=True, capture_output=True, text=True)
+            except FileNotFoundError as exc:
+                raise RuntimeError("Java runtime (java) is not installed or not in PATH.") from exc
+            except subprocess.CalledProcessError as exc:
+                raise RuntimeError(
+                    f"Jena materialization failed.\nstdout:\n{exc.stdout}\nstderr:\n{exc.stderr}"
+                ) from exc
+
+            closure_graph = Graph()
+            closure_graph.parse(out_path, format="nt")
+
+            return {
+                (s, p, o)
+                for s, p, o in closure_graph
+                if isinstance(s, URIRef) and isinstance(p, URIRef) and isinstance(o, URIRef)
+            }
 
 
 class FCBaselineGenerator:
@@ -40,6 +121,7 @@ class FCBaselineGenerator:
         self.classes = self._discover_classes()
         self.object_properties = self._discover_object_properties()
         self.domains, self.ranges = self._discover_domain_range()
+        self.jena_materializer = JenaMaterializer()
 
         if not self.classes:
             raise ValueError("No classes discovered in ontology; cannot generate baseline data.")
@@ -176,11 +258,85 @@ class FCBaselineGenerator:
 
         return relation_triples
 
-    def _materialize(self, base_triples: Set[Triple]) -> Set[Triple]:
+    def _materialize(self, base_triples: Set[Triple]) -> Tuple[Set[Triple], Dict[Triple, int]]:
+        """
+        Materialize inferred facts from base triples using forward-chaining reasoning.
+
+        Returns:
+            Tuple of (inferred_triples, hop_depths)
+            where hop_depths[triple] = iteration at which triple was first inferred
+        """
+        reasoner = str(self.cfg.materialization.get("reasoner", "owlrl")).lower()
+        use_iterative = self.cfg.materialization.get("iterative", False)
+        max_iterations = self.cfg.materialization.get("max_iterations", 10)
+
+        if reasoner not in {"owlrl", "jena"}:
+            raise ValueError(f"Unsupported reasoner '{reasoner}'. Expected one of: owlrl, jena")
+
+        if reasoner == "jena":
+            if use_iterative:
+                return self._materialize_iterative_jena(base_triples, max_iterations)
+            return self._materialize_singlepass_jena(base_triples)
+
+        if use_iterative:
+            return self._materialize_iterative(base_triples, max_iterations)
+        return self._materialize_singlepass(base_triples)
+
+    def _schema_uri_triples(self) -> Set[Triple]:
+        return {
+            (s, p, o)
+            for s, p, o in self.ontology_graph
+            if isinstance(s, URIRef) and isinstance(p, URIRef) and isinstance(o, URIRef)
+        }
+
+    def _materialize_singlepass_jena(self, base_triples: Set[Triple]) -> Tuple[Set[Triple], Dict[Triple, int]]:
+        """Single-pass Jena materialization: inferred facts marked as hop=1."""
+        closure = self.jena_materializer.materialize(self.ontology_path, base_triples)
+        schema_uri_triples = self._schema_uri_triples()
+        inferred = closure - base_triples - schema_uri_triples
+        hop_depths = {t: 1 for t in inferred}
+        return inferred, hop_depths
+
+    def _materialize_iterative_jena(
+        self, base_triples: Set[Triple], max_iterations: int
+    ) -> Tuple[Set[Triple], Dict[Triple, int]]:
+        """
+        Iterative Jena materialization for layered depth assignment.
+
+        Layer 0 = base facts.
+        Layer k = triples first appearing when materializing base + layers < k.
+        """
+        current_working_set = set(base_triples)
+        all_inferred: Set[Triple] = set()
+        hop_depths: Dict[Triple, int] = {}
+        schema_uri_triples = self._schema_uri_triples()
+
+        for iteration in range(1, max_iterations + 1):
+            closure = self.jena_materializer.materialize(self.ontology_path, current_working_set)
+            newly_inferred = closure - current_working_set - schema_uri_triples
+
+            if not newly_inferred:
+                logger.debug(f"Jena iterative materialization fixpoint reached at iteration {iteration}")
+                break
+
+            for triple in newly_inferred:
+                if triple not in hop_depths:
+                    hop_depths[triple] = iteration
+                    all_inferred.add(triple)
+
+            current_working_set |= newly_inferred
+            logger.debug(
+                f"Jena iteration {iteration}: discovered {len(newly_inferred)} new triples, "
+                f"total inferred now {len(all_inferred)}"
+            )
+
+        return all_inferred, hop_depths
+
+    def _materialize_singlepass(self, base_triples: Set[Triple]) -> Tuple[Set[Triple], Dict[Triple, int]]:
+        """Single-pass materialization: one closure call, all inferred facts marked as hop=1."""
         g = Graph()
         for t in self.ontology_graph:
             g.add(t)
-
         for triple in base_triples:
             g.add(triple)
 
@@ -194,11 +350,72 @@ class FCBaselineGenerator:
         after = set(g)
 
         inferred = after - before
-        return {
+        inferred_filtered = {
             (s, p, o)
             for s, p, o in inferred
             if isinstance(s, URIRef) and isinstance(p, URIRef) and isinstance(o, URIRef)
         }
+
+        # All inferred facts in single-pass are marked as hop=1
+        hop_depths = {t: 1 for t in inferred_filtered}
+        return inferred_filtered, hop_depths
+
+    def _materialize_iterative(
+        self, base_triples: Set[Triple], max_iterations: int
+    ) -> Tuple[Set[Triple], Dict[Triple, int]]:
+        """
+        Iterative materialization: run closure multiple times, tracking hop depth.
+
+        Iteration 1: materialize from base_triples -> all inferred marked hop=1
+        Iteration 2: add iteration-1 inferred to graph, materialize -> marked hop=2
+        ... repeat until fixpoint or max_iterations reached
+        """
+        current_working_set = set(base_triples)
+        all_inferred: Set[Triple] = set()
+        hop_depths: Dict[Triple, int] = {}
+
+        for iteration in range(1, max_iterations + 1):
+            g = Graph()
+            for t in self.ontology_graph:
+                g.add(t)
+            for triple in current_working_set:
+                g.add(triple)
+
+            before = set(g)
+            DeductiveClosure(
+                OWLRL_Semantics,
+                rdfs_closure=self.cfg.materialization.rdfs_closure,
+                axiomatic_triples=self.cfg.materialization.axiomatic_triples,
+                datatype_axioms=self.cfg.materialization.datatype_axioms,
+            ).expand(g)
+            after = set(g)
+
+            newly_inferred = after - before
+            newly_inferred_filtered = {
+                (s, p, o)
+                for s, p, o in newly_inferred
+                if isinstance(s, URIRef) and isinstance(p, URIRef) and isinstance(o, URIRef)
+            }
+
+            # Mark newly discovered facts with their iteration number
+            for triple in newly_inferred_filtered:
+                if triple not in hop_depths:
+                    hop_depths[triple] = iteration
+                    all_inferred.add(triple)
+
+            # If no new facts in this iteration, we've reached fixpoint
+            if not newly_inferred_filtered or len(newly_inferred_filtered) == 0:
+                logger.debug(f"Iterative materialization fixpoint reached at iteration {iteration}")
+                break
+
+            # For next iteration: include base + all inferred so far
+            current_working_set = set(base_triples) | all_inferred
+            logger.debug(
+                f"Iteration {iteration}: discovered {len(newly_inferred_filtered)} new triples, "
+                f"total inferred now {len(all_inferred)}"
+            )
+
+        return all_inferred, hop_depths
 
     def _filter_instance_triples(
         self,
@@ -241,6 +458,7 @@ class FCBaselineGenerator:
         individuals: List[URIRef],
         base_triples: Set[Triple],
         inferred_triples: Set[Triple],
+        hop_depths: Dict[Triple, int],
     ) -> Tuple[List[Dict[str, str]], List[Dict[str, str]]]:
         facts_rows: List[Dict[str, str]] = []
         targets_rows: List[Dict[str, str]] = []
@@ -252,7 +470,9 @@ class FCBaselineGenerator:
 
         for t in sorted(inferred_triples, key=lambda x: (str(x[0]), str(x[1]), str(x[2]))):
             if t not in positive_meta:
-                positive_meta[t] = ("inf_root", 1)
+                # Use actual hop depth from materialization, or default to 1 if not in mapping
+                hop_depth = hop_depths.get(t, 1)
+                positive_meta[t] = ("inf_root", hop_depth)
 
         for (s, p, o), (fact_type, hops) in positive_meta.items():
             row = {
@@ -370,7 +590,7 @@ class FCBaselineGenerator:
             rel_triples = self._sample_relation_triples(individuals, ind_types)
             base_triples = type_triples | rel_triples
 
-            inferred = self._materialize(base_triples)
+            inferred, hop_depths = self._materialize(base_triples)
 
             individual_set = set(individuals)
             filtered_base = self._filter_instance_triples(base_triples, individual_set)
@@ -381,6 +601,7 @@ class FCBaselineGenerator:
                 individuals=individuals,
                 base_triples=filtered_base,
                 inferred_triples=filtered_inferred,
+                hop_depths=hop_depths,
             )
 
             # Keep complete samples when applying cap so facts/targets remain aligned.

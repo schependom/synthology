@@ -1,7 +1,7 @@
 [project]
-name = "fc_baseline"
+name = "rafm_baseline"
 version = "0.1.0"
-description = "Random base facts + OWL RL forward-chaining baseline generator"
+description = "Random base facts baseline with OWLRL/Jena forward-chaining materialization"
 readme = "README.md"
 authors = [
     { name = "Vincent Van Schependom", email = "vincent.van.schependom@gmail.com" }

@@ -46,10 +46,10 @@ To maintain consistency across the `tasks.py` file, all experiment commands must
 
 ### Experiment 2: Multi-Hop Quality Test
 
-**Goal:** Compare Nemo forward-chaining against Synthology backward-chaining on >= 3-hop inferences.
+**Goal:** Compare Jena forward-chaining against Synthology backward-chaining on >= 3-hop inferences.
 
 - `uv run invoke exp2-generate-gold-test` _(Runs Synthology at depth 4, filters for >= 3 hops, freezes the test set)_
-- `uv run invoke exp2-generate-baseline` _(Runs Nemo on random base facts)_
+- `uv run invoke exp2-generate-baseline` _(Runs Jena on random base facts)_
 - `uv run invoke exp2-generate-synthology` _(Runs Synthology to match the baseline's entity/fact volume)_
 - `uv run invoke exp2-train-rrn --dataset=baseline`
 - `uv run invoke exp2-train-rrn --dataset=synthology`
@@ -58,9 +58,9 @@ To maintain consistency across the `tasks.py` file, all experiment commands must
 
 **Goal:** Prove ontology-agnostic scaling using `UNIV-BENCH-OWL2RL.owl`.
 
-- `uv run invoke exp3-generate-baseline --universities=50` _(Runs OWL2Bench Java generator + Nemo materialization)_
+- `uv run invoke exp3-generate-baseline --universities=50` _(Runs OWL2Bench Java generator + Jena materialization)_
 - `uv run invoke exp3-generate-synthology --universities=50` _(Runs Synthology with over-generation)_
-- `uv run invoke exp3-balance-data` _(Executes the Python script to downsample Synthology targets to perfectly match the Nemo baseline yield)_
+- `uv run invoke exp3-balance-data` _(Executes the Python script to downsample Synthology targets to perfectly match the baseline yield)_
 - `uv run invoke exp3-generate-gold-test` _(Generates the frozen complex LUBM-style test set)_
 - `uv run invoke exp3-train-rrn --dataset=baseline`
 - `uv run invoke exp3-train-rrn --dataset=synthology`

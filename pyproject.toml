@@ -61,10 +61,12 @@ members = [
     "apps/RRN",
     "apps/ont_generator",
     "apps/OWL2Bench",
-    "apps/fc_baseline",
+    "apps/rafm_baseline",
     "apps/data_reporter",
   "apps/KGVisualiser",
 ]
 
 [tool.uv.sources]
 rrn = { workspace = true, editable = true }
+rafm-baseline = { workspace = true, editable = true }
+owl2bench = { workspace = true, editable = true }

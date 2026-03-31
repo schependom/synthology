@@ -223,4 +223,6 @@ data/OWL2Bench/diagnostics/*
 paper/
 visual-verification/
 
-data/*/output
+data/*/output*
+reports/
+data/exp2/baseline

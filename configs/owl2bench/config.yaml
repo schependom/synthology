@@ -1,7 +1,7 @@
 dataset:
   name: "owl2bench"
   universities: [10]
-  output_dir: "data/OWL2Bench/output"
+  output_dir: "data/owl2bench/output"
 
   split:
     train: 0.8
@@ -24,21 +24,19 @@ dataset:
   negatives_per_positive: 1
   diagnostics:
     enabled: true
-    output_dir: "data/OWL2Bench/output/diagnostics"
+    output_dir: "data/owl2bench/output/diagnostics"
     # <= 0 means write all rows to each diagnostics TSV file.
     max_rows_per_file: 0
 
   reasoning:
-    tbox_path: "data/OWL2Bench/input/UNIV-BENCH-OWL2RL.owl"
+    tbox_path: "data/owl2bench/input/UNIV-BENCH-OWL2RL.owl"
     # Defensive mapping for generator variants that emit legacy LUBM-style namespaces.
     namespace_map:
       "http://swat.cse.lehigh.edu/onto/univ-bench.owl#": "https://kracr.iiitd.edu.in/OWL2Bench#"
-    nemo:
-      executable: "nmo"
-      # Path to your NeMo rules program that imports TBox/ABox and exports closure to {output_ttl}.
-      # The pipeline injects: {nmo_executable}, {program}, {input_tbox}, {input_abox}, {output_ttl}, {output_name}, {output_dir}, {tmp_dir}.
-      program: "apps/OWL2Bench/src/owl2bench/vendor/owl2rl.nemo"
-      command_template: "{nmo_executable} {program} --param {param_input_tbox} --param {param_input_abox} --param {param_output_ttl} --export-dir {output_dir} --overwrite-results"
+    materialization:
+      reasoner: "jena"
+      iterative: true
+      max_iterations: 10
 
 generator:
   vendor_dir: "vendor/OWL2Bench"

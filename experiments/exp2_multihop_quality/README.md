@@ -1,102 +1,115 @@
 # Experiment 2: Multi-Hop Reasoning Quality
 
-## Objective
+**Goal**  
+Show that an RRN trained on Synthology data outperforms an RRN trained on a standard forward-chaining baseline **even when the baseline is forced to contain the same number of deep (d ≥ 3) inferences**.
 
-Evaluate whether Synthology's backward-chaining data generation yields better multi-hop reasoning performance than the forward-chaining baseline when both are controlled for data budget and graph-level parity.
+**Ontology**  
+Family Tree (same as Experiment 1).
 
-## Datasets Used
+**Core idea: parity-enforced baseline**  
+We iterate the random ABox generator until the materialized forward-chained dataset contains (approximately) the same count of d ≥ 3 inferences as the Synthology dataset.
 
-- Ontology: Family Tree OWL2 RL setup used in Exp 1.
-- Frozen gold test set (multi-hop only): generated to contain target facts requiring proof depth `d >= 3`.
-- Baseline train/val data (forward-chaining): `data/exp2/baseline/...`
-- Synthology train/val data (backward-chaining): `data/exp2/synthology/...`
-- Recommended frozen test location:
-    - `data/exp2/frozen_test/facts.csv`
-    - `data/exp2/frozen_test/targets.csv`
+**Exact concrete steps**
 
-## Configurations
+1. **Generate the Synthology reference dataset**
+    - Run Synthology on Family Tree with stratified proof selection (or random — document which).
+    - Compute and record the exact number of inferred facts with proof depth d ≥ 3. Call this number `K_deep`.
+    - Save the dataset (base facts + positives + negatives) and the depth histogram.
 
-Generator configs:
+2. **Implement layered depth computation (required for parity)**
+    - Write a small Python script that performs iterative forward-chaining **layer by layer**:
+        - Layer 0 = base facts.
+        - In each new iteration, fire rules only on facts from previous layers.
+        - Assign each new inferred fact its minimum depth.
+    - Use Apache Jena (not owlrl) for the actual materialization step inside the loop.
 
-- `configs/ont_generator/exp2_gold_test.yaml`
-- `configs/fc_baseline/exp2_baseline.yaml`
-- `configs/ont_generator/exp2_synthology.yaml`
+3. **Parity-enforced forward-chaining baseline loop**
+    - While true:
+        - Generate a random ABox (same entity pool size and same total base-fact count as Synthology).
+        - Materialize with Jena.
+        - Compute depth distribution using the layered method.
+        - Count number of facts with d ≥ 3.
+        - If count ≥ `K_deep` (or within ±10 %), break.
+        - Else discard and retry.
+    - If the loop exceeds 500–1000 attempts or explodes graph size, stop and document the effort (this itself is a publishable result).
 
-RRN dataset configs:
+4. **Create the frozen held-out deep test set**
+    - Generate **one additional Synthology sample** (or small batch) and hold it completely out of training.
+    - Extract **only** the inferred facts whose proof-tree depth d ≥ 3.
+    - For each such deep target, keep the minimal supporting base facts from its proof tree + all other base facts in that sample.
+    - This produces a clean test KB where **every positive requires at least 3 hops**.
+    - Save this test set once and reuse it for both models.
 
-- `configs/rrn/data/dataset/exp2_baseline.yaml`
-- `configs/rrn/data/dataset/exp2_synthology.yaml`
+5. **Training**
+    - Train RRN #1 on the Synthology dataset.
+    - Train RRN #2 on the parity-enforced forward-chaining baseline dataset.
+    - Use identical hyperparameters, same RRN implementation, same random seed.
 
-Reporting config:
+6. **Evaluation**
+    - Evaluate **both** models **exclusively** on the frozen deep test set from step 4.
+    - Report:
+        - AUC-ROC
+        - PR-AUC (primary)
+        - F1-score
+        - FPR
+    - Also plot or report the inference-depth distribution of both training sets side-by-side.
 
-- `configs/data_reporter/exp2_compare.yaml`
+**Expected outcome**  
+Even with identical numbers of deep inferences, the Synthology-trained model achieves higher PR-AUC and lower FPR because its deep paths are topologically integrated inside coherent samples, whereas the baseline’s deep facts are scattered and incidental.
 
-Fairness constraints required by the paper protocol:
+**Implementation notes**
 
-- Match total data budget (facts and targets)
-- Match positive:negative ratio
-- Match node count and edge density as closely as possible
-- Enforce parity for deep (`d >= 3`) signal in training data
+- Keep all raw baseline ABoxes that were discarded (for transparency).
+- Store everything in `experiments/exp2/`.
+- If parity proves practically impossible (very likely), switch to a “standard” (non-parity) baseline and clearly state in the paper: “Unguided forward-chaining could not reach parity after X attempts; we therefore compare against the natural shallow distribution.”
 
-## Execution Commands
+## Practical Quick Start (RAFM + Apache Jena)
 
-1. Generate and freeze multi-hop gold test set:
+1. Ensure `java` and `mvn` are installed and available in `PATH`.
+2. Generate the Exp 2 baseline with Jena materialization:
 
 ```bash
-uv run invoke exp2-generate-gold-test
+uv run invoke exp2-generate-baseline
 ```
 
-2. Generate baseline and synthology datasets (shared budget caps):
+This uses `configs/fc_baseline/exp2_baseline.yaml` where:
+
+- `materialization.reasoner=jena`
+- `materialization.iterative=true`
+
+3. Generate Synthology comparison data:
 
 ```bash
-uv run invoke exp2-balance-datasets \
-  --fact-cap=<Nf> \
-  --target-cap=<Nt> \
-  --baseline-base-facts=<K1> \
-  --synthology-proof-roots=<K2>
+uv run invoke exp2-generate-synthology
 ```
 
-3. Run parity/distribution reporting:
+4. Train both RRN variants:
 
 ```bash
-uv run invoke exp2-report-data
+uv run invoke exp2-train-rrn --dataset=baseline
+uv run invoke exp2-train-rrn --dataset=synthology
 ```
 
-4. Train one RRN per dataset:
+5. Dedicated parity loop + reporting:
 
 ```bash
-uv run invoke exp2-train-rrn --dataset="baseline"
-uv run invoke exp2-train-rrn --dataset="synthology"
+uv run invoke exp2-parity-loop
+uv run invoke exp2-parity-report
 ```
 
-## Tracked Metrics
+6. Visual smoke test for Jena-backed RAFM:
 
-Primary metrics on the frozen `d >= 3` test set:
+```bash
+uv run invoke exp2-smoke-jena-visual
+```
 
-- `PR-AUC`
-- `AUC-ROC`
+The smoke visualization is written to `visual-verification/exp2_smoke/`.
 
-Secondary diagnostics:
+7. Paper-oriented parity plots:
 
-- `F1` at threshold `P > 0.5`
-- `FPR`
-
-Data-quality diagnostics to report alongside model metrics:
-
-- inference depth distribution (especially share of `d >= 3`)
-- node count parity
-- edge density parity
-- class balance parity (positive:negative)
-
-## Required Artifacts For The Paper
-
-- Table: baseline vs synthology on `PR-AUC`, `AUC-ROC`, `F1`, `FPR` (frozen `d >= 3` test).
-- Plot 1: PR curves (baseline vs synthology).
-- Plot 2: ROC curves (baseline vs synthology).
-- Plot 3: inference-depth distribution comparison (train data), highlighting `d >= 3` coverage.
-- Plot 4: parity dashboard (facts, targets, node count, edge density, pos:neg ratio).
-- One short paragraph explicitly stating this is a quality comparison, not only a quantity comparison.
-
-## Expected Result
-
-The Synthology-trained model should outperform baseline on deep-chain evaluation (`d >= 3`) with stronger `PR-AUC` and `AUC-ROC`, showing that engineered path quality and integration matter beyond raw forward-chained volume.
+```bash
+uv run invoke paper-visual-report \
+    --exp2-synth-targets=data/exp2/synthology/family_tree/train/targets.csv \
+    --exp2-parity-summary=data/exp2/baseline/parity_runs/parity_loop_summary.json \
+    --out-dir=reports/paper
+```

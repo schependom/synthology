@@ -31,6 +31,22 @@ generator:
   namespace_base: "http://synthology.org/exp2/fc/"
 
 materialization:
+  # Reasoner choice: 'owlrl' or 'jena'
+  # Exp 2 uses Apache Jena for parity/depth analysis.
+  reasoner: jena
+  
+  # Materialization strategy:
+  # - 'singlepass': Run closure once, all inferred facts marked as hop=1
+  #   Matches paper baseline, produces mostly hop {0, 1}
+  # - 'iterative': Run closure multiple times, tracking derivation depth
+  #   Each iteration marks newly inferred facts with their iteration number
+  #   Enables deeper multi-hop reasoning chains (hop >= 2)
+  iterative: true
+  
+  # Max iterations for iterative mode (ignored if iterative=false)
+  max_iterations: 10
+  
+  # OWL-RL closure expansion options
   rdfs_closure: true
   axiomatic_triples: false
   datatype_axioms: false

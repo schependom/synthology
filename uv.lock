@@ -16,10 +16,10 @@ resolution-markers = [
 members = [
     "asp-generator",
     "data-reporter",
-    "fc-baseline",
     "kgvisualiser",
     "ont-generator",
     "owl2bench",
+    "rafm-baseline",
     "rrn",
     "synthology",
 ]
@@ -973,25 +973,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/8a/0e/97c33bf5009bdbac74fd2beace167cab3f978feb69cc36f1ef79360d6c4e/exceptiongroup-1.3.1-py3-none-any.whl", hash = "sha256:a7a39a3bd276781e98394987d3a5701d0c4edffb633bb7a5144577f82c773598", size = 16740, upload-time = "2025-11-21T23:01:53.443Z" },
-]
-
-[[package]]
-name = "fc-baseline"
-version = "0.1.0"
-source = { editable = "apps/fc_baseline" }
-dependencies = [
-    { name = "hydra-core" },
-    { name = "loguru" },
-    { name = "owlrl" },
-    { name = "rdflib" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "hydra-core", specifier = ">=1.3.2" },
-    { name = "loguru", specifier = ">=0.7.3" },
-    { name = "owlrl", specifier = ">=7.1.4" },
-    { name = "rdflib", specifier = ">=7.5.0" },
 ]
 
 [[package]]
@@ -2765,6 +2746,7 @@ dependencies = [
     { name = "hydra-core" },
     { name = "loguru" },
     { name = "omegaconf" },
+    { name = "rafm-baseline" },
     { name = "rdflib" },
 ]
 
@@ -2773,6 +2755,7 @@ requires-dist = [
     { name = "hydra-core", specifier = ">=1.3.2" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "omegaconf", specifier = ">=2.3.0" },
+    { name = "rafm-baseline", editable = "apps/rafm_baseline" },
     { name = "rdflib", specifier = ">=7.5.0" },
 ]
 
@@ -3653,6 +3636,25 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/dd/62/71c27c94f457cf4418ef8ccc71735324c549f7e3ea9d34aba50874563561/pyyaml-6.0.3-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:27c0abcb4a5dac13684a37f76e701e054692a9b2d3064b70f5e4eb54810553d7", size = 755677, upload-time = "2025-09-25T21:33:09.876Z" },
     { url = "https://files.pythonhosted.org/packages/29/3d/6f5e0d58bd924fb0d06c3a6bad00effbdae2de5adb5cda5648006ffbd8d3/pyyaml-6.0.3-cp39-cp39-win32.whl", hash = "sha256:1ebe39cb5fc479422b83de611d14e2c0d3bb2a18bbcb01f229ab3cfbd8fee7a0", size = 142592, upload-time = "2025-09-25T21:33:10.983Z" },
     { url = "https://files.pythonhosted.org/packages/f0/0c/25113e0b5e103d7f1490c0e947e303fe4a696c10b501dea7a9f49d4e876c/pyyaml-6.0.3-cp39-cp39-win_amd64.whl", hash = "sha256:2e71d11abed7344e42a8849600193d15b6def118602c4c176f748e4583246007", size = 158777, upload-time = "2025-09-25T21:33:15.55Z" },
+]
+
+[[package]]
+name = "rafm-baseline"
+version = "0.1.0"
+source = { editable = "apps/rafm_baseline" }
+dependencies = [
+    { name = "hydra-core" },
+    { name = "loguru" },
+    { name = "owlrl" },
+    { name = "rdflib" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "hydra-core", specifier = ">=1.3.2" },
+    { name = "loguru", specifier = ">=0.7.3" },
+    { name = "owlrl", specifier = ">=7.1.4" },
+    { name = "rdflib", specifier = ">=7.5.0" },
 ]
 
 [[package]]

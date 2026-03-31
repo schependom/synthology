@@ -4,10 +4,8 @@ import math
 import os
 import random
 import re
-import shlex
 import shutil
 import subprocess
-import tempfile
 import time
 import urllib.parse
 from pathlib import Path
@@ -17,6 +15,7 @@ import hydra
 import rdflib
 from loguru import logger
 from omegaconf import DictConfig
+from rafm_baseline.create_data import JenaMaterializer
 
 RDF_TYPE_URI = str(rdflib.RDF.type)
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -148,11 +147,20 @@ def run_owl2bench_generator(
     return generated_path
 
 
+def _uri_triples(graph: rdflib.Graph) -> set[tuple[rdflib.URIRef, rdflib.URIRef, rdflib.URIRef]]:
+    return {
+        (s, p, o)
+        for s, p, o in graph
+        if isinstance(s, rdflib.URIRef) and isinstance(p, rdflib.URIRef) and isinstance(o, rdflib.URIRef)
+    }
+
+
 def compute_inferred_triples(
     base_graph: rdflib.Graph,
     tbox_graph: rdflib.Graph,
+    tbox_path: Path,
     known_individuals: set[rdflib.term.Node],
-    nemo_cfg: dict[str, Any],
+    materialization_cfg: dict[str, Any],
 ) -> tuple[
     list[tuple[rdflib.term.Node, rdflib.term.Node, rdflib.term.Node, int]],
     dict[str, int],
@@ -160,60 +168,37 @@ def compute_inferred_triples(
     list[tuple[str, rdflib.term.Node, rdflib.term.Node, rdflib.term.Node]],
     list[tuple[str, rdflib.term.Node, rdflib.term.Node, rdflib.term.Node]],
 ]:
-    nmo_executable = str(nemo_cfg.get("executable", "nmo"))
-    command_template = str(nemo_cfg.get("command_template", "")).strip()
-    program = str(nemo_cfg.get("program", "")).strip()
+    reasoner = str(materialization_cfg.get("reasoner", "jena")).lower()
+    iterative = bool(materialization_cfg.get("iterative", True))
+    max_iterations = int(materialization_cfg.get("max_iterations", 10))
 
-    if not command_template:
-        raise RuntimeError("No `dataset.reasoning.nemo.command_template` configured for OWL2Bench pipeline.")
+    if reasoner != "jena":
+        raise ValueError(f"Unsupported reasoner '{reasoner}' for OWL2Bench pipeline. Only 'jena' is supported.")
 
-    with tempfile.TemporaryDirectory(prefix="owl2bench_nemo_") as td:
-        tmp_dir = Path(td)
-        abox_path = tmp_dir / "abox.ttl"
-        tbox_path = tmp_dir / "tbox.ttl"
-        output_path = tmp_dir / "nemo_materialized.ttl"
+    jena = JenaMaterializer()
+    base_uri_triples = _uri_triples(base_graph)
+    tbox_uri_triples = _uri_triples(tbox_graph)
 
-        base_graph.serialize(destination=str(abox_path), format="turtle")
-        tbox_graph.serialize(destination=str(tbox_path), format="turtle")
+    current_working_set = set(base_uri_triples)
+    all_inferred: set[tuple[rdflib.URIRef, rdflib.URIRef, rdflib.URIRef]] = set()
+    hop_depths: dict[tuple[rdflib.URIRef, rdflib.URIRef, rdflib.URIRef], int] = {}
+    closure_final: set[tuple[rdflib.URIRef, rdflib.URIRef, rdflib.URIRef]] = set(base_uri_triples)
 
-        command = command_template.format(
-            nmo_executable=shlex.quote(nmo_executable),
-            program=shlex.quote(program),
-            input_abox=shlex.quote(str(abox_path)),
-            input_tbox=shlex.quote(str(tbox_path)),
-            output_ttl=shlex.quote(str(output_path)),
-            output_name=shlex.quote(output_path.name),
-            output_dir=shlex.quote(str(tmp_dir)),
-            tmp_dir=shlex.quote(str(tmp_dir)),
-            param_input_tbox=shlex.quote(f'input_tbox="{tbox_path}"'),
-            param_input_abox=shlex.quote(f'input_abox="{abox_path}"'),
-            param_output_ttl=shlex.quote(f'output_ttl="{output_path.name}"'),
-        )
+    iterations = 1 if not iterative else max_iterations
+    for iteration in range(1, iterations + 1):
+        closure = jena.materialize(str(tbox_path), current_working_set)
+        closure_final = closure
+        newly_inferred = closure - current_working_set - tbox_uri_triples
 
-        proc = subprocess.run(command, shell=True, text=True, capture_output=True)
-        if proc.returncode != 0:
-            raise RuntimeError(
-                "NeMo materialization command failed\n"
-                f"Command: {command}\n"
-                f"Exit code: {proc.returncode}\n"
-                f"STDOUT:\n{proc.stdout}\n"
-                f"STDERR:\n{proc.stderr}"
-            )
+        if not newly_inferred:
+            break
 
-        if not output_path.exists():
-            raise RuntimeError(
-                "NeMo command completed but produced no materialized Turtle output\n"
-                f"Expected output: {output_path}\n"
-                f"Command: {command}\n"
-                f"STDOUT:\n{proc.stdout}\n"
-                f"STDERR:\n{proc.stderr}"
-            )
+        for triple in newly_inferred:
+            if triple not in hop_depths:
+                hop_depths[triple] = iteration
+                all_inferred.add(triple)
 
-        if proc.stdout.strip():
-            logger.info("NeMo materializer STDOUT:\n{}", proc.stdout.strip())
-
-        closure_graph = rdflib.Graph()
-        closure_graph.parse(output_path, format="turtle")
+        current_working_set |= newly_inferred
 
     inferred = []
     raw_inferred_rows: list[tuple[str, rdflib.term.Node, rdflib.term.Node, rdflib.term.Node]] = []
@@ -228,9 +213,9 @@ def compute_inferred_triples(
     dropped_object_bnode = 0
     dropped_object_literal = 0
 
-    reasoner_raw_triples = len(closure_graph)
+    reasoner_raw_triples = len(closure_final)
 
-    for s, p, o in closure_graph:
+    for s, p, o in closure_final:
         raw_inferred_rows.append(("reasoner_output", s, p, o))
         if (s, p, o) in base_graph:
             continue
@@ -260,7 +245,7 @@ def compute_inferred_triples(
             dropped_unknown_object += 1
             rejected_rows.append(("unknown_object", s, p, o))
             continue
-        inferred.append((s, p, o, 1))
+        inferred.append((s, p, o, hop_depths.get((s, p, o), 1)))
         accepted_rows.append(("accepted", s, p, o))
 
     inferred.sort(key=lambda t: (t[3], str(t[0]), str(t[1]), str(t[2])))
@@ -652,12 +637,13 @@ def _write_split(
 def _parse_generated_to_csv(
     generated_owl: Path,
     tbox_graph: rdflib.Graph,
+    tbox_path: Path,
     namespace_map: dict[str, str],
     output_dir: Path,
     split_ratios: dict[str, float],
     target_ratio: float,
     mask_base_facts: bool,
-    nemo_cfg: dict[str, Any],
+    materialization_cfg: dict[str, Any],
     partition_mode: str,
     num_samples: int,
     bfs_sample_count: int,
@@ -693,8 +679,9 @@ def _parse_generated_to_csv(
     inferred_raw, inference_stats, raw_inferred_rows, rejected_rows, accepted_rows = compute_inferred_triples(
         reasoning_input_graph,
         tbox_graph,
+        tbox_path,
         known_individuals,
-        nemo_cfg,
+        materialization_cfg,
     )
 
     base_clean = []
@@ -882,7 +869,7 @@ def main(cfg: DictConfig) -> None:
     negatives_per_positive = int(cfg.dataset.get("negatives_per_positive", 1))
     require_multiple_graphs_per_csv = bool(cfg.dataset.get("require_multiple_graphs_per_csv", False))
     namespace_map = dict(cfg.dataset.reasoning.get("namespace_map", {}))
-    nemo_cfg = dict(cfg.dataset.reasoning.get("nemo", {}))
+    materialization_cfg = dict(cfg.dataset.reasoning.get("materialization", {}))
     diagnostics_cfg = dict(cfg.dataset.get("diagnostics", {}))
 
     for universities in cfg.dataset.universities:
@@ -907,12 +894,13 @@ def main(cfg: DictConfig) -> None:
         _parse_generated_to_csv(
             generated_owl=raw_copy_path,
             tbox_graph=tbox_graph,
+            tbox_path=tbox_path,
             namespace_map=namespace_map,
             output_dir=csv_output_dir,
             split_ratios=split_ratios,
             target_ratio=target_ratio,
             mask_base_facts=mask_base_facts,
-            nemo_cfg=nemo_cfg,
+            materialization_cfg=materialization_cfg,
             partition_mode=partition_mode,
             num_samples=num_samples,
             bfs_sample_count=bfs_sample_count,

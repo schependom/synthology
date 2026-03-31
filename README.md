@@ -399,7 +399,7 @@ uv run invoke exp2-train-rrn --dataset="synthology"
 **Goal:** Evaluate ontology-agnostic scaling on `UNIV-BENCH-OWL2RL.owl` and compare data quality at matched budgets.
 **Steps:**
 
-1.  Generate baseline OWL2Bench data (Nemo materialization pipeline).
+1.  Generate baseline OWL2Bench data (OWL2Bench ABox generation + Apache Jena materialization).
 2.  Generate Synthology OWL2Bench data with controlled over-generation.
 3.  Balance Synthology output to baseline budget parity.
 4.  Freeze a deep-test set (`d >= 3`) for evaluation.
