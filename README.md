@@ -55,7 +55,7 @@ This repository implements this generator and evaluates the quality of the gener
 - [Experiments](#experiments)
     - [Experiment 1: The Negative Sampling Ablation Study](#experiment-1-the-negative-sampling-ablation-study)
     - [Experiment 2: The Multi-Hop Quality Test](#experiment-2-the-multi-hop-quality-test)
-    - [Experiment 3: Generalization to Complex Ontologies](#experiment-3-generalization-to-complex-ontologies)
+    - [Experiment 3: Scaling Benchmark (OWL2Bench)](#experiment-3-scaling-benchmark-owl2bench)
 - [OWL2 RL Profile Coverage and Appendix Tables](#owl2-rl-profile-coverage-and-appendix-tables)
     - [Implemented OWL2 RL Subset](#implemented-owl2-rl-subset)
     - [Currently Missing or Partial Constructs](#currently-missing-or-partial-constructs)
@@ -347,68 +347,70 @@ uv run --package rrn python -m rrn.train \
 
 ## Experiments
 
-To definitively prove the value of `Synthology`, we will conduct three rigorous experiments. All experiments compare our backward-chaining approach against standard forward-chaining baselines, utilizing the **Nemo** Datalog engine as the ground-truth reasoner.
+The experiment protocol is documented in the `experiments/` folder and is aligned with the thesis paper setup.
 
-The evaluation metric for the RRN is **AUC-ROC and F1-Score** (classification metrics), with a specific focus on the **False Positive Rate (FPR)** on hard negatives.
+Primary model metrics are **PR-AUC** and **AUC-ROC**, with **F1** and **FPR** reported as additional diagnostics.
 
 ### Experiment 1: The Negative Sampling Ablation Study
 
-**Goal:** Prove that proof-based corruption generates harder, more educational negative samples than random corruption.
+**Goal:** Test whether proof-based corruption yields stronger hard-negative robustness than random and constrained corruption.
 **Steps:**
 
-1.  **Generate Data:** Use `Synthology` on the `family-tree` ontology to generate 4 identical datasets, varying _only_ the negative sampling strategy in the `config.yaml`:
-    - Dataset 1: `random`
-    - Dataset 2: `constrained_random`
-    - Dataset 3: `proof_based`
-    - Dataset 4: `mixed`
-2.  **Create the Test Set:** Generate a separate, small test set containing a high volume of "near-miss" hard negatives (e.g., swapping a parent for an uncle).
-3.  **Train & Evaluate:** Train an RRN model on each of the 4 datasets using `wandb` sweeps.
-4.  **Metrics:** Evaluate on the hard-negative test set. Track the **False Positive Rate (FPR)**.
-5.  **Outcome:** Select the winning strategy (expected: `proof_based`) and freeze it for all subsequent experiments.
+1.  Generate train/val sets for `random`, `constrained`, and `proof_based`.
+2.  Generate a frozen near-miss hard-negative test set.
+3.  Train one RRN model per strategy.
+4.  Evaluate on the same frozen test set.
+5.  Track `PR-AUC`, `FPR`, `AUC-ROC`, and `F1`.
+6.  Freeze the winning strategy (expected: `proof_based`) for later experiments.
+
+Command entrypoint:
+
+```bash
+uv run invoke exp1-generate-trainval-sets
+uv run invoke exp1-generate-test-set
+uv run invoke exp1-train-rrn --strategy="random"
+uv run invoke exp1-train-rrn --strategy="constrained"
+uv run invoke exp1-train-rrn --strategy="proof_based"
+```
 
 ### Experiment 2: The Multi-Hop Quality Test
 
-**Goal:** Prove that backward-chaining (Synthology) generates higher-quality multi-hop logical paths than unguided forward-chaining (Nemo).
+**Goal:** Compare multi-hop reasoning quality (`d >= 3`) between backward-chaining Synthology data and forward-chaining baseline data under budget parity.
 **Steps:**
 
-1.  **Create the Frozen Gold-Standard Test Set:**
-    - Run Synthology with `max_recursion: 4` to generate a small pool of graphs.
-    - Filter this pool to isolate ONLY target facts that required $\ge 3$ hops (e.g., `hasGreatGrandparent`).
-    - Manually verify these facts. Freeze this as the absolute test set for both models.
-2.  **Generate Baseline (Dataset A - Nemo):**
-    - Write a Python script to generate random base facts (e.g., random `hasParent` links).
-    - Feed these into the Nemo CLI (`nmo`) using the family tree rules to forward-chain inferred targets.
-    - Apply standard random negative sampling to the outputs.
-3.  **Generate Synthology (Dataset B):**
-    - Use Synthology (with the winning negative sampling strategy) to generate a dataset that _exactly matches_ Dataset A in: Total KGs ($N=5000$), Entity Pool size, Total Base Facts, and Total Target Facts.
-4.  **Train & Evaluate:** Train an RRN on Dataset A, and a separate RRN on Dataset B. Test BOTH strictly on the Frozen Gold-Standard Test Set.
-5.  **Outcome:** A higher AUC-ROC for Dataset B proves that _how_ the base facts are engineered (backward-chaining) matters more than just randomly generating data for a standard reasoner.
+1.  Freeze a shared gold test set containing only `d >= 3` targets.
+2.  Generate both datasets with matched fact/target budgets.
+3.  Validate parity with reporting (budget, class ratio, graph statistics).
+4.  Train one RRN per dataset and evaluate only on the frozen deep test set.
+5.  Track `PR-AUC`, `AUC-ROC`, `F1`, and `FPR`, with focus on deep-path performance.
 
-### Experiment 3: Generalization to Complex Ontologies
+Command entrypoint:
 
-**Goal:** Prove `Synthology` is ontology-agnostic and scales to complex schemas like `UNIV-BENCH-OWL2RL.owl`, overcoming the infrastructure bottleneck of standard forward-chainers.
+```bash
+uv run invoke exp2-generate-gold-test
+uv run invoke exp2-balance-datasets --fact-cap=<Nf> --target-cap=<Nt> --baseline-base-facts=<K1> --synthology-proof-roots=<K2>
+uv run invoke exp2-report-data
+uv run invoke exp2-train-rrn --dataset="baseline"
+uv run invoke exp2-train-rrn --dataset="synthology"
+```
+
+### Experiment 3: Scaling Benchmark (OWL2Bench)
+
+**Goal:** Evaluate ontology-agnostic scaling on `UNIV-BENCH-OWL2RL.owl` and compare data quality at matched budgets.
 **Steps:**
 
-1.  **Setup the Baseline Engine (Nemo):**
-    - Ensure `data/ont/owl2rl.rls` (the standard OWL 2 RL Datalog ruleset) is configured.
-    - Run the standard `OWL2Bench` Java generator to create 50 universities (base facts).
-    - Feed `UNIV-BENCH-OWL2RL.owl`, the base facts, and `owl2rl.rls` into Nemo.
-    - Filter Nemo's output: Drop all `BNode` inferences and `owl:differentFrom` schema assertions.
-    - Extract the University prefix (`U0...`, `U1...`) to partition the massive graph into 50 smaller `sample_id` subgraphs for the RRN. Count the exact yield of positive targets. This is **Dataset A**.
-2.  **Setup Synthology (Dataset B):**
-    - Feed `UNIV-BENCH-OWL2RL.owl` into Synthology.
-    - Configure it to generate 50 graphs (`n_train: 50`) with an `individual_pool_size` mimicking a university.
-    - Over-generate slightly (e.g., aim for 20% more targets than Dataset A).
-3.  **The "Balancer" Script (Crucial for Fairness):**
-    - Write a Python script to randomly downsample Synthology's target facts to _perfectly match_ the exact target count of Dataset A. Both models must train on the exact same volume of targets and graphs.
-4.  **Create OWL2Bench Hard Test Set:** Generate a frozen test set of deep inferences for the university domain (e.g., 3-hop `knows` relations).
-5.  **Train & Evaluate:** Train an RRN on Dataset A and Dataset B. Evaluate on the frozen test set.
-6.  **Track Generator Metrics:** During generation, record Synthology's:
-    - **Generation Runtime** vs. `max_proof_depth`.
-    - **Yield Rate:** Ratio of base facts synthesized to inferred targets produced.
-    - **Ontology Coverage:** Percentage of OWL2Bench rules triggered.
+1.  Generate baseline OWL2Bench data (Nemo materialization pipeline).
+2.  Generate Synthology OWL2Bench data with controlled over-generation.
+3.  Balance Synthology output to baseline budget parity.
+4.  Freeze a deep-test set (`d >= 3`) for evaluation.
+5.  Train one RRN per dataset and evaluate on the frozen test set.
+6.  Track model metrics plus generator metrics: runtime, yield rate, and ontology coverage.
 
-By proving that an RRN trained on a balanced Synthology dataset outperforms the Nemo baseline, we demonstrate that Synthology efficiently engineers high-quality, complex data from any arbitrary TBox.
+Detailed paper-aligned protocol and required plots are documented in:
+
+- `experiments/exp1_negative_sampling/README.md`
+- `experiments/exp2_multihop_quality/README.md`
+- `experiments/exp3_scaling_bench/README.md`
 
 ## OWL2 RL Profile Coverage and Appendix Tables
 
@@ -484,7 +486,7 @@ Design note: this is an implementation scope choice, not an architectural limita
 | ---------------------- | ------------------- | ----- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `always_generate_base` |                     | bool  | false   | If true, emits a base proof even when derivation rules apply; if false, base proofs are mainly used when no matching rule exists.                        |
 | `min_lcc_ratio`        | $\rho_{\text{lcc}}$ | float | 0.8     | Validation threshold for graph connectivity: the largest connected component must cover at least this fraction of individuals.                           |
-| `strategy`             | $s_{\text{neg}}$    | enum  | `mixed` | Negative sampling mode: `random`, `constrained`, `type_aware`, `proof_based`, or `mixed`.                                                                |
+| `strategy`             | $s_{\text{neg}}$    | enum  | `proof_based` | Negative sampling mode used in the thesis experiments: `random`, `constrained`, `proof_based`.                                                            |
 | `ratio`                | $\rho_{\pm}$        | float | 1.0     | Target negative-to-positive ratio for generated examples; $\rho_{\pm}=1$ gives approximately balanced counts.                                            |
 | `corrupt_base_facts`   |                     | bool  | false   | Enables corruption of proof-leaf base facts in proof-based logic; this controls whether propagated counterfactual negatives are produced in that branch. |
 
