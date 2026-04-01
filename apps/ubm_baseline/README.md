@@ -1,6 +1,6 @@
-# RAFM Baseline Generator
+# UDM Baseline Generator
 
-Random ABox Fact Materialization (RAFM) baseline with reusable materialization backends.
+Random ABox Fact Materialization (UDM) baseline with reusable materialization backends.
 
 This package can:
 
@@ -11,7 +11,7 @@ This package can:
 
 ## Prerequisites (Jena backend)
 
-The Jena path uses a small Java helper in `apps/rafm_baseline/java/`.
+The Jena path uses a small Java helper in `apps/udm_baseline/java/`.
 
 - Java runtime in PATH (`java`)
 - Maven in PATH (`mvn`)
@@ -21,24 +21,24 @@ On first Jena run, the helper JAR is built automatically with Maven.
 ## Generate baseline splits
 
 ```bash
-uv run --package rafm_baseline python -m rafm_baseline.create_data
+uv run --package udm_baseline python -m udm_baseline.create_data
 ```
 
 Use Exp 2 or Exp 3 configs:
 
 ```bash
-uv run --package rafm_baseline python -m rafm_baseline.create_data --config-name=exp2_baseline
-uv run --package rafm_baseline python -m rafm_baseline.create_data --config-name=exp3_baseline
+uv run --package udm_baseline python -m udm_baseline.create_data --config-name=exp2_baseline
+uv run --package udm_baseline python -m udm_baseline.create_data --config-name=exp3_baseline
 ```
 
-Configs are loaded from `configs/fc_baseline/`.
+Configs are loaded from `configs/udm_baseline/`.
 
 ## Reuse Jena materialization directly (for Exp 3 pipelines)
 
 For existing TBox + ABox files, use the reusable CLI:
 
 ```bash
-uv run --package rafm_baseline python -m rafm_baseline.materialize \
+uv run --package udm_baseline python -m udm_baseline.materialize \
 	--tbox data/OWL2Bench/input/UNIV-BENCH-OWL2RL.owl \
 	--abox path/to/abox.ttl \
 	--closure-out outputs/exp3/closure.nt \

@@ -1,4 +1,4 @@
-"""Dedicated Exp 2 parity loop: retry RAFM generation until deep-count parity target is reached."""
+"""Dedicated Exp 2 parity loop: retry UDM generation until deep-count parity target is reached."""
 
 from __future__ import annotations
 
@@ -11,8 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from loguru import logger
-
-from rafm_baseline.exp2_parity_report import build_parity_report, extract_target_stats
+from udm_baseline.exp2_parity_report import build_parity_report, extract_target_stats
 
 
 def _run_baseline_attempt(
@@ -24,10 +23,10 @@ def _run_baseline_attempt(
         "uv",
         "run",
         "--package",
-        "rafm_baseline",
+        "udm_baseline",
         "python",
         "-m",
-        "rafm_baseline.create_data",
+        "udm_baseline.create_data",
         "--config-name=exp2_baseline",
         f"dataset.output_dir={attempt_dir}",
         f"dataset.seed={seed}",
@@ -46,7 +45,7 @@ def _within_tolerance(k_deep: int, observed: int, tolerance_pct: float) -> bool:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run Exp 2 RAFM parity loop with Jena materialization.")
+    parser = argparse.ArgumentParser(description="Run Exp 2 UDM parity loop with Jena materialization.")
     parser.add_argument(
         "--synth-targets",
         default="data/exp2/synthology/family_tree/train/targets.csv",
@@ -75,7 +74,7 @@ def main() -> None:
         "--override",
         action="append",
         default=[],
-        help="Extra Hydra override passed to rafm_baseline.create_data (repeatable)",
+        help="Extra Hydra override passed to udm_baseline.create_data (repeatable)",
     )
     args = parser.parse_args()
 

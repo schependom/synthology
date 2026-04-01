@@ -2,7 +2,7 @@ defaults:
   - config
   - _self_
 
-# Exp 3 baseline runs RAFM + Apache Jena over OWL2Bench ontology inputs.
+# Exp 3 baseline runs UDM + Apache Jena over OWL2Bench ontology inputs.
 ontology:
   path: "data/OWL2Bench/input/UNIV-BENCH-OWL2RL.owl"
 
@@ -38,6 +38,10 @@ materialization:
   rdfs_closure: true
   axiomatic_triples: false
   datatype_axioms: false
+  timing:
+    enabled: true
+    output_dir: "data/exp3/timings"
+    run_tag: "exp3_baseline"
 
 neg_sampling:
   ratio: 1.0

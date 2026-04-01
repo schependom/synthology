@@ -14,7 +14,7 @@ dataset:
   partition_mode: "bfs_subgraphs"
   bfs:
     # Tiny set of small graphs for fast end-to-end verification.
-    sample_count: 30
+    sample_count: 12
     max_individuals_per_sample: 40
 
   # Keep this false for tiny runs where split sizes can be small.
@@ -22,6 +22,9 @@ dataset:
 
   # Cap inferred positives to keep targets compact while still exercising the path.
   inferred_target_limit: 400
+
+  # Keep toy materialization fast by sampling a bounded reasoning subset.
+  reasoning_input_triple_cap: 1200
 
   # Keep negatives enabled so base->inferred->negative path is all exercised.
   negatives_per_positive: 1
@@ -38,7 +41,10 @@ dataset:
     materialization:
       reasoner: "jena"
       iterative: true
-      max_iterations: 6
+      max_iterations: 3
+      # Guard rails to keep toy verification runs stable on limited-memory machines.
+      max_working_triples: 12000
+      max_closure_triples: 50000
 
 generator:
   vendor_dir: "vendor/OWL2Bench"

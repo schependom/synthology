@@ -11,7 +11,7 @@ dependencies = [
     "hydra-core>=1.3.2",
     "loguru>=0.7.3",
     "omegaconf>=2.3.0",
-    "rafm_baseline",
+    "udm_baseline",
     "rdflib>=7.5.0",
 ]
 

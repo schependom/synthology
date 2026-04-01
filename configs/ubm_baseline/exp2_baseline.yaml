@@ -50,6 +50,10 @@ materialization:
   rdfs_closure: true
   axiomatic_triples: false
   datatype_axioms: false
+  timing:
+    enabled: true
+    output_dir: "data/exp2/timings"
+    run_tag: "exp2_baseline"
 
 neg_sampling:
   ratio: 1.0

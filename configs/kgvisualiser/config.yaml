@@ -13,7 +13,7 @@ output:
   format: pdf
 
 filters:
-  include_negatives: true
+  include_negatives: false
   # Per edge type cap. 0 means unlimited.
   max_edges: 0
 
@@ -24,7 +24,7 @@ render:
   overlap: prism
   sep: +12
   # If false, rdf:type is shown as subject label annotation instead of separate class nodes.
-  class_nodes: true
+  class_nodes: false
   class_annotation_max_items: 6
   show_edge_labels: true
   title: "KG Sample {sample_id}: Base, Inferred, Negative"

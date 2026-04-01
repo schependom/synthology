@@ -128,12 +128,12 @@ def gen_ft_fc(ctx: Context, args=""):
     """
     Generates family tree datasets with random base facts + owlrl
     forward-chaining materialization baseline.
-    Uses configs/rafm_baseline/config.yaml by default.
+    Uses configs/udm_baseline/config.yaml by default.
     """
 
     print("\nRunning family tree FC baseline generator.")
     cmd = "export LOGURU_COLORIZE=1 && "
-    cmd += "uv run --package rafm_baseline python -m rafm_baseline.create_data"
+    cmd += "uv run --package udm_baseline python -m udm_baseline.create_data"
     if args:
         cmd += f" {args}"
     ctx.run(cmd)
@@ -402,7 +402,7 @@ def exp2_generate_baseline(ctx: Context, fact_cap=None, target_cap=None, base_fa
     print("\nGenerating Exp 2 baseline (FC) dataset.")
     cmd = (
         "export LOGURU_COLORIZE=1 && "
-        "uv run --package rafm_baseline python -m rafm_baseline.create_data "
+        "uv run --package udm_baseline python -m udm_baseline.create_data "
         "--config-name=exp2_baseline"
     )
     if fact_cap is not None:
@@ -532,10 +532,13 @@ def exp2_smoke_jena_visual(ctx: Context, args=""):
     print("\nRunning Exp 2 Jena smoke generation (visual).")
     cmd = (
         "export LOGURU_COLORIZE=1 && "
-        "uv run --package rafm_baseline python -m rafm_baseline.create_data "
+        "uv run --package udm_baseline python -m udm_baseline.create_data "
         "dataset.n_train=1 dataset.n_val=0 dataset.n_test=0 "
         "dataset.output_dir=data/exp2/baseline/smoke_visual "
-        "materialization.reasoner=jena materialization.iterative=true"
+        "materialization.reasoner=jena materialization.iterative=true "
+        "materialization.timing.enabled=true "
+        "materialization.timing.output_dir=data/exp2/timings "
+        "materialization.timing.run_tag=exp2_smoke"
     )
     if args:
         cmd += f" {args}"
@@ -563,11 +566,11 @@ def exp2_parity_loop(
     attempts_root="data/exp2/baseline/parity_runs",
     args="",
 ):
-    """Retries RAFM baseline generation until Exp 2 deep-count parity target is reached."""
-    print("\nRunning Exp 2 RAFM parity loop.")
+    """Retries UDM baseline generation until Exp 2 deep-count parity target is reached."""
+    print("\nRunning Exp 2 UDM parity loop.")
     cmd = (
         "export LOGURU_COLORIZE=1 && "
-        "uv run --package rafm_baseline python -m rafm_baseline.exp2_parity_loop "
+        "uv run --package udm_baseline python -m udm_baseline.exp2_parity_loop "
         f"--max-attempts {max_attempts} "
         f"--min-deep-hops {min_deep_hops} "
         f"--tolerance-pct {tolerance_pct} "
@@ -593,7 +596,7 @@ def exp2_parity_report(
     print("\nGenerating Exp 2 parity report.")
     cmd = (
         "export LOGURU_COLORIZE=1 && "
-        "uv run --package rafm_baseline python -m rafm_baseline.exp2_parity_report "
+        "uv run --package udm_baseline python -m udm_baseline.exp2_parity_report "
         f"--min-deep-hops {min_deep_hops} "
         f"--synth-targets {synth_targets} "
         f"--attempts-root {attempts_root} "
@@ -618,7 +621,10 @@ def exp3_generate_owl2bench_abox(ctx: Context, universities=50, args=""):
         "export LOGURU_COLORIZE=1 && "
         "uv run --package owl2bench python -m owl2bench.pipeline "
         f"dataset.universities=[{universities}] "
-        "dataset.output_dir=data/owl2bench/output"
+        "dataset.output_dir=data/owl2bench/output "
+        "dataset.reasoning.materialization.timing.enabled=true "
+        "dataset.reasoning.materialization.timing.output_dir=data/exp3/timings "
+        "dataset.reasoning.materialization.timing.run_tag=exp3_owl2bench_abox"
     )
     if args:
         cmd += f" {args}"
@@ -627,7 +633,7 @@ def exp3_generate_owl2bench_abox(ctx: Context, universities=50, args=""):
 
 @task
 def exp3_generate_baseline(ctx: Context, universities=50, args=""):
-    """Generates Exp 3 baseline by chaining OWL2Bench generation with RAFM/Jena materialization."""
+    """Generates Exp 3 baseline by chaining OWL2Bench generation with UDM/Jena materialization."""
     exp3_generate_owl2bench_abox(ctx, universities=universities, args=args)
 
     abox_path = f"data/owl2bench/output/raw/owl2bench_{universities}/OWL2RL-{universities}.owl"
@@ -652,15 +658,17 @@ def exp3_materialize_abox(
     inferred_out="outputs/exp3/inferred.nt",
     args="",
 ):
-    """Materializes an OWL2Bench ABox with RAFM/Jena and exports closure + inferred triples."""
-    print("\nRunning Exp 3 ABox materialization with RAFM/Jena.")
+    """Materializes an OWL2Bench ABox with UDM/Jena and exports closure + inferred triples."""
+    print("\nRunning Exp 3 ABox materialization with UDM/Jena.")
     cmd = (
         "export LOGURU_COLORIZE=1 && "
-        "uv run --package rafm_baseline python -m rafm_baseline.materialize "
+        "uv run --package udm_baseline python -m udm_baseline.materialize "
         f"--tbox {tbox} "
         f"--abox {abox} "
         f"--closure-out {closure_out} "
-        f"--inferred-out {inferred_out}"
+        f"--inferred-out {inferred_out} "
+        "--timing-dir data/exp3/timings "
+        "--timing-tag exp3_materialize_abox"
     )
     if args:
         cmd += f" {args}"

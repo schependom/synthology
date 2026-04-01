@@ -46,9 +46,7 @@ def _read_nt_count(path: Path) -> int:
     return len(graph)
 
 
-def _plot_base_vs_inferred(
-    synth_stats: dict[str, Any], baseline_stats: dict[str, Any], out_path: Path
-) -> None:
+def _plot_base_vs_inferred(synth_stats: dict[str, Any], baseline_stats: dict[str, Any], out_path: Path) -> None:
     labels = ["synthology", "baseline"]
     base_vals = [synth_stats["base_positive"], baseline_stats["base_positive"]]
     inf_vals = [synth_stats["inferred_positive"], baseline_stats["inferred_positive"]]

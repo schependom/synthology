@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import time
 import urllib.parse
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
@@ -15,7 +16,7 @@ import hydra
 import rdflib
 from loguru import logger
 from omegaconf import DictConfig
-from rafm_baseline.create_data import JenaMaterializer
+from udm_baseline.create_data import JenaMaterializer
 
 RDF_TYPE_URI = str(rdflib.RDF.type)
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -161,6 +162,8 @@ def compute_inferred_triples(
     tbox_path: Path,
     known_individuals: set[rdflib.term.Node],
     materialization_cfg: dict[str, Any],
+    timing_cfg: Optional[dict[str, Any]] = None,
+    timing_context: Optional[dict[str, Any]] = None,
 ) -> tuple[
     list[tuple[rdflib.term.Node, rdflib.term.Node, rdflib.term.Node, int]],
     dict[str, int],
@@ -171,6 +174,8 @@ def compute_inferred_triples(
     reasoner = str(materialization_cfg.get("reasoner", "jena")).lower()
     iterative = bool(materialization_cfg.get("iterative", True))
     max_iterations = int(materialization_cfg.get("max_iterations", 10))
+    max_working_triples = int(materialization_cfg.get("max_working_triples", 0))
+    max_closure_triples = int(materialization_cfg.get("max_closure_triples", 0))
 
     if reasoner != "jena":
         raise ValueError(f"Unsupported reasoner '{reasoner}' for OWL2Bench pipeline. Only 'jena' is supported.")
@@ -178,6 +183,13 @@ def compute_inferred_triples(
     jena = JenaMaterializer()
     base_uri_triples = _uri_triples(base_graph)
     tbox_uri_triples = _uri_triples(tbox_graph)
+    timing_enabled = bool((timing_cfg or {}).get("enabled", False))
+    timing_output_dir = Path(str((timing_cfg or {}).get("output_dir", "data/exp3/timings")))
+    timing_run_tag = str((timing_cfg or {}).get("run_tag", "exp3_owl2bench"))
+    timing_events: list[dict[str, Any]] = []
+
+    if timing_enabled:
+        timing_output_dir.mkdir(parents=True, exist_ok=True)
 
     current_working_set = set(base_uri_triples)
     all_inferred: set[tuple[rdflib.URIRef, rdflib.URIRef, rdflib.URIRef]] = set()
@@ -186,9 +198,72 @@ def compute_inferred_triples(
 
     iterations = 1 if not iterative else max_iterations
     for iteration in range(1, iterations + 1):
-        closure = jena.materialize(str(tbox_path), current_working_set)
+        if max_working_triples > 0 and len(current_working_set) > max_working_triples:
+            logger.warning(
+                "Stopping iterative Jena materialization before iteration {} due to working set cap | working_triples={} | max_working_triples={}",
+                iteration,
+                len(current_working_set),
+                max_working_triples,
+            )
+            break
+
+        logger.info(
+            "Jena materialization iteration {}/{} | working_triples={}",
+            iteration,
+            iterations,
+            len(current_working_set),
+        )
+        iter_start = time.perf_counter()
+        try:
+            closure = jena.materialize(str(tbox_path), current_working_set)
+        except RuntimeError as exc:
+            # Large OWL2Bench closures can exhaust JVM heap on later iterations.
+            # Preserve the last successful closure and stop iterating.
+            if "OutOfMemoryError" in str(exc):
+                logger.warning(
+                    "Stopping iterative Jena materialization due to JVM heap exhaustion at iteration {}. Continuing with last successful closure.",
+                    iteration,
+                )
+                break
+            raise
+
         closure_final = closure
         newly_inferred = closure - current_working_set - tbox_uri_triples
+        iter_elapsed = time.perf_counter() - iter_start
+
+        logger.info(
+            "Jena materialization iteration {}/{} complete | closure={} | newly_inferred={}",
+            iteration,
+            iterations,
+            len(closure),
+            len(newly_inferred),
+        )
+
+        if max_closure_triples > 0 and len(closure) > max_closure_triples:
+            logger.warning(
+                "Stopping iterative Jena materialization after iteration {} due to closure cap | closure={} | max_closure_triples={}",
+                iteration,
+                len(closure),
+                max_closure_triples,
+            )
+            break
+
+        if timing_enabled:
+            timing_events.append(
+                {
+                    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                    "run_tag": timing_run_tag,
+                    "event_type": "owl2bench_jena_iteration",
+                    "iteration": iteration,
+                    "iterations_requested": iterations,
+                    "working_triples": len(current_working_set),
+                    "closure_triples": len(closure),
+                    "newly_inferred": len(newly_inferred),
+                    "iteration_wall_seconds": iter_elapsed,
+                    "jena_last_run_timing": jena.last_run_timing,
+                    **(timing_context or {}),
+                }
+            )
 
         if not newly_inferred:
             break
@@ -274,6 +349,46 @@ def compute_inferred_triples(
         "dropped_object_bnode": dropped_object_bnode,
         "dropped_object_literal": dropped_object_literal,
     }
+
+    if timing_enabled and timing_events:
+        jsonl_path = timing_output_dir / f"{timing_run_tag}_jena_events.jsonl"
+        with open(jsonl_path, "a", encoding="utf-8") as handle:
+            for event in timing_events:
+                handle.write(json.dumps(event, sort_keys=True) + "\n")
+
+        csv_path = timing_output_dir / f"{timing_run_tag}_jena_events.csv"
+        csv_exists = csv_path.exists()
+        with open(csv_path, "a", newline="", encoding="utf-8") as handle:
+            fieldnames = [
+                "timestamp_utc",
+                "run_tag",
+                "event_type",
+                "iteration",
+                "iterations_requested",
+                "working_triples",
+                "closure_triples",
+                "newly_inferred",
+                "iteration_wall_seconds",
+                "details_json",
+            ]
+            writer = csv.DictWriter(handle, fieldnames=fieldnames)
+            if not csv_exists:
+                writer.writeheader()
+            for event in timing_events:
+                row = {key: event.get(key, "") for key in fieldnames}
+                row["details_json"] = json.dumps(event, sort_keys=True)
+                writer.writerow(row)
+
+        logger.info(
+            "Timing recorded | run_tag={} | events={} | metrics=[iteration,working_triples,closure_triples,newly_inferred,"
+            "iteration_wall_seconds,jena.serialize_seconds,jena.java_seconds,jena.parse_seconds,jena.total_seconds] "
+            "| jsonl={} | csv={}",
+            timing_run_tag,
+            len(timing_events),
+            jsonl_path,
+            csv_path,
+        )
+
     return inferred, stats, raw_inferred_rows, rejected_rows, accepted_rows
 
 
@@ -651,6 +766,7 @@ def _parse_generated_to_csv(
     inferred_target_limit: int,
     negatives_per_positive: int,
     require_multiple_graphs_per_csv: bool,
+    reasoning_input_triple_cap: int,
     base_sample_id: int,
     diagnostics_cfg: dict[str, Any],
     diagnostics_id: str,
@@ -669,6 +785,18 @@ def _parse_generated_to_csv(
             continue
         reasoning_input_graph.add((s, p, o))
 
+    if reasoning_input_triple_cap > 0 and len(reasoning_input_graph) > reasoning_input_triple_cap:
+        sampled_graph = rdflib.Graph()
+        sampled_triples = random.sample(list(reasoning_input_graph), reasoning_input_triple_cap)
+        for triple in sampled_triples:
+            sampled_graph.add(triple)
+        logger.warning(
+            "Capped reasoning input triples for faster run | original={} | capped={}",
+            len(reasoning_input_graph),
+            len(sampled_graph),
+        )
+        reasoning_input_graph = sampled_graph
+
     base_graph = rdflib.Graph()
     for s, p, o in reasoning_input_graph:
         if not is_valid_abox_triple(s, o):
@@ -682,6 +810,8 @@ def _parse_generated_to_csv(
         tbox_path,
         known_individuals,
         materialization_cfg,
+        timing_cfg=dict(materialization_cfg.get("timing", {})),
+        timing_context={"diagnostics_id": diagnostics_id, "generated_owl": str(generated_owl)},
     )
 
     base_clean = []
@@ -868,6 +998,7 @@ def main(cfg: DictConfig) -> None:
     inferred_target_limit = int(cfg.dataset.get("inferred_target_limit", 0))
     negatives_per_positive = int(cfg.dataset.get("negatives_per_positive", 1))
     require_multiple_graphs_per_csv = bool(cfg.dataset.get("require_multiple_graphs_per_csv", False))
+    reasoning_input_triple_cap = int(cfg.dataset.get("reasoning_input_triple_cap", 0))
     namespace_map = dict(cfg.dataset.reasoning.get("namespace_map", {}))
     materialization_cfg = dict(cfg.dataset.reasoning.get("materialization", {}))
     diagnostics_cfg = dict(cfg.dataset.get("diagnostics", {}))
@@ -908,6 +1039,7 @@ def main(cfg: DictConfig) -> None:
             inferred_target_limit=inferred_target_limit,
             negatives_per_positive=negatives_per_positive,
             require_multiple_graphs_per_csv=require_multiple_graphs_per_csv,
+            reasoning_input_triple_cap=reasoning_input_triple_cap,
             base_sample_id=700000 + universities * 10000,
             diagnostics_cfg=diagnostics_cfg,
             diagnostics_id=diagnostics_id,

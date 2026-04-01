@@ -1,111 +1,70 @@
 # Experiment 2: Multi-Hop Reasoning Quality
 
-**Goal**  
-Show that an RRN trained on Synthology data outperforms an RRN trained on a standard forward-chaining baseline **even when the baseline is forced to contain the same number of deep (d ≥ 3) inferences**.
+## Paper-aligned goal
 
-**Ontology**  
-Family Tree (same as Experiment 1).
+Show that an RRN trained on Synthology data outperforms an RRN trained on an Unguided Deductive Materialization (UDM) baseline, even when baseline runs are selected to match deep-signal volume as closely as possible.
 
-**Core idea: parity-enforced baseline**  
-We iterate the random ABox generator until the materialized forward-chained dataset contains (approximately) the same count of d ≥ 3 inferences as the Synthology dataset.
+Ontology: Family Tree (same as Experiment 1).
 
-**Exact concrete steps**
+## Critical correction: how Jena must be used
 
-1. **Generate the Synthology reference dataset**
-    - Run Synthology on Family Tree with stratified proof selection (or random — document which).
-    - Compute and record the exact number of inferred facts with proof depth d ≥ 3. Call this number `K_deep`.
-    - Save the dataset (base facts + positives + negatives) and the depth histogram.
+Apache Jena computes fixpoint closure internally in one reasoning call.
 
-2. **Implement layered depth computation (required for parity)**
-    - Write a small Python script that performs iterative forward-chaining **layer by layer**:
-        - Layer 0 = base facts.
-        - In each new iteration, fire rules only on facts from previous layers.
-        - Assign each new inferred fact its minimum depth.
-    - Use Apache Jena (not owlrl) for the actual materialization step inside the loop.
+- One baseline attempt = one random ABox generation + one Jena closure run.
+- Do not externally re-run Jena in multiple passes to approximate depth.
+- Any depth/hop analysis for baseline must be computed after closure as a reporting layer, not by repeated Jena calls.
 
-3. **Parity-enforced forward-chaining baseline loop**
-    - While true:
-        - Generate a random ABox (same entity pool size and same total base-fact count as Synthology).
-        - Materialize with Jena.
-        - Compute depth distribution using the layered method.
-        - Count number of facts with d ≥ 3.
-        - If count ≥ `K_deep` (or within ±10 %), break.
-        - Else discard and retry.
-    - If the loop exceeds 500–1000 attempts or explodes graph size, stop and document the effort (this itself is a publishable result).
+## Updated approach
 
-4. **Create the frozen held-out deep test set**
-    - Generate **one additional Synthology sample** (or small batch) and hold it completely out of training.
-    - Extract **only** the inferred facts whose proof-tree depth d ≥ 3.
-    - For each such deep target, keep the minimal supporting base facts from its proof tree + all other base facts in that sample.
-    - This produces a clean test KB where **every positive requires at least 3 hops**.
-    - Save this test set once and reuse it for both models.
+1. Generate Synthology reference data and compute deep target count from proof metadata (`d >= 3`). Denote this as `K_deep`.
+2. Run baseline attempts in a retry loop:
+    - Sample random ABox under the same budget envelope.
+    - Run one-shot Jena closure.
+    - Convert to `facts.csv` and `targets.csv`.
+    - Compute deep-target proxy stats from exported targets.
+    - Keep/discard based on parity criterion (`>= K_deep` or tolerance band).
+3. Freeze one additional deep-only Synthology test set (`d >= 3`) for both models.
+4. Train baseline vs Synthology RRNs with identical hyperparameters.
+5. Evaluate on the same frozen deep test set.
+6. Report both aggregate and depth-bucketed metrics.
 
-5. **Training**
-    - Train RRN #1 on the Synthology dataset.
-    - Train RRN #2 on the parity-enforced forward-chaining baseline dataset.
-    - Use identical hyperparameters, same RRN implementation, same random seed.
+## Required reporting split
 
-6. **Evaluation**
-    - Evaluate **both** models **exclusively** on the frozen deep test set from step 4.
-    - Report:
-        - AUC-ROC
-        - PR-AUC (primary)
-        - F1-score
-        - FPR
-    - Also plot or report the inference-depth distribution of both training sets side-by-side.
+To match the paper discussion around trivial-fact dominance, always report metrics in at least two bins:
 
-**Expected outcome**  
-Even with identical numbers of deep inferences, the Synthology-trained model achieves higher PR-AUC and lower FPR because its deep paths are topologically integrated inside coherent samples, whereas the baseline’s deep facts are scattered and incidental.
+- 1-hop positives
+- 2-plus-hop positives
 
-**Implementation notes**
+And keep global metrics (`PR-AUC`, `AUC-ROC`, `F1`, `FPR`) beside these bucketed results.
 
-- Keep all raw baseline ABoxes that were discarded (for transparency).
-- Store everything in `experiments/exp2/`.
-- If parity proves practically impossible (very likely), switch to a “standard” (non-parity) baseline and clearly state in the paper: “Unguided forward-chaining could not reach parity after X attempts; we therefore compare against the natural shallow distribution.”
+## Practical quick start (UDM + Apache Jena)
 
-## Practical Quick Start (RAFM + Apache Jena)
-
-1. Ensure `java` and `mvn` are installed and available in `PATH`.
-2. Generate the Exp 2 baseline with Jena materialization:
+1. Baseline generation:
 
 ```bash
 uv run invoke exp2-generate-baseline
 ```
 
-This uses `configs/fc_baseline/exp2_baseline.yaml` where:
-
-- `materialization.reasoner=jena`
-- `materialization.iterative=true`
-
-3. Generate Synthology comparison data:
+2. Synthology generation:
 
 ```bash
 uv run invoke exp2-generate-synthology
 ```
 
-4. Train both RRN variants:
-
-```bash
-uv run invoke exp2-train-rrn --dataset=baseline
-uv run invoke exp2-train-rrn --dataset=synthology
-```
-
-5. Dedicated parity loop + reporting:
+3. Parity loop and reporting:
 
 ```bash
 uv run invoke exp2-parity-loop
 uv run invoke exp2-parity-report
 ```
 
-6. Visual smoke test for Jena-backed RAFM:
+4. Visual smoke check:
 
 ```bash
 uv run invoke exp2-smoke-jena-visual
 ```
 
-The smoke visualization is written to `visual-verification/exp2_smoke/`.
-
-7. Paper-oriented parity plots:
+5. Plot paper diagnostics:
 
 ```bash
 uv run invoke paper-visual-report \
@@ -113,3 +72,29 @@ uv run invoke paper-visual-report \
     --exp2-parity-summary=data/exp2/baseline/parity_runs/parity_loop_summary.json \
     --out-dir=reports/paper
 ```
+
+## Exact code changes needed
+
+These are the code-level changes required to make Exp2 fully consistent with one-shot Jena semantics in the paper.
+
+1. Remove external iterative Jena closure in baseline generation.
+    - File: `apps/rafm_baseline/src/rafm_baseline/create_data.py`
+    - Change: for `reasoner=jena`, always use single-pass materialization.
+    - Action: deprecate/disable `_materialize_iterative_jena` for production Exp2 runs.
+
+2. Remove external iterative Jena closure in OWL2Bench pipeline utilities used for baseline reasoning.
+    - File: `apps/OWL2Bench/src/owl2bench/pipeline.py`
+    - Change: call `jena.materialize(...)` once per reasoning execution.
+    - Action: keep looping only for parity attempts over newly generated ABoxes, not repeated closure calls on the same attempt.
+
+3. Make reasoner profile explicit in config and logs.
+    - Files: `configs/fc_baseline/exp2_baseline.yaml`, `apps/rafm_baseline/java/src/main/java/org/synthology/rafm/JenaMaterializerCli.java`
+    - Change: add `materialization.jena_profile` (`owl_micro`, `owl_mini`, `owl_full`) and log selected profile.
+
+4. Keep depth bucketing as analysis metadata.
+    - File: `apps/rafm_baseline/src/rafm_baseline/exp2_parity_report.py`
+    - Change: ensure reports include at least `hop=1` vs `hop>=2` summaries for paper figures and tables.
+
+5. Update smoke and baseline defaults to avoid implying multi-call Jena.
+    - Files: `tasks.py`, `configs/fc_baseline/exp2_baseline.yaml`
+    - Change: set/assume `materialization.iterative=false` for Jena paths used in official Exp2 runs.

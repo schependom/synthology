@@ -27,7 +27,7 @@ generator:
   max_types_per_individual: 2
   enforce_domain_range: true
   allow_reflexive: false
-  namespace_base: "http://synthology.org/fc/"
+  namespace_base: "http://synthology.kuleuven.be/udm/"
 
 materialization:
   # Supported: owlrl, jena
@@ -37,6 +37,10 @@ materialization:
   rdfs_closure: true
   axiomatic_triples: false
   datatype_axioms: false
+  timing:
+    enabled: false
+    output_dir: "data/exp2/timings"
+    run_tag: "udm_jena"
 
 neg_sampling:
   ratio: 1.0

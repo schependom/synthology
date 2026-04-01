@@ -37,6 +37,10 @@ dataset:
       reasoner: "jena"
       iterative: true
       max_iterations: 10
+      timing:
+        enabled: false
+        output_dir: "data/exp3/timings"
+        run_tag: "exp3_owl2bench"
 
 generator:
   vendor_dir: "vendor/OWL2Bench"

@@ -46,6 +46,11 @@ This repository implements this generator and evaluates the quality of the gener
     - [Standard Data Format](#standard-data-format)
     - [ASP solver (Family Tree)](#asp-solver-family-tree)
     - [Ontology-based generator](#ontology-based-generator)
+- [Visual verification](#visual-verification)
+    - [Category A: OWL2Bench generator checks](#category-a-owl2bench-generator-checks)
+    - [Category B: UDM baseline checks](#category-b-udm-baseline-checks)
+    - [Category C: Synthology ont_generator checks](#category-c-synthology-ont_generator-checks)
+    - [Category D: Cross-generator paper plots](#category-d-cross-generator-paper-plots)
 - [Training RRN model](#training-rrn-model)
 - [Hyperparameter Optimization (WandB Sweeps)](#hyperparameter-optimization-wandb-sweeps)
 - [Full workflow](#full-workflow)
@@ -151,6 +156,42 @@ dlv: /path/to/dlv/executable # <- change this!
 # ...
 ```
 
+#### Vendor folders (OWL2Bench and Apache Jena)
+
+Some workflows (notably OWL2Bench generation and Jena-backed materialization) rely on files in `vendor/`.
+By default, this repo keeps these folders out of git history (see `.gitignore`) to avoid committing large third-party artifacts.
+
+From the project root, set them up as follows:
+
+```bash
+mkdir -p vendor
+
+# OWL2Bench Java generator source (required for gen-owl2bench* tasks)
+git clone https://github.com/kracr/owl2bench.git vendor/OWL2Bench
+
+# Apache Jena distribution (required by UDM/Jena materialization helper)
+curl -L -o /tmp/apache-jena-6.0.0.tar.gz \
+    https://archive.apache.org/dist/jena/binaries/apache-jena-6.0.0.tar.gz
+tar -xzf /tmp/apache-jena-6.0.0.tar.gz -C vendor
+```
+
+After cloning OWL2Bench, ensure the RL ontology path exists at:
+
+- `data/owl2bench/input/UNIV-BENCH-OWL2RL.owl`
+
+If needed, copy it from the cloned vendor folder:
+
+```bash
+mkdir -p data/owl2bench/input
+cp vendor/OWL2Bench/UNIV-BENCH-OWL2RL.owl data/owl2bench/input/
+```
+
+Can you commit `vendor/OWL2Bench` into your repo?
+
+- Technically yes, if the upstream OWL2Bench license permits redistribution and you keep proper attribution.
+- Practically, it is usually better to keep it out of git and document a setup command (or use a git submodule) so your repo stays lightweight and easier to maintain.
+- Do not commit generated artifacts like `vendor/OWL2Bench/target/` or generated `.owl` outputs.
+
 ### Windows
 
 For the easiest use, you should open the **devcontainer**, which I included in `.devcontainer/`, for example using VS Code:
@@ -236,6 +277,133 @@ uv run --package ont_generator python -m ont_generator.create_data
 ```
 
 This generates `facts.csv` and `targets.csv` in `data/ont/family/{train,val,test}`.
+
+## Visual verification
+
+This section groups quick visual sanity checks by generator/baseline, so you can inspect outputs before running full experiments.
+
+### Category A: OWL2Bench generator checks
+
+Use these commands to confirm the OWL2Bench pipeline generates raw OWL artifacts and parsed split files correctly.
+
+1. **Toy end-to-end OWL2Bench run + auto-visualization**
+
+    ```bash
+    uv run invoke gen-owl2bench-toy
+    ```
+
+    This runs a small OWL2Bench configuration (`config_toy`), performs materialization, exports split CSV files, and then visualizes a sample graph for a fast end-to-end smoke check.
+    If it is still too slow on your machine, reduce the reasoning subset temporarily:
+
+    ```bash
+    uv run invoke gen-owl2bench-toy --args="dataset.reasoning_input_triple_cap=3000"
+    ```
+
+2. **Full OWL2Bench pipeline run**
+
+    ```bash
+    uv run invoke gen-owl2bench
+    ```
+
+    This runs the standard OWL2Bench generation/materialization/export pipeline for larger-scale verification and stores results under `data/owl2bench/output`.
+
+3. **Exp3-style OWL2Bench ABox generation path**
+
+    ```bash
+    uv run invoke exp3-generate-owl2bench-abox --universities=50
+    ```
+
+    This is the experiment-oriented entrypoint that generates OWL2Bench data with the requested university count, used as the baseline ABox source for Exp3.
+
+### Category B: UDM baseline checks
+
+Use these commands to verify Apache Jena-backed UDM materialization and inspect generated baseline samples.
+
+1. **Visual smoke test for UDM + Jena (recommended first check)**
+
+    ```bash
+    uv run invoke exp2-smoke-jena-visual
+    ```
+
+    This generates a tiny baseline dataset with Jena reasoning and writes a rendered sample graph to `visual-verification/exp2_smoke`, which is useful for quickly checking inferred-fact presence and graph structure.
+
+2. **Family-tree UDM baseline generation (task wrapper)**
+
+    ```bash
+    uv run invoke gen-ft-fc
+    ```
+
+    This is the reusable UDM baseline generation command for family-tree style data and is the quickest way to validate that baseline `facts.csv` and `targets.csv` generation is healthy.
+
+3. **Exp3 baseline chaining (OWL2Bench generation + UDM materialization)**
+
+    ```bash
+    uv run invoke exp3-generate-baseline --universities=50
+    ```
+
+    This runs the baseline chain used in Exp3: OWL2Bench ABox generation followed by UDM/Jena materialization, producing closure/inferred artifacts for benchmarking.
+
+4. **Direct ABox materialization with UDM/Jena**
+
+    ```bash
+    uv run invoke exp3-materialize-abox \
+      --abox=path/to/owl2bench_abox.ttl \
+      --tbox=data/owl2bench/input/UNIV-BENCH-OWL2RL.owl \
+      --closure-out=outputs/exp3/closure.nt \
+      --inferred-out=outputs/exp3/inferred.nt
+    ```
+
+    Use this when you already have an ABox and only want to validate the materialization layer independently from generation.
+
+### Category C: Synthology ont_generator checks
+
+Use these commands to visually verify the backward-chaining generator output and sample-level graph quality.
+
+1. **Generate family-tree data with Synthology (task wrapper)**
+
+    ```bash
+    uv run invoke gen-ft-ont
+    ```
+
+    This produces standard-format outputs for `train/val/test`, which you can inspect for depth, fact types, and negative-sampling structure.
+
+2. **Generate Exp2 Synthology dataset (experiment path)**
+
+    ```bash
+    uv run invoke exp2-generate-synthology
+    ```
+
+    This executes the Exp2-aligned Synthology generation path so you can verify the same configuration family used for parity and model comparisons.
+
+3. **Render a selected sample graph from generated CSVs**
+
+    ```bash
+    uv run --package kgvisualiser python -m kgvisualiser.visualize \
+      io.input_csv=data/ont/family_tree/train/targets.csv \
+      io.sample_id=1000 \
+      output.dir=visual-verification/ont_generator \
+      output.name_template=ont_sample_1000
+    ```
+
+    This explicit visualization command is useful when you want to inspect one graph in detail (for example, to confirm multi-hop inferred paths and corruption patterns).
+
+### Category D: Cross-generator paper plots
+
+Use this report command when you want a side-by-side visual summary of baseline vs Synthology behavior.
+
+1. **Generate paper-ready visual diagnostics**
+
+    ```bash
+    uv run invoke paper-visual-report \
+      --exp2-synth-targets=data/exp2/synthology/family_tree/train/targets.csv \
+      --exp2-parity-summary=data/exp2/baseline/parity_runs/parity_loop_summary.json \
+      --exp3-targets=data/owl2bench/output/owl2bench_50/train/targets.csv \
+      --exp3-abox=data/owl2bench/output/raw/owl2bench_50/OWL2RL-50.owl \
+      --exp3-inferred=data/exp3/baseline/owl2bench_50/inferred.nt \
+      --out-dir=reports/paper
+    ```
+
+    This generates consolidated inspection plots (base vs inferred, hop distributions, parity-attempt trend) so you can validate dataset behavior before or alongside model training.
 
 ## Training RRN model
 

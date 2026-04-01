@@ -1,4 +1,4 @@
-"""Report utilities for Exp 2 RAFM parity attempts."""
+"""Report utilities for Exp 2 UDM parity attempts."""
 
 from __future__ import annotations
 
@@ -111,7 +111,7 @@ def _write_attempts_csv(report: dict[str, Any], csv_path: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Summarize Exp 2 RAFM parity attempts against Synthology K_deep.")
+    parser = argparse.ArgumentParser(description="Summarize Exp 2 UDM parity attempts against Synthology K_deep.")
     parser.add_argument(
         "--synth-targets",
         default="data/exp2/synthology/family_tree/train/targets.csv",
