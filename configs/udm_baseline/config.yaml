@@ -32,6 +32,9 @@ generator:
 materialization:
   # Supported: owlrl, jena
   reasoner: owlrl
+  # Used when reasoner=jena. Choices: owl_micro, owl_mini, owl_full
+  jena_profile: owl_mini
+  # Deprecated for Jena paths: Jena computes internal fixpoint in one reasoning call.
   iterative: false
   max_iterations: 10
   rdfs_closure: true

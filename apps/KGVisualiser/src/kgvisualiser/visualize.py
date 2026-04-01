@@ -51,9 +51,29 @@ def _resolve_targets_csv(input_csv: Path, configured_targets: str | None, includ
     return None
 
 
+def _predicate_local_name(predicate: str) -> str:
+    value = predicate.strip()
+    if "#" in value:
+        return value.rsplit("#", 1)[-1]
+    if "/" in value:
+        return value.rsplit("/", 1)[-1]
+    if ":" in value:
+        return value.rsplit(":", 1)[-1]
+    return value
+
+
+def _is_skipped_predicate(predicate: str, cfg: DictConfig) -> bool:
+    if not bool(cfg.filters.ignore_same_as_different_from):
+        return False
+
+    local = _predicate_local_name(predicate)
+    return local in {"sameAs", "differentFrom"}
+
+
 def _classify_edges(
     input_rows: list[dict[str, str]],
     targets_rows: list[dict[str, str]] | None,
+    cfg: DictConfig,
 ) -> tuple[set[tuple[str, str, str]], set[tuple[str, str, str]], set[tuple[str, str, str]]]:
     base_edges: set[tuple[str, str, str]] = set()
     inferred_edges: set[tuple[str, str, str]] = set()
@@ -65,10 +85,15 @@ def _classify_edges(
         all_rows = input_rows
     else:
         for row in input_rows:
+            if _is_skipped_predicate(row["predicate"], cfg):
+                continue
             base_edges.add((row["subject"], row["predicate"], row["object"]))
         all_rows = targets_rows or []
 
     for row in all_rows:
+        if _is_skipped_predicate(row["predicate"], cfg):
+            continue
+
         triple = (row["subject"], row["predicate"], row["object"])
         label = str(row.get("label", "1")).strip()
         fact_type = str(row.get("type", "")).strip().lower()
@@ -251,7 +276,7 @@ def main(cfg: DictConfig) -> None:
     if targets_csv is not None:
         targets_rows = _group_rows_by_sample(_read_rows(targets_csv), sample_id)
 
-    base_edges, inferred_edges, negative_edges = _classify_edges(input_rows, targets_rows)
+    base_edges, inferred_edges, negative_edges = _classify_edges(input_rows, targets_rows, cfg)
 
     if cfg.filters.max_edges > 0:
         max_edges = int(cfg.filters.max_edges)

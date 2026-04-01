@@ -6,7 +6,7 @@ Show that an RRN trained on Synthology data outperforms an RRN trained on an Ung
 
 Ontology: Family Tree (same as Experiment 1).
 
-## Critical correction: how Jena must be used
+## How Jena must be used
 
 Apache Jena computes fixpoint closure internally in one reasoning call.
 
@@ -73,12 +73,77 @@ uv run invoke paper-visual-report \
     --out-dir=reports/paper
 ```
 
+## Complete command list for Exp2
+
+Use this order for a full Exp2 execution with both data and model runs.
+
+1. Generate and freeze the shared deep test set:
+
+```bash
+uv run invoke exp2-generate-gold-test
+```
+
+2. Generate baseline dataset:
+
+```bash
+uv run invoke exp2-generate-baseline
+```
+
+3. Generate Synthology dataset:
+
+```bash
+uv run invoke exp2-generate-synthology
+```
+
+4. Optional budget matching helper (instead of 2+3 separately):
+
+```bash
+uv run invoke exp2-balance-datasets --fact-cap=<Nf> --target-cap=<Nt>
+```
+
+5. Parity loop and parity report:
+
+```bash
+uv run invoke exp2-parity-loop
+uv run invoke exp2-parity-report
+```
+
+6. Data-distribution report:
+
+```bash
+uv run invoke exp2-report-data
+```
+
+7. Train both RRN models:
+
+```bash
+uv run invoke exp2-train-rrn --dataset=baseline
+uv run invoke exp2-train-rrn --dataset=synthology
+```
+
+8. Visual smoke check for baseline reasoning path:
+
+```bash
+uv run invoke exp2-smoke-jena-visual
+```
+
+9. Paper-oriented plots:
+
+```bash
+uv run invoke paper-visual-report \
+    --exp2-synth-targets=data/exp2/synthology/family_tree/train/targets.csv \
+    --exp2-parity-summary=data/exp2/baseline/parity_runs/parity_loop_summary.json \
+    --out-dir=reports/paper
+```
+
+For a monorepo-wide end-to-end protocol (Exp1/2/3 + artifacts), see `experiments/PAPER_RUNBOOK.md`.
+
 ## Exact code changes needed
 
 These are the code-level changes required to make Exp2 fully consistent with one-shot Jena semantics in the paper.
 
 1. Remove external iterative Jena closure in baseline generation.
-    - File: `apps/rafm_baseline/src/rafm_baseline/create_data.py`
+    - File: `apps/udm_baseline/src/udm_baseline/create_data.py`
     - Change: for `reasoner=jena`, always use single-pass materialization.
     - Action: deprecate/disable `_materialize_iterative_jena` for production Exp2 runs.
 
@@ -88,13 +153,13 @@ These are the code-level changes required to make Exp2 fully consistent with one
     - Action: keep looping only for parity attempts over newly generated ABoxes, not repeated closure calls on the same attempt.
 
 3. Make reasoner profile explicit in config and logs.
-    - Files: `configs/fc_baseline/exp2_baseline.yaml`, `apps/rafm_baseline/java/src/main/java/org/synthology/rafm/JenaMaterializerCli.java`
+    - Files: `configs/udm_baseline/exp2_baseline.yaml`, `apps/udm_baseline/java/src/main/java/org/synthology/rafm/JenaMaterializerCli.java`
     - Change: add `materialization.jena_profile` (`owl_micro`, `owl_mini`, `owl_full`) and log selected profile.
 
 4. Keep depth bucketing as analysis metadata.
-    - File: `apps/rafm_baseline/src/rafm_baseline/exp2_parity_report.py`
+    - File: `apps/udm_baseline/src/udm_baseline/exp2_parity_report.py`
     - Change: ensure reports include at least `hop=1` vs `hop>=2` summaries for paper figures and tables.
 
 5. Update smoke and baseline defaults to avoid implying multi-call Jena.
-    - Files: `tasks.py`, `configs/fc_baseline/exp2_baseline.yaml`
+    - Files: `tasks.py`, `configs/udm_baseline/exp2_baseline.yaml`
     - Change: set/assume `materialization.iterative=false` for Jena paths used in official Exp2 runs.

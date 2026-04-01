@@ -33,8 +33,9 @@ generator:
 
 materialization:
   reasoner: jena
-  iterative: true
-  max_iterations: 12
+  jena_profile: owl_mini
+  iterative: false
+  max_iterations: 1
   rdfs_closure: true
   axiomatic_triples: false
   datatype_axioms: false

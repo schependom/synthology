@@ -31,7 +31,9 @@ class JenaMaterializer:
 
     def __init__(self) -> None:
         self.project_root = Path(os.environ.get("SYNTHOLOGY_ROOT", Path(__file__).resolve().parents[4]))
-        self.java_project_dir = self.project_root / "apps" / "udm_baseline" / "java"
+        udm_java_dir = self.project_root / "apps" / "udm_baseline" / "java"
+        udm_java_dir = self.project_root / "apps" / "udm_baseline" / "java"
+        self.java_project_dir = udm_java_dir if udm_java_dir.exists() else udm_java_dir
         self.jar_path = self.java_project_dir / "target" / "jena-materializer-1.0.0-shaded.jar"
         self._ensured = False
         self.last_run_timing: Dict[str, Any] = {}
@@ -83,7 +85,7 @@ class JenaMaterializer:
             "elapsed_seconds": time.perf_counter() - t0,
         }
 
-    def materialize(self, ontology_path: str, base_triples: Set[Triple]) -> Set[Triple]:
+    def materialize(self, ontology_path: str, base_triples: Set[Triple], jena_profile: str = "owl_mini") -> Set[Triple]:
         """Materialize closure with Jena and return all URI-only closure triples."""
         run_start = time.perf_counter()
         ensure_stats = self._ensure_built()
@@ -116,6 +118,7 @@ class JenaMaterializer:
                 str(Path(ontology_path).resolve()),
                 str(base_path),
                 str(out_path),
+                jena_profile,
             ]
 
             try:
@@ -144,6 +147,7 @@ class JenaMaterializer:
             self.last_run_timing = {
                 "timestamp_utc": datetime.now(timezone.utc).isoformat(),
                 "ontology_path": str(Path(ontology_path).resolve()),
+                "jena_profile": jena_profile,
                 "base_triples": len(base_triples),
                 "closure_triples": len(closure),
                 "ensure": ensure_stats,
@@ -415,14 +419,17 @@ class FCBaselineGenerator:
         reasoner = str(self.cfg.materialization.get("reasoner", "owlrl")).lower()
         use_iterative = self.cfg.materialization.get("iterative", False)
         max_iterations = self.cfg.materialization.get("max_iterations", 10)
+        jena_profile = str(self.cfg.materialization.get("jena_profile", "owl_mini"))
 
         if reasoner not in {"owlrl", "jena"}:
             raise ValueError(f"Unsupported reasoner '{reasoner}'. Expected one of: owlrl, jena")
 
         if reasoner == "jena":
             if use_iterative:
-                return self._materialize_iterative_jena(base_triples, max_iterations, split_name, sample_id)
-            return self._materialize_singlepass_jena(base_triples, split_name, sample_id)
+                logger.warning(
+                    "materialization.iterative=true is ignored for reasoner=jena. Using single-pass Jena closure (internal fixpoint)"
+                )
+            return self._materialize_singlepass_jena(base_triples, split_name, sample_id, jena_profile)
 
         if use_iterative:
             return self._materialize_iterative(base_triples, max_iterations)
@@ -440,10 +447,11 @@ class FCBaselineGenerator:
         base_triples: Set[Triple],
         split_name: str,
         sample_id: str,
+        jena_profile: str,
     ) -> Tuple[Set[Triple], Dict[Triple, int]]:
         """Single-pass Jena materialization: inferred facts marked as hop=1."""
         t0 = time.perf_counter()
-        closure = self.jena_materializer.materialize(self.ontology_path, base_triples)
+        closure = self.jena_materializer.materialize(self.ontology_path, base_triples, jena_profile=jena_profile)
         schema_uri_triples = self._schema_uri_triples()
         inferred = closure - base_triples - schema_uri_triples
         hop_depths = {t: 1 for t in inferred}
@@ -454,6 +462,7 @@ class FCBaselineGenerator:
                 "split": split_name,
                 "sample_id": sample_id,
                 "iteration": 1,
+                "jena_profile": jena_profile,
                 "base_triples": len(base_triples),
                 "closure_triples": len(closure),
                 "newly_inferred": len(inferred),

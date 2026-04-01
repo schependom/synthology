@@ -17,14 +17,16 @@ public final class JenaMaterializerCli {
     }
 
     public static void main(String[] args) {
-        if (args.length != 3) {
-            System.err.println("Usage: java -jar jena-materializer.jar <ontologyPath> <baseTriplesPath> <outputPath>");
+        if (args.length != 3 && args.length != 4) {
+            System.err.println(
+                    "Usage: java -jar jena-materializer.jar <ontologyPath> <baseTriplesPath> <outputPath> [owl_micro|owl_mini|owl_full]");
             System.exit(1);
         }
 
         String ontologyPath = args[0];
         String baseTriplesPath = args[1];
         String outputPath = args[2];
+        String profile = args.length == 4 ? args[3] : "owl_mini";
 
         Model schemaModel = ModelFactory.createDefaultModel();
         RDFDataMgr.read(schemaModel, ontologyPath);
@@ -32,7 +34,7 @@ public final class JenaMaterializerCli {
         Model baseModel = ModelFactory.createDefaultModel();
         RDFDataMgr.read(baseModel, baseTriplesPath);
 
-        Reasoner reasoner = ReasonerRegistry.getOWLReasoner().bindSchema(schemaModel);
+        Reasoner reasoner = buildReasoner(profile).bindSchema(schemaModel);
         InfModel infModel = ModelFactory.createInfModel(reasoner, baseModel);
         infModel.prepare();
 
@@ -47,6 +49,19 @@ public final class JenaMaterializerCli {
             System.err.println("Failed to write materialized closure: " + exception.getMessage());
             exception.printStackTrace(System.err);
             System.exit(2);
+        }
+    }
+
+    private static Reasoner buildReasoner(String profile) {
+        String normalized = profile == null ? "owl_mini" : profile.trim().toLowerCase();
+        switch (normalized) {
+            case "owl_micro":
+                return ReasonerRegistry.getOWLMicroReasoner();
+            case "owl_full":
+                return ReasonerRegistry.getOWLReasoner();
+            case "owl_mini":
+            default:
+                return ReasonerRegistry.getOWLMiniReasoner();
         }
     }
 }

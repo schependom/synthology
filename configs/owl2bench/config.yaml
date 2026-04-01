@@ -35,8 +35,10 @@ dataset:
       "http://swat.cse.lehigh.edu/onto/univ-bench.owl#": "https://kracr.iiitd.edu.in/OWL2Bench#"
     materialization:
       reasoner: "jena"
-      iterative: true
-      max_iterations: 10
+      jena_profile: "owl_mini"
+      # Deprecated for Jena paths: Jena already computes internal fixpoint in one call.
+      iterative: false
+      max_iterations: 1
       timing:
         enabled: false
         output_dir: "data/exp3/timings"

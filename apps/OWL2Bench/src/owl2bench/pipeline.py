@@ -172,13 +172,17 @@ def compute_inferred_triples(
     list[tuple[str, rdflib.term.Node, rdflib.term.Node, rdflib.term.Node]],
 ]:
     reasoner = str(materialization_cfg.get("reasoner", "jena")).lower()
-    iterative = bool(materialization_cfg.get("iterative", True))
-    max_iterations = int(materialization_cfg.get("max_iterations", 10))
-    max_working_triples = int(materialization_cfg.get("max_working_triples", 0))
-    max_closure_triples = int(materialization_cfg.get("max_closure_triples", 0))
+    iterative = bool(materialization_cfg.get("iterative", False))
+    jena_profile = str(materialization_cfg.get("jena_profile", "owl_mini"))
 
     if reasoner != "jena":
         raise ValueError(f"Unsupported reasoner '{reasoner}' for OWL2Bench pipeline. Only 'jena' is supported.")
+
+    if iterative:
+        logger.warning(
+            "dataset.reasoning.materialization.iterative=true is deprecated for reasoner=jena. "
+            "Using one-shot Jena closure (internal fixpoint)."
+        )
 
     jena = JenaMaterializer()
     base_uri_triples = _uri_triples(base_graph)
@@ -191,89 +195,36 @@ def compute_inferred_triples(
     if timing_enabled:
         timing_output_dir.mkdir(parents=True, exist_ok=True)
 
-    current_working_set = set(base_uri_triples)
-    all_inferred: set[tuple[rdflib.URIRef, rdflib.URIRef, rdflib.URIRef]] = set()
-    hop_depths: dict[tuple[rdflib.URIRef, rdflib.URIRef, rdflib.URIRef], int] = {}
-    closure_final: set[tuple[rdflib.URIRef, rdflib.URIRef, rdflib.URIRef]] = set(base_uri_triples)
+    logger.info("Jena materialization one-shot | base_triples={} | profile={}", len(base_uri_triples), jena_profile)
+    iter_start = time.perf_counter()
+    closure_final = jena.materialize(str(tbox_path), base_uri_triples, jena_profile=jena_profile)
+    iter_elapsed = time.perf_counter() - iter_start
+    newly_inferred = closure_final - base_uri_triples - tbox_uri_triples
+    hop_depths = {triple: 1 for triple in newly_inferred}
 
-    iterations = 1 if not iterative else max_iterations
-    for iteration in range(1, iterations + 1):
-        if max_working_triples > 0 and len(current_working_set) > max_working_triples:
-            logger.warning(
-                "Stopping iterative Jena materialization before iteration {} due to working set cap | working_triples={} | max_working_triples={}",
-                iteration,
-                len(current_working_set),
-                max_working_triples,
-            )
-            break
+    logger.info(
+        "Jena materialization one-shot complete | closure={} | newly_inferred={}",
+        len(closure_final),
+        len(newly_inferred),
+    )
 
-        logger.info(
-            "Jena materialization iteration {}/{} | working_triples={}",
-            iteration,
-            iterations,
-            len(current_working_set),
+    if timing_enabled:
+        timing_events.append(
+            {
+                "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+                "run_tag": timing_run_tag,
+                "event_type": "owl2bench_jena_singlepass",
+                "iteration": 1,
+                "iterations_requested": 1,
+                "working_triples": len(base_uri_triples),
+                "closure_triples": len(closure_final),
+                "newly_inferred": len(newly_inferred),
+                "iteration_wall_seconds": iter_elapsed,
+                "jena_profile": jena_profile,
+                "jena_last_run_timing": jena.last_run_timing,
+                **(timing_context or {}),
+            }
         )
-        iter_start = time.perf_counter()
-        try:
-            closure = jena.materialize(str(tbox_path), current_working_set)
-        except RuntimeError as exc:
-            # Large OWL2Bench closures can exhaust JVM heap on later iterations.
-            # Preserve the last successful closure and stop iterating.
-            if "OutOfMemoryError" in str(exc):
-                logger.warning(
-                    "Stopping iterative Jena materialization due to JVM heap exhaustion at iteration {}. Continuing with last successful closure.",
-                    iteration,
-                )
-                break
-            raise
-
-        closure_final = closure
-        newly_inferred = closure - current_working_set - tbox_uri_triples
-        iter_elapsed = time.perf_counter() - iter_start
-
-        logger.info(
-            "Jena materialization iteration {}/{} complete | closure={} | newly_inferred={}",
-            iteration,
-            iterations,
-            len(closure),
-            len(newly_inferred),
-        )
-
-        if max_closure_triples > 0 and len(closure) > max_closure_triples:
-            logger.warning(
-                "Stopping iterative Jena materialization after iteration {} due to closure cap | closure={} | max_closure_triples={}",
-                iteration,
-                len(closure),
-                max_closure_triples,
-            )
-            break
-
-        if timing_enabled:
-            timing_events.append(
-                {
-                    "timestamp_utc": datetime.now(timezone.utc).isoformat(),
-                    "run_tag": timing_run_tag,
-                    "event_type": "owl2bench_jena_iteration",
-                    "iteration": iteration,
-                    "iterations_requested": iterations,
-                    "working_triples": len(current_working_set),
-                    "closure_triples": len(closure),
-                    "newly_inferred": len(newly_inferred),
-                    "iteration_wall_seconds": iter_elapsed,
-                    "jena_last_run_timing": jena.last_run_timing,
-                    **(timing_context or {}),
-                }
-            )
-
-        if not newly_inferred:
-            break
-
-        for triple in newly_inferred:
-            if triple not in hop_depths:
-                hop_depths[triple] = iteration
-                all_inferred.add(triple)
-
-        current_working_set |= newly_inferred
 
     inferred = []
     raw_inferred_rows: list[tuple[str, rdflib.term.Node, rdflib.term.Node, rdflib.term.Node]] = []
@@ -562,23 +513,29 @@ def _build_bfs_subgraph_samples(
 
     inferred_by_sample: dict[int, list[tuple[str, str, str, int]]] = {sid: [] for sid, _ in samples}
     sid_order = [sid for sid, _ in samples]
+    inferred_counts_by_sid: dict[int, int] = {sid: 0 for sid in sid_order}
 
     for s, p, o, hops in inferred_clean:
-        assigned_sid = None
+        candidate_sids: list[int] = []
         for sid in sid_order:
             nodes = sample_nodes_by_sid[sid]
             if s not in nodes:
                 continue
             if p != "rdf:type" and o not in nodes:
                 continue
-            assigned_sid = sid
-            break
+            candidate_sids.append(sid)
+
+        assigned_sid = None
+        if candidate_sids:
+            # Keep compatible inferred facts spread across samples to avoid one oversized sample.
+            assigned_sid = min(candidate_sids, key=lambda sid: (inferred_counts_by_sid[sid], sid))
 
         if assigned_sid is None and sid_order:
             assigned_sid = sid_order[0]
 
         if assigned_sid is not None:
             inferred_by_sample[assigned_sid].append((s, p, o, hops))
+            inferred_counts_by_sid[assigned_sid] += 1
 
     return samples, inferred_by_sample
 

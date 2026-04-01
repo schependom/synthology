@@ -62,6 +62,65 @@ uv run invoke paper-visual-report \
     --out-dir=reports/paper
 ```
 
+## Complete command list for Exp3
+
+Use this sequence to verify the refactored Exp3 pipeline and produce report artifacts.
+
+1. Fast toy smoke run (pipeline + visualization):
+
+```bash
+SYNTHOLOGY_JENA_XMX_MB=3072 uv run invoke gen-owl2bench-toy
+```
+
+2. Optional reduced toy run for quick CI/dev checks:
+
+```bash
+SYNTHOLOGY_JENA_XMX_MB=3072 uv run invoke gen-owl2bench-toy --args='dataset.reasoning_input_triple_cap=600 dataset.bfs.sample_count=6 dataset.inferred_target_limit=200'
+```
+
+3. Full OWL2Bench pipeline run:
+
+```bash
+uv run invoke gen-owl2bench
+```
+
+4. Generate OWL2Bench ABox specifically for Exp3:
+
+```bash
+uv run invoke exp3-generate-owl2bench-abox --universities=50
+```
+
+5. Run Exp3 baseline chain (ABox generation + Jena materialization):
+
+```bash
+uv run invoke exp3-generate-baseline --universities=50
+```
+
+6. Direct one-shot materialization for an existing ABox:
+
+```bash
+uv run invoke exp3-materialize-abox \
+    --abox=path/to/owl2bench_abox.ttl \
+    --tbox=data/owl2bench/input/UNIV-BENCH-OWL2RL.owl \
+    --closure-out=outputs/exp3/closure.nt \
+    --inferred-out=outputs/exp3/inferred.nt \
+    --jena-profile=owl_mini
+```
+
+7. Generate cross-experiment paper plots:
+
+```bash
+uv run invoke paper-visual-report \
+    --exp2-synth-targets=data/exp2/synthology/family_tree/train/targets.csv \
+    --exp2-parity-summary=data/exp2/baseline/parity_runs/parity_loop_summary.json \
+    --exp3-targets=data/owl2bench/output/owl2bench_50/train/targets.csv \
+    --exp3-abox=data/owl2bench/output/raw/owl2bench_50/OWL2RL-50.owl \
+    --exp3-inferred=data/exp3/baseline/owl2bench_50/inferred.nt \
+    --out-dir=reports/paper
+```
+
+For a monorepo-wide end-to-end protocol (Exp1/2/3 + artifacts), see `experiments/PAPER_RUNBOOK.md`.
+
 ## Exact code changes needed
 
 These changes are needed so Exp3 implementation matches the corrected Jena interpretation used in the paper.
@@ -71,7 +130,7 @@ These changes are needed so Exp3 implementation matches the corrected Jena inter
     - Change: replace iterative external loop over `jena.materialize(...)` with a single materialization call per ABox.
 
 2. Make Jena profile explicit and configurable.
-    - Files: `configs/owl2bench/config.yaml`, `configs/owl2bench/config_toy.yaml`, `apps/rafm_baseline/java/src/main/java/org/synthology/rafm/JenaMaterializerCli.java`
+    - Files: `configs/owl2bench/config.yaml`, `configs/owl2bench/config_toy.yaml`, `apps/udm_baseline/java/src/main/java/org/synthology/rafm/JenaMaterializerCli.java`
     - Change: add and use `dataset.reasoning.materialization.jena_profile` (`owl_micro`, `owl_mini`, `owl_full`) and log it in artifacts.
 
 3. Keep iterative fields as deprecated/no-op for Jena paths.
@@ -79,7 +138,7 @@ These changes are needed so Exp3 implementation matches the corrected Jena inter
     - Change: remove or mark `iterative` and `max_iterations` as legacy for Jena to avoid semantic confusion.
 
 4. Add depth-bucket and trivial-fact reporting outputs.
-    - Files: `apps/data_reporter/src/data_reporter/paper_plots.py`, `apps/rafm_baseline/src/rafm_baseline/exp2_parity_report.py`
+    - Files: `apps/data_reporter/src/data_reporter/paper_plots.py`, `apps/udm_baseline/src/udm_baseline/exp2_parity_report.py`
     - Change: emit 1-hop vs 2-plus-hop counts and schema-heavy share in report JSON and plots.
 
 5. Align task defaults with one-shot baseline semantics.

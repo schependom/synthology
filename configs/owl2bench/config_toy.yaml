@@ -40,11 +40,10 @@ dataset:
       "http://swat.cse.lehigh.edu/onto/univ-bench.owl#": "https://kracr.iiitd.edu.in/OWL2Bench#"
     materialization:
       reasoner: "jena"
-      iterative: true
-      max_iterations: 3
-      # Guard rails to keep toy verification runs stable on limited-memory machines.
-      max_working_triples: 12000
-      max_closure_triples: 50000
+      jena_profile: "owl_mini"
+      # Deprecated for Jena paths: Jena already computes internal fixpoint in one call.
+      iterative: false
+      max_iterations: 1
 
 generator:
   vendor_dir: "vendor/OWL2Bench"

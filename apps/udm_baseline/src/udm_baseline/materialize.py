@@ -27,6 +27,12 @@ def main() -> None:
     parser.add_argument("--inferred-out", required=True, help="Output path for inferred-only triples (N-Triples)")
     parser.add_argument("--timing-dir", default="", help="Directory for scientific timing logs (JSONL + CSV)")
     parser.add_argument("--timing-tag", default="exp3_materialize_abox", help="Tag prefix for timing files")
+    parser.add_argument(
+        "--jena-profile",
+        default="owl_mini",
+        choices=["owl_micro", "owl_mini", "owl_full"],
+        help="Apache Jena reasoner profile",
+    )
     args = parser.parse_args()
 
     run_started = time.perf_counter()
@@ -51,7 +57,7 @@ def main() -> None:
 
     materializer = JenaMaterializer()
     reasoning_start = time.perf_counter()
-    closure_uri = materializer.materialize(str(tbox_path), base_uri)
+    closure_uri = materializer.materialize(str(tbox_path), base_uri, jena_profile=args.jena_profile)
     reasoning_seconds = time.perf_counter() - reasoning_start
     inferred_uri = closure_uri - base_uri - schema_uri
 
@@ -78,6 +84,7 @@ def main() -> None:
         "run_id": run_id,
         "run_tag": args.timing_tag,
         "event_type": "exp3_materialize_abox",
+        "jena_profile": args.jena_profile,
         "tbox_path": str(tbox_path),
         "abox_path": str(abox_path),
         "closure_out": str(closure_out),

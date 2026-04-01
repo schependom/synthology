@@ -282,6 +282,14 @@ This generates `facts.csv` and `targets.csv` in `data/ont/family/{train,val,test
 
 This section groups quick visual sanity checks by generator/baseline, so you can inspect outputs before running full experiments.
 
+Current default Jena setup in code/configs:
+
+- Apache Jena libraries: `5.2.0`
+- Jena reasoner profile default: `owl_mini`
+- Materialization semantics: one-shot closure call (internal fixpoint in Jena)
+
+TODO (camera-ready paper reproducibility): freeze and document one final profile choice for all reported runs (`owl_micro` vs `owl_mini` vs `owl_full`) and include a profile-sensitivity appendix table.
+
 ### Category A: OWL2Bench generator checks
 
 Use these commands to confirm the OWL2Bench pipeline generates raw OWL artifacts and parsed split files correctly.
