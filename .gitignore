@@ -227,3 +227,5 @@ visual-verification/
 data/*/output*
 reports/
 data/exp2/baseline
+
+matlab/out
