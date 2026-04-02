@@ -3,7 +3,7 @@ defaults:
   - _self_
 
 ontology:
-  path: "data/ont/input/family.ttl"
+  path: "ontologies/family.ttl"
 
 dataset:
   n_train: 2000
@@ -23,6 +23,10 @@ dataset:
   output_dir: "data/exp2/synthology/family_tree"
   seed: 23
   save_individual_samples: false
+
+hydra:
+  run:
+    dir: "${dataset.output_dir}/hydra"
 
 export_proofs: false
 export_graphs: false

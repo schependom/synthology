@@ -177,13 +177,13 @@ tar -xzf /tmp/apache-jena-6.0.0.tar.gz -C vendor
 
 After cloning OWL2Bench, ensure the RL ontology path exists at:
 
-- `data/owl2bench/input/UNIV-BENCH-OWL2RL.owl`
+- `ontologies/UNIV-BENCH-OWL2RL.owl`
 
 If needed, copy it from the cloned vendor folder:
 
 ```bash
-mkdir -p data/owl2bench/input
-cp vendor/OWL2Bench/UNIV-BENCH-OWL2RL.owl data/owl2bench/input/
+mkdir -p ontologies
+cp vendor/OWL2Bench/UNIV-BENCH-OWL2RL.owl ontologies/
 ```
 
 Can you commit `vendor/OWL2Bench` into your repo?
@@ -243,6 +243,8 @@ uv run invoke gen-ft-asp
 ```
 
 This command generates raw `reldata` output in `data/asp/out-reldata` and then automatically converts it to the standard format (`facts.csv` and `targets.csv`) in `data/asp/family_tree/{train,val,test}`.
+
+The ASP solver input file now lives in `ontologies/family_tree.asp`.
 
 **Step-by-Step (for more control):**
 
@@ -356,7 +358,7 @@ Use these commands to verify Apache Jena-backed UDM materialization and inspect 
     ```bash
     uv run invoke exp3-materialize-abox \
       --abox=path/to/owl2bench_abox.ttl \
-      --tbox=data/owl2bench/input/UNIV-BENCH-OWL2RL.owl \
+    --tbox=ontologies/UNIV-BENCH-OWL2RL.owl \
       --closure-out=outputs/exp3/closure.nt \
       --inferred-out=outputs/exp3/inferred.nt
     ```

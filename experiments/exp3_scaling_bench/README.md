@@ -45,7 +45,7 @@ uv run invoke exp3-generate-baseline --universities=50
 ```bash
 uv run invoke exp3-materialize-abox \
     --abox=path/to/owl2bench_abox.ttl \
-    --tbox=data/owl2bench/input/UNIV-BENCH-OWL2RL.owl \
+    --tbox=ontologies/UNIV-BENCH-OWL2RL.owl \
     --closure-out=outputs/exp3/closure.nt \
     --inferred-out=outputs/exp3/inferred.nt
 ```
@@ -101,7 +101,7 @@ uv run invoke exp3-generate-baseline --universities=50
 ```bash
 uv run invoke exp3-materialize-abox \
     --abox=path/to/owl2bench_abox.ttl \
-    --tbox=data/owl2bench/input/UNIV-BENCH-OWL2RL.owl \
+    --tbox=ontologies/UNIV-BENCH-OWL2RL.owl \
     --closure-out=outputs/exp3/closure.nt \
     --inferred-out=outputs/exp3/inferred.nt \
     --jena-profile=owl_mini

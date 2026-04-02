@@ -6,6 +6,10 @@ dataset:
   output_dir: "data/exp1/constrained"
   n_test: 0
 
+hydra:
+  run:
+    dir: "${dataset.output_dir}/hydra"
+
 neg_sampling:
   strategy: "constrained"
 

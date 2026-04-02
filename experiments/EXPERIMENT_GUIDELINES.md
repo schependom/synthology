@@ -81,4 +81,12 @@ def exp1_generate_trainval(c, strategy="proof_based"):
           f"dataset.output_dir=data/exp1/{strategy}")
 ```
 
-This ensures that the `README.md` for an experiment can simply list the command, and the exact configuration state is preserved in the terminal execution and subsequently logged to Weights & Biases.
+This ensures that the `README.md` for an experiment can simply list the command, and the exact configuration state is preserved in the terminal execution and subsequently logged to the canonical run archive.
+
+## 5. Logging Contract
+
+- Canonical paper-run artifacts live under `reports/experiment_runs/<YYYY-MM-DD>/<experiment>/<task>/<timestamp>/`.
+- Every archived run contains `manifest.json`, `run.log`, copied configs, and any copied outputs or checkpoints.
+- Hydra-managed apps may still create their own local `outputs/` directory, but those files are supplementary.
+- RRN training metrics and checkpoints are additionally tracked in Weights & Biases.
+- If a command is launched through a task wrapper, its stdout/stderr is tee'd into `run.log` so the console output is preserved.

@@ -7,6 +7,10 @@ dataset:
   n_train: 0
   n_val: 0
 
+hydra:
+  run:
+    dir: "${dataset.output_dir}/hydra"
+
 neg_sampling:
   strategy: "proof_based"
   corrupt_base_facts: true

@@ -16,6 +16,13 @@ uv run invoke exp2-smoke-jena-visual
 SYNTHOLOGY_JENA_XMX_MB=3072 uv run invoke gen-owl2bench-toy
 ```
 
+## Logging And Artifacts
+
+- Canonical experiment records are written to `reports/experiment_runs/<YYYY-MM-DD>/<experiment>/<task>/<timestamp>/`.
+- Each run archive includes `manifest.json`, `run.log`, copied configs, and copied artifacts.
+- RRN runs also write metrics and checkpoints to Weights & Biases plus the run archive's `wandb/`, `lightning_logs/`, and `checkpoints/` folders.
+- Hydra-managed application outputs still appear under their app-specific `outputs/` directories when applicable, but the task archive is the primary paper record.
+
 ## 1. Experiment 1 (Negative Sampling)
 
 1. Generate train/val datasets for all three strategies:
@@ -126,7 +133,7 @@ uv run invoke exp3-generate-baseline --universities=50
 ```bash
 uv run invoke exp3-materialize-abox \
   --abox=data/owl2bench/output/raw/owl2bench_50/OWL2RL-50.owl \
-  --tbox=data/owl2bench/input/UNIV-BENCH-OWL2RL.owl \
+  --tbox=ontologies/UNIV-BENCH-OWL2RL.owl \
   --closure-out=data/exp3/baseline/owl2bench_50/closure.nt \
   --inferred-out=data/exp3/baseline/owl2bench_50/inferred.nt \
   --jena-profile=owl_mini
@@ -152,13 +159,13 @@ uv run invoke paper-visual-report \
   --out-dir=reports/paper
 ```
 
-Expected outputs in `reports/paper/`:
+Expected outputs in `reports/paper/` (each plot is saved as both `.png` and `.pdf`):
 
-- `exp2_base_vs_inferred.png`
-- `exp2_hops_distribution.png`
-- `exp2_parity_attempts.png`
-- `exp3_base_vs_inferred.png`
-- optional `exp3_hops_distribution.png`
+- `exp2_base_vs_inferred.{png,pdf}`
+- `exp2_hops_distribution.{png,pdf}`
+- `exp2_parity_attempts.{png,pdf}`
+- `exp3_base_vs_inferred.{png,pdf}`
+- optional `exp3_hops_distribution.{png,pdf}`
 - `summary.json`
 
 ## 5. Visual Inspection Artifacts

@@ -4,7 +4,7 @@ defaults:
 
 # Exp 3 baseline runs UDM + Apache Jena over OWL2Bench ontology inputs.
 ontology:
-  path: "data/OWL2Bench/input/UNIV-BENCH-OWL2RL.owl"
+  path: "ontologies/UNIV-BENCH-OWL2RL.owl"
 
 dataset:
   n_train: 300

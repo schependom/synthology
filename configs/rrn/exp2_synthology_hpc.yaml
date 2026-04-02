@@ -1,6 +1,6 @@
 defaults:
   - config
-  - override data/dataset: exp1_proof_based
+  - override data/dataset: exp2_synthology
   - _self_
 
 max_epochs: 200
@@ -15,7 +15,7 @@ callbacks:
   model_checkpoint:
     _target_: pytorch_lightning.callbacks.ModelCheckpoint
     dirpath: "${log_dir}/checkpoints"
-    filename: "best-checkpoint-proof_based"
+    filename: "best-checkpoint-exp2-synthology"
     monitor: "val_loss"
     save_top_k: 1
     save_last: true
@@ -32,6 +32,6 @@ logger:
   log_model: true
   save_dir: "${log_dir}"
   offline: false
-  name: "exp1_proof_based_hpc"
-  group: "exp1_negative_sampling"
-  tags: [exp1, proof_based, hpc]
+  name: "exp2_synthology_hpc"
+  group: "exp2_multihop"
+  tags: [exp2, synthology, hpc]

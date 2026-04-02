@@ -4,6 +4,7 @@ import argparse
 import csv
 import json
 import re
+import shutil
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -11,6 +12,45 @@ from typing import Any
 import matplotlib.pyplot as plt
 from loguru import logger
 from rdflib import Graph
+
+
+def _configure_plot_style() -> dict[str, bool]:
+    """Configure publication-oriented plotting style.
+
+    If a LaTeX executable is available, matplotlib text rendering switches to
+    LaTeX for paper-ready typography. The function returns metadata about the
+    selected rendering mode for reporting.
+    """
+
+    latex_available = shutil.which("latex") is not None
+    plt.rcParams.update(
+        {
+            "figure.dpi": 160,
+            "savefig.dpi": 300,
+            "font.family": "serif",
+            "font.serif": ["Computer Modern Roman", "Times New Roman", "DejaVu Serif"],
+            "axes.labelsize": 12,
+            "axes.titlesize": 13,
+            "legend.fontsize": 10,
+            "xtick.labelsize": 10,
+            "ytick.labelsize": 10,
+            "axes.grid": True,
+            "grid.alpha": 0.35,
+            "grid.linestyle": "--",
+            "text.usetex": latex_available,
+        }
+    )
+    return {"latex_enabled": latex_available}
+
+
+def _save_figure(fig: Any, out_path: Path) -> None:
+    """Save both PNG and PDF variants for report and paper integration."""
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    png_path = out_path if out_path.suffix.lower() == ".png" else out_path.with_suffix(".png")
+    pdf_path = png_path.with_suffix(".pdf")
+    fig.savefig(png_path, dpi=300, bbox_inches="tight")
+    fig.savefig(pdf_path, bbox_inches="tight")
 
 
 def _read_targets_stats(path: Path) -> dict[str, Any]:
@@ -64,7 +104,7 @@ def _plot_base_vs_inferred(synth_stats: dict[str, Any], baseline_stats: dict[str
     ax.grid(axis="y", linestyle="--", alpha=0.4)
     ax.legend()
     fig.tight_layout()
-    fig.savefig(out_path, dpi=180)
+    _save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -85,7 +125,7 @@ def _plot_hops(synth_stats: dict[str, Any], baseline_stats: dict[str, Any], out_
     ax.grid(linestyle="--", alpha=0.4)
     ax.legend()
     fig.tight_layout()
-    fig.savefig(out_path, dpi=180)
+    _save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -107,7 +147,7 @@ def _plot_parity_attempts(parity_summary: dict[str, Any], out_path: Path) -> Non
     ax.grid(linestyle="--", alpha=0.4)
     ax.legend()
     fig.tight_layout()
-    fig.savefig(out_path, dpi=180)
+    _save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -118,7 +158,7 @@ def _plot_exp3_base_vs_inferred(base_count: int, inferred_count: int, out_path: 
     ax.set_ylabel("triple count")
     ax.grid(axis="y", linestyle="--", alpha=0.4)
     fig.tight_layout()
-    fig.savefig(out_path, dpi=180)
+    _save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -136,7 +176,7 @@ def _plot_exp3_hops(exp3_stats: dict[str, Any], out_path: Path) -> None:
     ax.set_ylabel("count")
     ax.grid(axis="y", linestyle="--", alpha=0.4)
     fig.tight_layout()
-    fig.savefig(out_path, dpi=180)
+    _save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -153,6 +193,7 @@ def main() -> None:
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    style_info = _configure_plot_style()
 
     synth_targets = Path(args.exp2_synth_targets)
     if not synth_targets.exists():
@@ -216,6 +257,7 @@ def main() -> None:
             tries_before_match = int(match.group(1))
 
     summary = {
+        "plot_style": style_info,
         "exp2": {
             "synth_targets": str(synth_targets),
             "baseline_targets": str(baseline_targets),

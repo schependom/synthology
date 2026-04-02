@@ -3,7 +3,7 @@ defaults:
   - _self_
 
 ontology:
-  path: "data/ont/input/family.ttl"
+  path: "ontologies/family.ttl"
 
 dataset:
   n_train: 2000

@@ -402,14 +402,17 @@ class KnowledgeGraph:
         """
         rows = []
 
+        def term_name(term):
+            return term.name if hasattr(term, "name") else str(term)
+
         def atom_key_from_fact(fact_obj):
             """Stable key used to match facts against proof atoms."""
             if isinstance(fact_obj, Membership):
-                return (fact_obj.individual.name, "rdf:type", fact_obj.cls.name)
-            return (fact_obj.subject.name, fact_obj.predicate.name, fact_obj.object.name)
+                return (term_name(fact_obj.individual), "rdf:type", term_name(fact_obj.cls))
+            return (term_name(fact_obj.subject), term_name(fact_obj.predicate), term_name(fact_obj.object))
 
         def atom_key(atom: "Atom"):
-            return (atom.subject.name, atom.predicate.name, atom.object.name)
+            return (term_name(atom.subject), term_name(atom.predicate), term_name(atom.object))
 
         # Build set of inferred atoms that are used as premises/sub-goals in other proofs.
         # These are the "intermediate" inferred nodes.
@@ -473,9 +476,9 @@ class KnowledgeGraph:
 
             row = {
                 "sample_id": sample_id,
-                "subject": m.individual.name,
+                "subject": term_name(m.individual),
                 "predicate": "rdf:type",
-                "object": m.cls.name,
+                "object": term_name(m.cls),
                 "label": 1 if m.is_member else 0,
                 "truth_value": get_truth_value(m.is_member, corruption),
                 "type": get_type_str(m, m.is_member),
@@ -490,9 +493,9 @@ class KnowledgeGraph:
 
             row = {
                 "sample_id": sample_id,
-                "subject": t.subject.name,
-                "predicate": t.predicate.name,
-                "object": t.object.name,
+                "subject": term_name(t.subject),
+                "predicate": term_name(t.predicate),
+                "object": term_name(t.object),
                 "label": 1 if t.positive else 0,
                 "truth_value": get_truth_value(t.positive, corruption),
                 "type": get_type_str(t, t.positive),
@@ -505,8 +508,8 @@ class KnowledgeGraph:
         for at in self.attribute_triples:
             row = {
                 "sample_id": sample_id,
-                "subject": at.subject.name,
-                "predicate": at.predicate.name,
+                "subject": term_name(at.subject),
+                "predicate": term_name(at.predicate),
                 "object": str(at.value),
                 "label": 1,
                 "truth_value": "True",

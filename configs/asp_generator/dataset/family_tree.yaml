@@ -9,4 +9,4 @@ output_dir: "./data/asp/out-reldata"
 quiet: false
 seed: 23
 stop_prob: 0
-ontology_path: "./data/asp/family_tree.asp"
+ontology_path: "ontologies/family_tree.asp"

@@ -23,9 +23,9 @@ This document summarizes all Hydra configuration options used by the ontology-ba
 
 ## 1. ontology
 
-| Key           | Symbol        | Type   | Default                   | Description                                                                          |
-| ------------- | ------------- | ------ | ------------------------- | ------------------------------------------------------------------------------------ |
-| ontology.path | $\mathcal{O}$ | string | data/ont/input/family.ttl | Path to OWL/Turtle ontology file parsed into classes, relations, rules, constraints. |
+| Key           | Symbol        | Type   | Default               | Description                                                                          |
+| ------------- | ------------- | ------ | --------------------- | ------------------------------------------------------------------------------------ |
+| ontology.path | $\mathcal{O}$ | string | ontologies/family.ttl | Path to OWL/Turtle ontology file parsed into classes, relations, rules, constraints. |
 
 ## 2. dataset
 

@@ -14,7 +14,7 @@ callbacks:
     patience: 50
   model_checkpoint:
     _target_: pytorch_lightning.callbacks.ModelCheckpoint
-    dirpath: "./checkpoints/exp1/constrained"
+    dirpath: "${log_dir}/checkpoints"
     filename: "best-checkpoint-constrained"
     monitor: "val_loss"
     save_top_k: 1

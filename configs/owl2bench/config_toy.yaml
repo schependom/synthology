@@ -35,7 +35,7 @@ dataset:
     max_rows_per_file: 2000
 
   reasoning:
-    tbox_path: "data/owl2bench/input/UNIV-BENCH-OWL2RL.owl"
+    tbox_path: "ontologies/UNIV-BENCH-OWL2RL.owl"
     namespace_map:
       "http://swat.cse.lehigh.edu/onto/univ-bench.owl#": "https://kracr.iiitd.edu.in/OWL2Bench#"
     materialization:

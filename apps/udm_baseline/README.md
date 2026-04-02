@@ -39,7 +39,7 @@ For existing TBox + ABox files, use the reusable CLI:
 
 ```bash
 uv run --package udm_baseline python -m udm_baseline.materialize \
-	--tbox data/OWL2Bench/input/UNIV-BENCH-OWL2RL.owl \
+	--tbox ontologies/UNIV-BENCH-OWL2RL.owl \
 	--abox path/to/abox.ttl \
 	--closure-out outputs/exp3/closure.nt \
 	--inferred-out outputs/exp3/inferred.nt

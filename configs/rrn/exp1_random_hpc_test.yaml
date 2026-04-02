@@ -3,7 +3,7 @@ defaults:
   - _self_
 
 test:
-  checkpoint_glob: "./checkpoints/exp1/random/best-checkpoint-random*.ckpt"
+  checkpoint_glob: "${log_dir}/checkpoints/best-checkpoint-random*.ckpt"
 
 logger:
   _target_: pytorch_lightning.loggers.WandbLogger

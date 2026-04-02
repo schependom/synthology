@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import os
+import shutil
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -13,6 +14,40 @@ import hydra
 import matplotlib.pyplot as plt
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
+
+
+def _configure_plot_style() -> dict[str, bool]:
+    """Configure consistent plotting style with optional LaTeX text rendering."""
+
+    latex_available = shutil.which("latex") is not None
+    plt.rcParams.update(
+        {
+            "figure.dpi": 160,
+            "savefig.dpi": 300,
+            "font.family": "serif",
+            "font.serif": ["Computer Modern Roman", "Times New Roman", "DejaVu Serif"],
+            "axes.labelsize": 12,
+            "axes.titlesize": 13,
+            "legend.fontsize": 10,
+            "xtick.labelsize": 10,
+            "ytick.labelsize": 10,
+            "axes.grid": True,
+            "grid.alpha": 0.35,
+            "grid.linestyle": "--",
+            "text.usetex": latex_available,
+        }
+    )
+    return {"latex_enabled": latex_available}
+
+
+def _save_figure(fig, out_path: Path) -> None:
+    """Save a figure as both PNG and PDF."""
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    png_path = out_path if out_path.suffix.lower() == ".png" else out_path.with_suffix(".png")
+    pdf_path = png_path.with_suffix(".pdf")
+    fig.savefig(png_path, dpi=300, bbox_inches="tight")
+    fig.savefig(pdf_path, bbox_inches="tight")
 
 
 @dataclass
@@ -225,7 +260,7 @@ def _plot_bar(values: Dict[str, float], title: str, ylabel: str, out_path: Path)
     ax.set_xlabel("Method")
     ax.grid(axis="y", linestyle="--", alpha=0.4)
     fig.tight_layout()
-    fig.savefig(out_path, dpi=180)
+    _save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -247,7 +282,7 @@ def _plot_type_distribution(summary: List[Dict], out_path: Path) -> None:
     ax.legend(loc="upper right", fontsize=8)
     ax.grid(axis="y", linestyle="--", alpha=0.4)
     fig.tight_layout()
-    fig.savefig(out_path, dpi=180)
+    _save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -271,7 +306,7 @@ def _plot_hops_distribution(summary: List[Dict], out_path: Path) -> None:
     ax.legend()
     ax.grid(linestyle="--", alpha=0.4)
     fig.tight_layout()
-    fig.savefig(out_path, dpi=180)
+    _save_figure(fig, out_path)
     plt.close(fig)
 
 
@@ -289,7 +324,7 @@ def _plot_top_predicates_per_method(summary: List[Dict], out_dir: Path, top_k: i
         ax.set_xlabel("Count")
         ax.grid(axis="x", linestyle="--", alpha=0.4)
         fig.tight_layout()
-        fig.savefig(out_dir / f"top_predicates_{m['method'].lower()}.png", dpi=180)
+        _save_figure(fig, out_dir / f"top_predicates_{m['method'].lower()}.png")
         plt.close(fig)
 
 
@@ -324,7 +359,7 @@ def _plot_predicate_distribution_by_fact_group(summary: List[Dict], out_dir: Pat
         ax.legend(title="Fact Group")
         ax.grid(axis="y", linestyle="--", alpha=0.4)
         fig.tight_layout()
-        fig.savefig(out_dir / f"predicate_distribution_by_fact_group_{m['method'].lower()}.png", dpi=180)
+        _save_figure(fig, out_dir / f"predicate_distribution_by_fact_group_{m['method'].lower()}.png")
         plt.close(fig)
 
 
@@ -415,6 +450,7 @@ def main(cfg: DictConfig) -> None:
 
     out_dir = Path(cfg.output.dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    style_info = _configure_plot_style()
 
     methods: List[MethodStats] = []
 
@@ -426,7 +462,7 @@ def main(cfg: DictConfig) -> None:
     summary = [_method_summary(m) for m in methods]
 
     with open(out_dir / "summary.json", "w", encoding="utf-8") as f:
-        json.dump({"methods": summary}, f, indent=2)
+        json.dump({"methods": summary, "plot_style": style_info}, f, indent=2)
 
     _write_csv_summary(summary, out_dir)
     _write_markdown_report(summary, out_dir)
