@@ -1,75 +1,79 @@
 defaults:
   - _self_
-  - dataset: familytree # Switch to owl2bench for Exp3-style generation
+  - dataset: familytree # Select dataset subconfig from configs/ont_generator/dataset/
 
-# Global seed for reproducibility across split generation.
+# Python random seed used by dataset generation and sampling decisions.
 seed: 23
 
 ontology:
   # TBox path used by the backward-chaining generator.
   path: "ontologies/family.ttl"
 
-# Optional exports for diagnostics/visual checks.
+# Optional diagnostic exports.
 export_proofs: false
 export_graphs: false
 
 generator:
 
-  # Dataset construction controls (not dataset identity itself).
+  # Per-sample size constraints. Samples outside this individual-count range are discarded.
   min_individuals: 1
   max_individuals: 1000
-  # Minimum number of ontology rules to activate per generated sample.
-  # Higher values force richer/more entangled reasoning traces.
+  # Number of rules selected per sample is random.randint(min_rules, min(max_rules, len(all_rules))).
   min_rules: 1
-  # Maximum number of rules to activate per sample.
-  # Controls complexity ceiling and generation runtime.
   max_rules: 5
-  # Per selected rule, target at least this many proof paths before sampling targets.
-  # Increasing this improves multi-hop diversity but can slow generation.
-  target_min_proofs_rule: 5
+  # For each selected rule, proof count is sampled as:
+  # random.randint(min(len(proofs), target_min_proofs_rule), min(len(proofs), 10000)).
+  # This controls how many proofs are kept in the proof map before building the KG.
+  target_min_proofs_rule: 20
 
-  # Backward-chaining search controls.
+  # Backward-chaining limits.
+  # Recursive rule usage cap per recursive rule name.
   max_recursion: 5
+  # Hard stop for proof search depth in _find_proofs_recursive.
   global_max_depth: 10
-  max_proofs_per_atom: 5
+  # Max number of yielded proofs per goal atom during recursive search.
+  max_proofs_per_atom: 20
+  # Validation threshold for largest connected component ratio.
   min_lcc_ratio: 0.6
 
-  # Proof path sampling behavior.
-  # Strategy for choosing proof difficulty mix when multiple proofs exist.
-  # Common values: random, weighted, or custom strategies supported by code.
+  # Allowed values in code: "random" or "stratified".
+  # Any other value logs a warning and falls back to "random".
   proof_selection_strategy: "random"
-  # Relative sampling weights per proof difficulty bucket.
-  # Only used by weighted-style strategies; larger value = sampled more often.
+  # Used only when proof_selection_strategy == "stratified".
+  # Buckets are based on proof depth: easy (<=1), medium (2..4), hard (>=5).
+  # Non-positive total weight falls back to uniform weights.
   proof_selection_weights:
     easy: 20
     medium: 40
     hard: 40
 
-  # Individual generation/sampling behavior.
+  # Individual generation behavior in chainer.
+  # Max number of cached individuals available for reuse.
   individual_pool_size: 60
+  # Probability to reuse an existing individual instead of creating a new one.
   individual_reuse_prob: 0.7
+  # If true, proofs are grouped by path signature and one proof per signature is kept.
   use_signature_sampling: true
-  # Lower bound on proof root candidates sampled per rule.
-  # Helps avoid sparse reasoning coverage in small samples.
+  # Number of rule-root attempts per selected rule is random.randint(min_proof_roots, max_proof_roots),
+  # unless proof_roots_per_rule is set.
   min_proof_roots: 5
-  # Upper bound on proof root candidates sampled per rule.
-  # Keeps search breadth bounded for runtime/memory stability.
   max_proof_roots: 20
-  # If set to an integer, overrides min/max proof roots with a fixed count per rule.
-  # Keep null to use the [min_proof_roots, max_proof_roots] range.
+  # If not null, both min_proof_roots and max_proof_roots are set to this fixed integer.
   proof_roots_per_rule: null
-  # When true, always emit a base-fact backbone even if proof-driven generation is sparse.
-  # Useful to prevent empty/trivial graphs in difficult ontology regions.
+  # If true, always allow a base proof even when matching derivation rules exist.
+  # If false, base proofs are yielded only when no matching rules exist.
   always_generate_base: false
-  # Save every generated sample as separate CSV files in addition to split-level CSVs.
-  # Good for debugging; disable for large runs to reduce I/O and disk usage.
+  # If true, writes per-sample CSVs via save_dataset_to_csv in addition to split files.
   save_individual_samples: false
 
 neg_sampling:
 
-  # Negative sampling strategy for target corruption.
+  # Allowed values in NegativeSampler: random, constrained, proof_based, type_aware, mixed.
+  # "mixed" randomly selects one of the four strategies per corruption event.
   strategy: "mixed"
+  # Number of negatives is int(number_of_positives * ratio) for triples and memberships.
   ratio: 1.0
+  # Used by proof_based/mixed path to also keep direct base-fact corruptions.
   corrupt_base_facts: false
 
 logging:
