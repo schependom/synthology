@@ -1,27 +1,9 @@
 defaults:
   - _self_
+  - dataset: familytree # or owl2bench
 
 ontology:
   path: "ontologies/family.ttl"
-
-dataset:
-  n_train: 5000
-  n_test: 500
-  n_val: 500
-  train_fact_cap: null
-  val_fact_cap: null
-  test_fact_cap: null
-  train_target_cap: null
-  val_target_cap: null
-  test_target_cap: null
-  min_individuals: 1
-  max_individuals: 1000
-  min_rules: 1
-  max_rules: 5
-  target_min_proofs_rule: 5
-  output_dir: "data/ont/output/family-tree"
-  seed: 23
-  save_individual_samples: false
 
 export_proofs: false
 export_graphs: false

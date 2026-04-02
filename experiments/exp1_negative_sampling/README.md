@@ -6,7 +6,7 @@ Test the paper hypothesis that proof-based corruption produces harder negatives 
 
 ## Datasets Used
 
-- Ontology: `family-tree.ttl` (OWL2 RL translation used throughout the thesis pipeline).
+- Ontology: `ontologies/family.ttl` (OWL2 RL translation used throughout the thesis pipeline).
 - Train/val datasets:
     - `data/exp1/random`
     - `data/exp1/constrained`

@@ -3,7 +3,6 @@ defaults:
   - override data/dataset: exp2_synthology
   - _self_
 
-max_epochs: 200
 do_test: true
 test_base_facts: false
 

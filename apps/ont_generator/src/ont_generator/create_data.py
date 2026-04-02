@@ -50,8 +50,8 @@ class KGEDatasetGenerator:
             cfg:        Hydra configuration object
             verbose:    Enable detailed logging
         """
-        if cfg.dataset.seed is not None:
-            random.seed(cfg.dataset.seed)
+        if cfg.seed is not None:
+            random.seed(cfg.seed)
 
         self.cfg = cfg
         self.verbose = verbose
@@ -1217,17 +1217,17 @@ def main(cfg: DictConfig):
         n_train=cfg.dataset.n_train,
         n_val=cfg.dataset.n_val,
         n_test=cfg.dataset.n_test,
-        min_individuals=cfg.dataset.min_individuals,
-        max_individuals=cfg.dataset.max_individuals,
-        min_rules=cfg.dataset.min_rules,
-        max_rules=cfg.dataset.max_rules,
-        target_min_proofs_rule=cfg.dataset.target_min_proofs_rule,
+        min_individuals=cfg.generator.min_individuals,
+        max_individuals=cfg.generator.max_individuals,
+        min_rules=cfg.generator.min_rules,
+        max_rules=cfg.generator.max_rules,
+        target_min_proofs_rule=cfg.generator.target_min_proofs_rule,
     )
 
     # Save to CSV (Individual Samples) - Optional
     output_dir = cfg.dataset.output_dir
 
-    if cfg.dataset.get("save_individual_samples", False):
+    if cfg.generator.get("save_individual_samples", False):
         logger.info("Saving individual sample CSVs...")
         save_dataset_to_csv(train_samples, f"{output_dir}/train", prefix="train_sample")
         save_dataset_to_csv(val_samples, f"{output_dir}/val", prefix="val_sample")

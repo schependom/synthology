@@ -62,10 +62,7 @@ This repository implements this generator and evaluates the quality of the gener
 - [Custom configurations](#custom-configurations)
   - [1. Edit configuration files](#1-edit-configuration-files)
   - [2. Override configurations from command line](#2-override-configurations-from-command-line)
-- [Experiments](#experiments)
-  - [Experiment 1: The Negative Sampling Ablation Study](#experiment-1-the-negative-sampling-ablation-study)
-  - [Experiment 2: The Multi-Hop Quality Test](#experiment-2-the-multi-hop-quality-test)
-  - [Experiment 3: Scaling Benchmark (OWL2Bench)](#experiment-3-scaling-benchmark-owl2bench)
+- [Experiment Protocols](#experiment-protocols)
 - [OWL2 RL Profile Coverage and Appendix Tables](#owl2-rl-profile-coverage-and-appendix-tables)
   - [Implemented OWL2 RL Subset](#implemented-owl2-rl-subset)
   - [Currently Missing or Partial Constructs](#currently-missing-or-partial-constructs)
@@ -509,76 +506,19 @@ Another example, for training the RRN model with custom (hyper)parameters:
 
 ```bash
 uv run --package rrn python -m rrn.train \
-    hyperparams.num_epochs=20 \
     data/dataset=asp
 ```
 
-## Experiments
+## Experiment Protocols
 
-The experiment protocol is documented in the `experiments/` folder and is aligned with the thesis paper setup.
+The detailed, command-by-command experiment protocols now live in the experiment-specific READMEs:
 
-Primary model metrics are **PR-AUC** and **AUC-ROC**, with **F1** and **FPR** reported as additional diagnostics.
+- [Experiment 1: Negative Sampling Ablation](experiments/exp1_negative_sampling/README.md)
+- [Experiment 2: Multi-Hop Reasoning Quality](experiments/exp2_multihop_quality/README.md)
+- [Experiment 3: Scaling Benchmark](experiments/exp3_scaling_bench/README.md)
+- [Paper runbook](experiments/PAPER_RUNBOOK.md)
 
-### Experiment 1: The Negative Sampling Ablation Study
-
-**Goal:** Test whether proof-based corruption yields stronger hard-negative robustness than random and constrained corruption.
-**Steps:**
-
-1.  Generate train/val sets for `random`, `constrained`, and `proof_based`.
-2.  Generate a frozen near-miss hard-negative test set.
-3.  Train one RRN model per strategy.
-4.  Evaluate on the same frozen test set.
-5.  Track `PR-AUC`, `FPR`, `AUC-ROC`, and `F1`.
-6.  Freeze the winning strategy (expected: `proof_based`) for later experiments.
-
-Command entrypoint:
-
-```bash
-uv run invoke exp1-generate-trainval-sets
-uv run invoke exp1-generate-test-set
-uv run invoke exp1-train-rrn --strategy="random"
-uv run invoke exp1-train-rrn --strategy="constrained"
-uv run invoke exp1-train-rrn --strategy="proof_based"
-```
-
-### Experiment 2: The Multi-Hop Quality Test
-
-**Goal:** Compare multi-hop reasoning quality (`d >= 3`) between backward-chaining Synthology data and forward-chaining baseline data under budget parity.
-**Steps:**
-
-1.  Freeze a shared gold test set containing only `d >= 3` targets.
-2.  Generate both datasets with matched fact/target budgets.
-3.  Validate parity with reporting (budget, class ratio, graph statistics).
-4.  Train one RRN per dataset and evaluate only on the frozen deep test set.
-5.  Track `PR-AUC`, `AUC-ROC`, `F1`, and `FPR`, with focus on deep-path performance.
-
-Command entrypoint:
-
-```bash
-uv run invoke exp2-generate-gold-test
-uv run invoke exp2-balance-datasets --fact-cap=<Nf> --target-cap=<Nt> --baseline-base-facts=<K1> --synthology-proof-roots=<K2>
-uv run invoke exp2-report-data
-uv run invoke exp2-train-rrn --dataset="baseline"
-uv run invoke exp2-train-rrn --dataset="synthology"
-```
-
-### Experiment 3: Scaling Benchmark (OWL2Bench)
-
-**Goal:** Evaluate ontology-agnostic scaling on `UNIV-BENCH-OWL2RL.owl` and compare data quality at matched budgets.
-**Steps:**
-
-1.  Generate baseline OWL2Bench data (OWL2Bench ABox generation + Apache Jena materialization).
-2.  Generate Synthology OWL2Bench data with controlled over-generation.
-3.  Balance Synthology output to baseline budget parity.
-4.  Freeze a deep-test set (`d >= 3`) for evaluation.
-5.  Train one RRN per dataset and evaluate on the frozen test set.
-6.  Track model metrics plus generator metrics: runtime, yield rate, and ontology coverage.
-
-Detailed paper-aligned protocol and required plots are documented in:
-
-- `experiments/exp1_negative_sampling/README.md`
-- `experiments/exp2_multihop_quality/README.md`
-- `experiments/exp3_scaling_bench/README.md`
+The main README keeps the repository overview and setup instructions; the experiment folders are the canonical source for execution order, metrics, and artifact expectations.
 
 ## OWL2 RL Profile Coverage and Appendix Tables
 

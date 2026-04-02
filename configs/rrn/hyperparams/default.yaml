@@ -3,8 +3,7 @@ optimizer:
   _target_: torch.optim.Adam
   lr: ${hyperparams.learning_rate}
   weight_decay: ${hyperparams.weight_decay}
-batch_size: 64
-weight_decay: 0.0001
-num_epochs: 1000
+batch_size: 1 # as in the paper
+weight_decay: 0.000001 # 10^-6 as in the paper
 eval_every: 10
-early_stopping_patience: 20
+early_stopping_patience: 10

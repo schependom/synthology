@@ -26,7 +26,7 @@ experiments/
 Every subfolder in the `experiments/` directory MUST contain a `README.md` file formatted with the following sections:
 
 - **Objective:** A one-paragraph summary of what hypothesis this experiment tests.
-- **Datasets Used:** The underlying ontology (e.g., `family-tree.ttl`, `UNIV-BENCH-OWL2RL.owl`) and the standard output format directory.
+- **Datasets Used:** The underlying ontology (e.g., `ontologies/family.ttl`, `ontologies/UNIV-BENCH-OWL2RL.owl`) and the standard output format directory.
 - **Configurations:** The exact Hydra overrides or `.yaml` file names used for the generator and the RRN model.
 - **Execution Commands:** The ordered list of `uv run invoke` commands required to run the experiment from start to finish.
 - **Expected Results:** A brief note on what metrics are being tracked (e.g., AUC-ROC, FPR) and where they are logged (e.g., WandB).
