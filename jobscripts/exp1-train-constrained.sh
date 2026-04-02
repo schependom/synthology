@@ -9,6 +9,11 @@
 #BSUB -R "rusage[mem=32GB]"
 #BSUB -o logs/exp1_constrained_%J.out
 #BSUB -e logs/exp1_constrained_%J.err
+#BSUB -u vincent.vanschependom@student.kuleuven.be
+### -- send notification at start --
+#BSUB -B
+### -- send notification at completion--
+#BSUB -N
 
 set -e
 
