@@ -4,10 +4,10 @@ defaults:
 ontology:
   path: "ontologies/family.ttl"
 
-dataset: # asp uses 72% train, 8% val, 20% test by default
-  n_train: 2000
-  n_test: 200
-  n_val: 200
+dataset:
+  n_train: 5000
+  n_test: 500
+  n_val: 500
   train_fact_cap: null
   val_fact_cap: null
   test_fact_cap: null
@@ -27,7 +27,7 @@ export_proofs: false
 export_graphs: false
 
 generator:
-  max_recursion: 3
+  max_recursion: 5
   global_max_depth: 10
   max_proofs_per_atom: 5
   min_lcc_ratio: 0.6
