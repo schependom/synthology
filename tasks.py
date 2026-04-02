@@ -1459,22 +1459,31 @@ def _build_uv_command(
     args: str = "",
     env: Optional[Dict[str, str]] = None,
 ) -> str:
-    command_parts: List[str] = []
-    for key, value in (env or {}).items():
-        command_parts.append(f"export {key}={shlex.quote(str(value))}")
-
     if python_module:
-        base_command = f"uv run --package {package} python -m {module_or_entrypoint}"
+        command_tokens: List[str] = [
+            "uv",
+            "run",
+            "--package",
+            package,
+            "python",
+            "-m",
+            module_or_entrypoint,
+        ]
     else:
-        base_command = f"uv run --package {package} {module_or_entrypoint}"
-    command_parts.append(base_command)
+        command_tokens = ["uv", "run", "--package", package, module_or_entrypoint]
 
     if config_name:
-        command_parts.append(f"--config-name={config_name}")
+        command_tokens.append(f"--config-name={config_name}")
 
-    command_parts.extend(overrides)
+    command_tokens.extend(overrides)
 
     if args:
-        command_parts.append(args)
+        command_tokens.append(args)
 
-    return _compose_shell_command(command_parts)
+    base_command = " ".join(command_tokens)
+
+    env_commands: List[str] = []
+    for key, value in (env or {}).items():
+        env_commands.append(f"export {key}={shlex.quote(str(value))}")
+
+    return _compose_shell_command([*env_commands, base_command])

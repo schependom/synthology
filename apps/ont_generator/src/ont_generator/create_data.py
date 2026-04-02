@@ -251,24 +251,35 @@ class KGEDatasetGenerator:
         val_target_cap = self.cfg.dataset.get("val_target_cap", None)
         test_target_cap = self.cfg.dataset.get("test_target_cap", None)
 
-        save_standard_dataset(
-            train_samples,
-            os.path.join(self.output_dir, "train"),
-            fact_cap=train_fact_cap,
-            target_cap=train_target_cap,
-        )
-        save_standard_dataset(
-            val_samples,
-            os.path.join(self.output_dir, "val"),
-            fact_cap=val_fact_cap,
-            target_cap=val_target_cap,
-        )
-        save_standard_dataset(
-            test_samples,
-            os.path.join(self.output_dir, "test"),
-            fact_cap=test_fact_cap,
-            target_cap=test_target_cap,
-        )
+        if n_train > 0:
+            save_standard_dataset(
+                train_samples,
+                os.path.join(self.output_dir, "train"),
+                fact_cap=train_fact_cap,
+                target_cap=train_target_cap,
+            )
+        else:
+            logger.info("Skipping train split export because n_train=0")
+
+        if n_val > 0:
+            save_standard_dataset(
+                val_samples,
+                os.path.join(self.output_dir, "val"),
+                fact_cap=val_fact_cap,
+                target_cap=val_target_cap,
+            )
+        else:
+            logger.info("Skipping val split export because n_val=0")
+
+        if n_test > 0:
+            save_standard_dataset(
+                test_samples,
+                os.path.join(self.output_dir, "test"),
+                fact_cap=test_fact_cap,
+                target_cap=test_target_cap,
+            )
+        else:
+            logger.info("Skipping test split export because n_test=0")
 
         return train_samples, val_samples, test_samples
 
@@ -1229,9 +1240,12 @@ def main(cfg: DictConfig):
 
     if cfg.generator.get("save_individual_samples", False):
         logger.info("Saving individual sample CSVs...")
-        save_dataset_to_csv(train_samples, f"{output_dir}/train", prefix="train_sample")
-        save_dataset_to_csv(val_samples, f"{output_dir}/val", prefix="val_sample")
-        save_dataset_to_csv(test_samples, f"{output_dir}/test", prefix="test_sample")
+        if cfg.dataset.n_train > 0:
+            save_dataset_to_csv(train_samples, f"{output_dir}/train", prefix="train_sample")
+        if cfg.dataset.n_val > 0:
+            save_dataset_to_csv(val_samples, f"{output_dir}/val", prefix="val_sample")
+        if cfg.dataset.n_test > 0:
+            save_dataset_to_csv(test_samples, f"{output_dir}/test", prefix="test_sample")
 
     logger.success("Ontology-based Knowledge Graph Dataset generation complete!")
 
