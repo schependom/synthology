@@ -2,7 +2,10 @@
 
 **Ontology-Based Synthetic Data Generation for Neuro-Symbolic Knowledge Graph Reasoning**.
 
-This repository contains the source code for my bachelor thesis at KU Leuven.
+_**Vincent Van Schependom**, Cas Proost, Pieter Bonte_\
+_Department of Computer Science, KU Leuven campus Kulak Kortrijk_
+
+[Read the preprint](paper/preprint.pdf)
 
 ## Introduction
 
@@ -23,7 +26,7 @@ This project investigates the following research question:
 
 The core hypothesis is that **backward-chaining data generation** - applying deductive reasoning on ontologies (TBox) to generate synthetic data (ABox) - can create high-quality training datasets. By constructing proof trees for derived facts, we can:
 
-1.  Ensure **logical consistency** and diverse reasoning depths.
+1.  Ensure **multi-hop data** that requires chaining multiple reasoning steps.
 2.  Generate **"hard" negative samples** via proof-based corruption (breaking specific links in a valid proof chain), forcing the model to distinguish between valid and invalid reasoning paths.
 
 This repository implements this generator and evaluates the quality of the generated data by training a **Recursive Reasoning Network (RRN)**, a Neuro-Symbolic link prediction model, as well as other baseline models to benchmark performance.
@@ -31,47 +34,49 @@ This repository implements this generator and evaluates the quality of the gener
 ## Table of Contents <!-- omit in toc -->
 
 - [Introduction](#introduction)
-    - [Context \& Problem Statement](#context--problem-statement)
-    - [Hypothesis and Approach](#hypothesis-and-approach)
+  - [Context \& Problem Statement](#context--problem-statement)
+  - [Hypothesis and Approach](#hypothesis-and-approach)
 - [Features](#features)
 - [Installation](#installation)
-    - [macOS/Linux](#macoslinux)
-        - [UV installation](#uv-installation)
-        - [DLV](#dlv)
-    - [Windows](#windows)
-        - [Activation of virtual environment](#activation-of-virtual-environment)
-        - [DLV](#dlv-1)
-        - [Development tools](#development-tools)
-- [Generating datasets](#generating-datasets)
-    - [Standard Data Format](#standard-data-format)
-    - [ASP solver (Family Tree)](#asp-solver-family-tree)
-    - [Ontology-based generator](#ontology-based-generator)
-- [Visual verification](#visual-verification)
-    - [Category A: OWL2Bench generator checks](#category-a-owl2bench-generator-checks)
-    - [Category B: UDM baseline checks](#category-b-udm-baseline-checks)
-    - [Category C: Synthology ont_generator checks](#category-c-synthology-ont_generator-checks)
-    - [Category D: Cross-generator paper plots](#category-d-cross-generator-paper-plots)
+  - [macOS/Linux](#macoslinux)
+    - [UV installation](#uv-installation)
+    - [DLV](#dlv)
+    - [Vendor folders (OWL2Bench and Apache Jena)](#vendor-folders-owl2bench-and-apache-jena)
+  - [Windows](#windows)
+    - [Activation of virtual environment](#activation-of-virtual-environment)
+    - [DLV](#dlv-1)
+    - [Development tools](#development-tools)
+- [Reproducability](#reproducability)
 - [Training RRN model](#training-rrn-model)
+- [Data generation](#data-generation)
+  - [Ontologies](#ontologies)
+  - [Standard Data Format](#standard-data-format)
+  - [ASP solver (Family Tree)](#asp-solver-family-tree)
+  - [Ontology-based generator (Synthology)](#ontology-based-generator-synthology)
+- [Visual verification](#visual-verification)
+  - [Category A: OWL2Bench generator checks](#category-a-owl2bench-generator-checks)
+  - [Category B: UDM baseline checks](#category-b-udm-baseline-checks)
+  - [Category C: Synthology ont\_generator checks](#category-c-synthology-ont_generator-checks)
+  - [Category D: Cross-generator paper plots](#category-d-cross-generator-paper-plots)
 - [Hyperparameter Optimization (WandB Sweeps)](#hyperparameter-optimization-wandb-sweeps)
-- [Full workflow](#full-workflow)
 - [Custom configurations](#custom-configurations)
-    - [1. Edit configuration files](#1-edit-configuration-files)
-    - [2. Override configurations from command line](#2-override-configurations-from-command-line)
+  - [1. Edit configuration files](#1-edit-configuration-files)
+  - [2. Override configurations from command line](#2-override-configurations-from-command-line)
 - [Experiments](#experiments)
-    - [Experiment 1: The Negative Sampling Ablation Study](#experiment-1-the-negative-sampling-ablation-study)
-    - [Experiment 2: The Multi-Hop Quality Test](#experiment-2-the-multi-hop-quality-test)
-    - [Experiment 3: Scaling Benchmark (OWL2Bench)](#experiment-3-scaling-benchmark-owl2bench)
+  - [Experiment 1: The Negative Sampling Ablation Study](#experiment-1-the-negative-sampling-ablation-study)
+  - [Experiment 2: The Multi-Hop Quality Test](#experiment-2-the-multi-hop-quality-test)
+  - [Experiment 3: Scaling Benchmark (OWL2Bench)](#experiment-3-scaling-benchmark-owl2bench)
 - [OWL2 RL Profile Coverage and Appendix Tables](#owl2-rl-profile-coverage-and-appendix-tables)
-    - [Implemented OWL2 RL Subset](#implemented-owl2-rl-subset)
-    - [Currently Missing or Partial Constructs](#currently-missing-or-partial-constructs)
-    - [Appendix Table A: Configuration Parameters (1/2)](#appendix-table-a-configuration-parameters-12)
-    - [Appendix Table B: Configuration Parameters (2/2)](#appendix-table-b-configuration-parameters-22)
-    - [Appendix Table C: Algorithm Terminology](#appendix-table-c-algorithm-terminology)
+  - [Implemented OWL2 RL Subset](#implemented-owl2-rl-subset)
+  - [Currently Missing or Partial Constructs](#currently-missing-or-partial-constructs)
+- [Appendix](#appendix)
+  - [Appendix Table A: Configuration Parameters (1/2)](#appendix-table-a-configuration-parameters-12)
+  - [Appendix Table B: Configuration Parameters (2/2)](#appendix-table-b-configuration-parameters-22)
+  - [Appendix Table C: Algorithm Terminology](#appendix-table-c-algorithm-terminology)
 - [Development](#development)
-    - [`uv`](#uv)
-- [TODO](#todo)
+  - [`uv`](#uv)
 - [Known issues](#known-issues)
-    - [1. Python output buffering](#1-python-output-buffering)
+  - [1. Python output buffering](#1-python-output-buffering)
 
 ## Features
 
@@ -83,10 +88,7 @@ I value **reproducibility** of scientific experiments very highly, so:
 
 The _subprojects_ (located in `apps/`) are:
 
-- `ont_generator`: The backward-chaining ontology-based data generator I created for my thesis
-- `asp_generator`: The ASP-based family tree data generator by Patrick Hohenecker (see [below](#ASP-solver))
-- `rrn`: The Recursive Reasoning Model (also by Patrick Hohenecker) is a neuro-symbolic link prediction model, used for testing the quality of the generated datasets.
-- `baselines`: A collection of baseline link prediction models (e.g., TransE, DistMult, ComplEx) to further benchmark the performance of the generated datasets.
+[TODO]
 
 The `uv` nature of this repo makes it possible to easily manage **dependencies** between these subprojects. Furthermore, it provides a **task runner** (`invoke`) to run common tasks (e.g., generating datasets, training models, running experiments) from the project root. Use the following command to see all available tasks:
 
@@ -222,7 +224,35 @@ You don't need to install DLV manually (like on macOS/Linux), as it is already i
 
 See the [Development](#development) section for instructions on setting up development tools like `ruff` and `ty` (using VS Code extensions is recommended).
 
-## Generating datasets
+## Reproducability
+
+The exact sequence of `invoke` commands needed to reproduce our results are located in the 3 experiment-specific `README.md` files:
+
+- `experiments/exp1_negative_sampling/`
+- `experiments/exp2_multihop_quality/`
+  `experiments/exp3_scaling_bench/`
+
+## Training RRN model
+
+To train the Recursive Reasoning Network (RRN) model on the generated family tree datasets, use the following `invoke` task:
+
+```bash
+uv run invoke train-rrn
+# configs/rrn/  config.yaml
+#               data/           default.yaml
+#                               dataset/asp.yaml
+#                               dataset/ont.yaml
+#               model/          default.yaml
+#               hyperparams/    default.yaml
+```
+
+To tweak the parameters, please refer to the [configuration section](#custom-configurations). This also applies to all data generation methods.
+
+## Data generation
+
+### Ontologies
+
+All ontologies that were used for data generation are located in the `ontologies/` folder.
 
 ### Standard Data Format
 
@@ -244,27 +274,7 @@ uv run invoke gen-ft-asp
 
 This command generates raw `reldata` output in `data/asp/out-reldata` and then automatically converts it to the standard format (`facts.csv` and `targets.csv`) in `data/asp/family_tree/{train,val,test}`.
 
-The ASP solver input file now lives in `ontologies/family_tree.asp`.
-
-**Step-by-Step (for more control):**
-
-1.  **Generate Raw Data Only**:
-
-    ```bash
-    uv run --package asp_generator python apps/asp_generator/src/asp_generator/create_data.py
-    ```
-
-    This generates raw `reldata` output in `data/asp/out-reldata` without converting.
-
-2.  **Convert to Standard Format** (separate step):
-    ```bash
-    uv run invoke convert-reldata
-    ```
-    This converts existing data in `data/asp/out-reldata` to the standard format.
-
-To tweak the generation parameters, please refer to the [configuration section](#custom-configurations).
-
-### Ontology-based generator
+### Ontology-based generator (Synthology)
 
 To use the backward-chaining ontology-based generator (which outputs the standard format):
 
@@ -284,7 +294,7 @@ This generates `facts.csv` and `targets.csv` in `data/ont/family/{train,val,test
 
 This section groups quick visual sanity checks by generator/baseline, so you can inspect outputs before running full experiments.
 
-Current default Jena setup in code/configs:
+Jena setup in code/configs:
 
 - Apache Jena libraries: `5.2.0`
 - Jena reasoner profile default: `owl_mini`
@@ -415,20 +425,6 @@ Use this report command when you want a side-by-side visual summary of baseline 
 
     This generates consolidated inspection plots (base vs inferred, hop distributions, parity-attempt trend) so you can validate dataset behavior before or alongside model training.
 
-## Training RRN model
-
-To train the Recursive Reasoning Network (RRN) model on the generated family tree datasets, use the following `invoke` task:
-
-```bash
-uv run invoke train-rrn
-# configs/rrn/  config.yaml
-#               data/           default.yaml
-#                               dataset/asp.yaml
-#                               dataset/ont.yaml
-#               model/          default.yaml
-#               hyperparams/    default.yaml
-```
-
 ## Hyperparameter Optimization (WandB Sweeps)
 
 You can run hyperparameter sweeps that span **both** the ontology data generation and the RRN model training. This allows you to find the optimal combination of dataset characteristics (e.g., complexity, size, negative sampling ratio) and model hyperparameters.
@@ -474,12 +470,6 @@ A wrapper script `scripts/sweep_ont_rrn.py` handles the coordination between the
     ```
 
 The script automatically generates a temporary dataset for each run, trains the model on it, reports metrics to WandB, and cleans up the data afterwards.
-
-## Full workflow
-
-1. Generate a dataset using either the ASP-based (default for now) or ontology-based generator (work in progress).
-2. Make sure the `data/asp/family_tree/` or `data/ont/family_tree/` folder contains 3 folders: `train/`, `val/`, and `test/`, each containing `.csv` files with triples.
-3. Train the RRN model on the generated dataset
 
 ## Custom configurations
 
@@ -639,6 +629,10 @@ Important OWL2 RL constructs that are not yet fully supported include:
 
 Design note: this is an implementation scope choice, not an architectural limitation. New support can be added incrementally through parser handlers and rule templates.
 
+## Appendix
+
+This section contains tables with detailed descriptions of configuration parameters and algorithm terminology, supplementing the [main paper](paper/preprint.pdf) for readers who want to understand the implementation details or customize the generator.
+
 ### Appendix Table A: Configuration Parameters (1/2)
 
 | YAML Parameter           | Symbol               | Type        | Default | Description                                                                                                                                                                      |
@@ -708,13 +702,6 @@ Adding new dependencies only to a specific subproject:
 ```bash
 uv add <dependency> --package my-new-app
 ```
-
-## TODO
-
-- [ ] Add OWL2Bench RL generator pipeline
-- [ ] Add experiments
-- [ ] Add `invoke` commands to reproduce experiments
-- [ ] Add OWL2Bench/Jena Java dependencies to devcontainer
 
 ## Known issues
 

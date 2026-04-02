@@ -221,6 +221,7 @@ data/OWL2Bench/output/*
 data/OWL2Bench/diagnostics/*
 
 paper/
+!paper/preprint.pdf
 visual-verification/
 
 data/*/output*
