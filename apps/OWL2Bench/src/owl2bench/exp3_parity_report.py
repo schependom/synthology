@@ -1,4 +1,4 @@
-"""Report utilities for Exp 2 UDM parity attempts."""
+"""Report utilities for Exp 3 parity attempts against a Synthology reference dataset."""
 
 from __future__ import annotations
 
@@ -63,7 +63,6 @@ def extract_target_stats(targets_csv: Path, min_deep_hops: int) -> dict[str, Any
 
 
 def extract_facts_stats(facts_csv: Path) -> dict[str, Any]:
-    # Edge density is measured on directed non-type relation edges over discovered individuals.
     nodes: set[str] = set()
     relation_edges = 0
     all_facts = 0
@@ -95,11 +94,9 @@ def extract_facts_stats(facts_csv: Path) -> dict[str, Any]:
 
 
 def extract_dataset_stats(targets_csv: Path, facts_csv: Path, min_deep_hops: int) -> dict[str, Any]:
-    target_stats = extract_target_stats(targets_csv=targets_csv, min_deep_hops=min_deep_hops)
-    fact_stats = extract_facts_stats(facts_csv=facts_csv)
     return {
-        **target_stats,
-        **fact_stats,
+        **extract_target_stats(targets_csv=targets_csv, min_deep_hops=min_deep_hops),
+        **extract_facts_stats(facts_csv=facts_csv),
         "targets_csv": str(targets_csv),
         "facts_csv": str(facts_csv),
         "min_deep_hops": min_deep_hops,
@@ -122,9 +119,9 @@ def load_synth_runtime_seconds(metrics_path: Path) -> float | None:
 def _discover_attempt_targets(attempts_root: Path) -> list[tuple[str, Path]]:
     result: list[tuple[str, Path]] = []
     for attempt_dir in sorted(attempts_root.glob("attempt_*")):
-        targets_csv = attempt_dir / "train" / "targets.csv"
-        if targets_csv.exists():
-            result.append((attempt_dir.name, targets_csv))
+        candidates = sorted(attempt_dir.glob("**/train/targets.csv"))
+        if candidates:
+            result.append((attempt_dir.name, candidates[0]))
     return result
 
 
@@ -211,33 +208,18 @@ def _write_attempts_csv(report: dict[str, Any], csv_path: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Summarize Exp 2 UDM parity attempts against Synthology K_deep.")
-    parser.add_argument(
-        "--synth-targets",
-        default="data/exp2/synthology/family_tree/train/targets.csv",
-        help="Path to Synthology train targets.csv used to derive K_deep",
-    )
-    parser.add_argument(
-        "--synth-facts",
-        default="data/exp2/synthology/family_tree/train/facts.csv",
-        help="Path to Synthology train facts.csv used for structural parity stats",
-    )
+    parser = argparse.ArgumentParser(description="Summarize Exp 3 parity attempts against Synthology deep/structural stats.")
+    parser.add_argument("--synth-targets", required=True, help="Path to Synthology train targets.csv")
+    parser.add_argument("--synth-facts", required=True, help="Path to Synthology train facts.csv")
     parser.add_argument(
         "--attempts-root",
-        default="data/exp2/baseline/parity_runs",
-        help="Directory containing attempt_*/train/targets.csv",
+        default="data/exp3/baseline/parity_runs",
+        help="Directory containing attempt_* outputs",
     )
-    parser.add_argument("--min-deep-hops", type=int, default=3, help="Minimum hop threshold for deep facts")
-    parser.add_argument(
-        "--out-json",
-        default="data/exp2/baseline/parity_runs/parity_report.json",
-        help="Output JSON report path",
-    )
-    parser.add_argument(
-        "--out-csv",
-        default="data/exp2/baseline/parity_runs/parity_attempts.csv",
-        help="Output CSV summary path",
-    )
+    parser.add_argument("--min-deep-hops", type=int, default=3)
+    parser.add_argument("--summary-json", default="", help="Optional exp3 parity loop summary JSON to enrich report")
+    parser.add_argument("--out-json", default="data/exp3/baseline/parity_runs/parity_report.json")
+    parser.add_argument("--out-csv", default="data/exp3/baseline/parity_runs/parity_attempts.csv")
     args = parser.parse_args()
 
     synth_targets = Path(args.synth_targets)
@@ -260,6 +242,18 @@ def main() -> None:
         min_deep_hops=args.min_deep_hops,
     )
 
+    if args.summary_json:
+        summary_path = Path(args.summary_json)
+        if summary_path.exists():
+            with open(summary_path, encoding="utf-8") as handle:
+                summary_payload = json.load(handle)
+            report["time_to_parity"] = {
+                "synth_runtime_seconds": summary_payload.get("synth_runtime_seconds"),
+                "baseline_time_to_parity_seconds": summary_payload.get("baseline_time_to_parity_seconds"),
+                "baseline_vs_synth_time_ratio": summary_payload.get("baseline_vs_synth_time_ratio"),
+                "matched_attempt": summary_payload.get("matched_attempt"),
+            }
+
     out_json.parent.mkdir(parents=True, exist_ok=True)
     with open(out_json, "w", encoding="utf-8") as handle:
         json.dump(report, handle, indent=2, sort_keys=True)
@@ -268,7 +262,7 @@ def main() -> None:
 
     synth = report["synthology"]
     logger.info(
-        "Exp2 parity report | K_deep={} | synth_hops={} | attempts={} | json={} | csv={}",
+        "Exp3 parity report | K_deep={} | synth_hops={} | attempts={} | json={} | csv={}",
         synth["k_deep"],
         synth["hop_histogram"],
         len(report.get("attempts", [])),

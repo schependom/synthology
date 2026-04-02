@@ -923,10 +923,17 @@ def exp2_parity_loop(
     min_deep_hops=3,
     tolerance_pct=10.0,
     synth_targets="data/exp2/synthology/family_tree/train/targets.csv",
+    synth_facts="data/exp2/synthology/family_tree/train/facts.csv",
+    synth_generation_metrics="data/exp2/synthology/family_tree/generation_metrics.json",
     attempts_root="data/exp2/baseline/parity_runs",
+    deep_count_mode="exact",
+    node_tolerance_pct=10.0,
+    edge_density_tolerance_pct=15.0,
+    target_ratio_tolerance_pct=10.0,
+    inferred_share_tolerance_pct=10.0,
     args="",
 ):
-    """Retries UDM baseline generation until Exp 2 deep-count parity target is reached."""
+    """Retries UDM baseline generation until Exp 2 deep and structural parity targets are reached."""
     print("\nRunning Exp 2 UDM parity loop.")
     run_dir = _make_run_archive("exp2", "parity_loop", label="parity")
     attempts_dir = run_dir / "attempts"
@@ -938,7 +945,14 @@ def exp2_parity_loop(
             f"--max-attempts {max_attempts}",
             f"--min-deep-hops {min_deep_hops}",
             f"--tolerance-pct {tolerance_pct}",
+            f"--deep-count-mode {deep_count_mode}",
             f"--synth-targets {synth_targets}",
+            f"--synth-facts {synth_facts}",
+            f"--synth-generation-metrics {synth_generation_metrics}",
+            f"--node-tolerance-pct {node_tolerance_pct}",
+            f"--edge-density-tolerance-pct {edge_density_tolerance_pct}",
+            f"--target-ratio-tolerance-pct {target_ratio_tolerance_pct}",
+            f"--inferred-share-tolerance-pct {inferred_share_tolerance_pct}",
             f"--attempts-root {shlex.quote(str(attempts_dir))}",
         ),
         args=args,
@@ -955,11 +969,19 @@ def exp2_parity_loop(
                 "max_attempts": max_attempts,
                 "min_deep_hops": min_deep_hops,
                 "tolerance_pct": tolerance_pct,
+                "deep_count_mode": deep_count_mode,
                 "synth_targets": synth_targets,
+                "synth_facts": synth_facts,
+                "synth_generation_metrics": synth_generation_metrics,
+                "node_tolerance_pct": node_tolerance_pct,
+                "edge_density_tolerance_pct": edge_density_tolerance_pct,
+                "target_ratio_tolerance_pct": target_ratio_tolerance_pct,
+                "inferred_share_tolerance_pct": inferred_share_tolerance_pct,
                 "args": args,
                 "config_files": ["configs/udm_baseline/exp2_baseline.yaml", "configs/udm_baseline/config.yaml"],
                 "attempts_root": str(attempts_dir),
             },
+            hydra_run_dir=False,
         )
     )
 
@@ -969,6 +991,7 @@ def exp2_parity_report(
     ctx: Context,
     min_deep_hops=3,
     synth_targets="data/exp2/synthology/family_tree/train/targets.csv",
+    synth_facts="data/exp2/synthology/family_tree/train/facts.csv",
     attempts_root="data/exp2/baseline/parity_runs",
     out_json="data/exp2/baseline/parity_runs/parity_report.json",
     out_csv="data/exp2/baseline/parity_runs/parity_attempts.csv",
@@ -986,6 +1009,7 @@ def exp2_parity_report(
         overrides=(
             f"--min-deep-hops {min_deep_hops}",
             f"--synth-targets {synth_targets}",
+            f"--synth-facts {synth_facts}",
             f"--attempts-root {attempts_root}",
             f"--out-json {shlex.quote(str(report_json))}",
             f"--out-csv {shlex.quote(str(report_csv))}",
@@ -1003,12 +1027,14 @@ def exp2_parity_report(
             manifest={
                 "min_deep_hops": min_deep_hops,
                 "synth_targets": synth_targets,
+                "synth_facts": synth_facts,
                 "attempts_root": attempts_root,
                 "legacy_outputs": {"out_json": out_json, "out_csv": out_csv},
                 "archive_outputs": {"out_json": str(report_json), "out_csv": str(report_csv)},
                 "args": args,
                 "config_files": ["configs/udm_baseline/exp2_baseline.yaml", "configs/udm_baseline/config.yaml"],
             },
+            hydra_run_dir=False,
         )
     )
 
@@ -1180,6 +1206,137 @@ def exp3_materialize_abox(
     inferred_target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(closure_archive, closure_target)
     shutil.copy2(inferred_archive, inferred_target)
+
+
+@task
+def exp3_parity_loop(
+    ctx: Context,
+    universities=50,
+    max_attempts=100,
+    min_deep_hops=3,
+    synth_targets="data/owl2bench/output/owl2bench_50/train/targets.csv",
+    synth_facts="data/owl2bench/output/owl2bench_50/train/facts.csv",
+    synth_generation_metrics="",
+    attempts_root="data/exp3/baseline/parity_runs",
+    deep_count_mode="exact",
+    deep_count_tolerance_pct=10.0,
+    node_tolerance_pct=10.0,
+    edge_density_tolerance_pct=15.0,
+    target_ratio_tolerance_pct=10.0,
+    inferred_share_tolerance_pct=10.0,
+    args="",
+):
+    """Retries OWL2Bench baseline generation until Exp 3 deep and structural parity targets are reached."""
+    print("\nRunning Exp 3 OWL2Bench parity loop.")
+    run_dir = _make_run_archive("exp3", "parity_loop", label="parity")
+    attempts_dir = run_dir / "attempts"
+    cmd = _build_uv_command(
+        "owl2bench",
+        "owl2bench.exp3_parity_loop",
+        python_module=True,
+        overrides=(
+            f"--universities {universities}",
+            f"--max-attempts {max_attempts}",
+            f"--min-deep-hops {min_deep_hops}",
+            f"--deep-count-mode {deep_count_mode}",
+            f"--deep-count-tolerance-pct {deep_count_tolerance_pct}",
+            f"--node-tolerance-pct {node_tolerance_pct}",
+            f"--edge-density-tolerance-pct {edge_density_tolerance_pct}",
+            f"--target-ratio-tolerance-pct {target_ratio_tolerance_pct}",
+            f"--inferred-share-tolerance-pct {inferred_share_tolerance_pct}",
+            f"--synth-targets {synth_targets}",
+            f"--synth-facts {synth_facts}",
+            f"--attempts-root {shlex.quote(str(attempts_dir))}",
+        ),
+        args=args,
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    if synth_generation_metrics:
+        cmd += f" --synth-generation-metrics {synth_generation_metrics}"
+    _run_experiment_spec(
+        ExperimentRunSpec(
+            experiment="exp3",
+            task_name="parity_loop",
+            label="parity",
+            command=cmd,
+            config_paths=("configs/owl2bench/config.yaml",),
+            manifest={
+                "universities": universities,
+                "max_attempts": max_attempts,
+                "min_deep_hops": min_deep_hops,
+                "deep_count_mode": deep_count_mode,
+                "deep_count_tolerance_pct": deep_count_tolerance_pct,
+                "node_tolerance_pct": node_tolerance_pct,
+                "edge_density_tolerance_pct": edge_density_tolerance_pct,
+                "target_ratio_tolerance_pct": target_ratio_tolerance_pct,
+                "inferred_share_tolerance_pct": inferred_share_tolerance_pct,
+                "synth_targets": synth_targets,
+                "synth_facts": synth_facts,
+                "synth_generation_metrics": synth_generation_metrics,
+                "attempts_root": str(attempts_dir),
+                "args": args,
+                "config_files": ["configs/owl2bench/config.yaml"],
+            },
+            hydra_run_dir=False,
+        )
+    )
+
+
+@task
+def exp3_parity_report(
+    ctx: Context,
+    min_deep_hops=3,
+    synth_targets="data/owl2bench/output/owl2bench_50/train/targets.csv",
+    synth_facts="data/owl2bench/output/owl2bench_50/train/facts.csv",
+    attempts_root="data/exp3/baseline/parity_runs",
+    summary_json="data/exp3/baseline/parity_runs/parity_loop_summary.json",
+    out_json="data/exp3/baseline/parity_runs/parity_report.json",
+    out_csv="data/exp3/baseline/parity_runs/parity_attempts.csv",
+    args="",
+):
+    """Builds Exp 3 parity report with deep/structural metrics and time-to-parity summary."""
+    print("\nGenerating Exp 3 parity report.")
+    run_dir = _make_run_archive("exp3", "parity_report", label="parity")
+    report_json = run_dir / "parity_report.json"
+    report_csv = run_dir / "parity_attempts.csv"
+    cmd = _build_uv_command(
+        "owl2bench",
+        "owl2bench.exp3_parity_report",
+        python_module=True,
+        overrides=(
+            f"--min-deep-hops {min_deep_hops}",
+            f"--synth-targets {synth_targets}",
+            f"--synth-facts {synth_facts}",
+            f"--attempts-root {attempts_root}",
+            f"--out-json {shlex.quote(str(report_json))}",
+            f"--out-csv {shlex.quote(str(report_csv))}",
+        ),
+        args=args,
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    if summary_json:
+        cmd += f" --summary-json {summary_json}"
+    _run_experiment_spec(
+        ExperimentRunSpec(
+            experiment="exp3",
+            task_name="parity_report",
+            label="parity",
+            command=cmd,
+            config_paths=("configs/owl2bench/config.yaml",),
+            manifest={
+                "min_deep_hops": min_deep_hops,
+                "synth_targets": synth_targets,
+                "synth_facts": synth_facts,
+                "attempts_root": attempts_root,
+                "summary_json": summary_json,
+                "legacy_outputs": {"out_json": out_json, "out_csv": out_csv},
+                "archive_outputs": {"out_json": str(report_json), "out_csv": str(report_csv)},
+                "args": args,
+                "config_files": ["configs/owl2bench/config.yaml"],
+            },
+            hydra_run_dir=False,
+        )
+    )
 
 
 # ------------------------------------------------------------ #

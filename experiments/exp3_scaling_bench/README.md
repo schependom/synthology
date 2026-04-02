@@ -20,7 +20,8 @@ For each OWL2Bench ABox, Jena must be run once to compute closure.
 4. Build Synthology dataset under matched data budget.
 5. Train two RRN models (baseline vs Synthology) with identical settings.
 6. Evaluate on shared held-out test data.
-7. Report depth-stratified metrics and trivial-fact composition.
+7. Run parity retries for baseline until deep/structural parity with Synthology is reached.
+8. Report depth-stratified metrics, trivial-fact composition, and Time to Structural Parity.
 
 ## Mandatory reporting additions
 
@@ -117,6 +118,18 @@ uv run invoke paper-visual-report \
     --exp3-abox=data/owl2bench/output/raw/owl2bench_50/OWL2RL-50.owl \
     --exp3-inferred=data/exp3/baseline/owl2bench_50/inferred.nt \
     --out-dir=reports/paper
+```
+
+8. Run Exp3 parity loop and report:
+
+```bash
+uv run invoke exp3-parity-loop --universities=50 \
+    --synth-targets=data/owl2bench/output/owl2bench_50/train/targets.csv \
+    --synth-facts=data/owl2bench/output/owl2bench_50/train/facts.csv
+
+uv run invoke exp3-parity-report \
+    --synth-targets=data/owl2bench/output/owl2bench_50/train/targets.csv \
+    --synth-facts=data/owl2bench/output/owl2bench_50/train/facts.csv
 ```
 
 For a monorepo-wide end-to-end protocol (Exp1/2/3 + artifacts), see `experiments/PAPER_RUNBOOK.md`.

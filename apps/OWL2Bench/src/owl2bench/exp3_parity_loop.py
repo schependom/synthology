@@ -1,4 +1,4 @@
-"""Dedicated Exp 2 parity loop: retry UDM generation until deep-count parity target is reached."""
+"""Retry OWL2Bench baseline generation until deep/structural parity is reached."""
 
 from __future__ import annotations
 
@@ -12,11 +12,12 @@ from pathlib import Path
 from typing import Any
 
 from loguru import logger
-from udm_baseline.exp2_parity_report import build_parity_report, extract_dataset_stats, load_synth_runtime_seconds
+from owl2bench.exp3_parity_report import extract_dataset_stats, load_synth_runtime_seconds
 
 
 def _run_baseline_attempt(
     attempt_dir: Path,
+    universities: int,
     seed: int,
     extra_overrides: list[str],
 ) -> None:
@@ -24,24 +25,24 @@ def _run_baseline_attempt(
         "uv",
         "run",
         "--package",
-        "udm_baseline",
+        "owl2bench",
         "python",
         "-m",
-        "udm_baseline.create_data",
-        "--config-name=exp2_baseline",
+        "owl2bench.pipeline",
+        f"dataset.universities=[{universities}]",
         f"dataset.output_dir={attempt_dir}",
-        f"dataset.seed={seed}",
+        f"generator.seed={seed}",
     ] + extra_overrides
 
     subprocess.run(cmd, check=True)
 
 
-def _within_tolerance(k_deep: int, observed: int, tolerance_pct: float) -> bool:
-    if k_deep <= 0:
+def _within_tolerance(reference: int, observed: int, tolerance_pct: float) -> bool:
+    if reference <= 0:
         return observed <= 0
 
-    lower = math.floor(k_deep * (1.0 - tolerance_pct / 100.0))
-    upper = math.ceil(k_deep * (1.0 + tolerance_pct / 100.0))
+    lower = math.floor(reference * (1.0 - tolerance_pct / 100.0))
+    upper = math.ceil(reference * (1.0 + tolerance_pct / 100.0))
     return lower <= observed <= upper
 
 
@@ -119,63 +120,49 @@ def _evaluate_structural_parity(
     }
 
 
+def _resolve_train_csvs(attempt_dir: Path) -> tuple[Path, Path]:
+    targets_candidates = sorted(attempt_dir.glob("**/train/targets.csv"))
+    if not targets_candidates:
+        raise FileNotFoundError(f"Could not find train/targets.csv under {attempt_dir}")
+
+    targets_csv = targets_candidates[0]
+    facts_csv = targets_csv.parent / "facts.csv"
+    if not facts_csv.exists():
+        raise FileNotFoundError(f"Could not find sibling facts.csv for {targets_csv}")
+    return targets_csv, facts_csv
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run Exp 2 UDM parity loop with Jena materialization.")
-    parser.add_argument(
-        "--synth-targets",
-        default="data/exp2/synthology/family_tree/train/targets.csv",
-        help="Synthology train targets.csv used to derive K_deep",
-    )
-    parser.add_argument(
-        "--synth-facts",
-        default="data/exp2/synthology/family_tree/train/facts.csv",
-        help="Synthology train facts.csv used for structural parity metrics",
-    )
+    parser = argparse.ArgumentParser(description="Run Exp 3 parity loop using OWL2Bench baseline generation.")
+    parser.add_argument("--universities", type=int, default=50)
+    parser.add_argument("--synth-targets", required=True, help="Synthology train targets.csv used to derive K_deep")
+    parser.add_argument("--synth-facts", required=True, help="Synthology train facts.csv used for structural metrics")
     parser.add_argument(
         "--synth-generation-metrics",
-        default="data/exp2/synthology/family_tree/generation_metrics.json",
-        help="Synthology generation metrics JSON used to report Synthology runtime",
+        default="",
+        help="Optional Synthology generation metrics JSON to compute time-to-parity ratio",
     )
-    parser.add_argument(
-        "--attempts-root",
-        default="data/exp2/baseline/parity_runs",
-        help="Where attempt_* directories and summary are written",
-    )
-    parser.add_argument("--min-deep-hops", type=int, default=3, help="Minimum hop threshold for deep facts")
-    parser.add_argument("--max-attempts", type=int, default=250, help="Maximum retry count")
-    parser.add_argument(
-        "--tolerance-pct",
-        type=float,
-        default=10.0,
-        help="Parity tolerance band (plus/minus percentage around K_deep)",
-    )
-    parser.add_argument(
-        "--deep-count-mode",
-        choices=["exact", "tolerance"],
-        default="exact",
-        help="How to compare d>=min_deep_hops count against Synthology (exact match or tolerance band)",
-    )
+    parser.add_argument("--attempts-root", default="data/exp3/baseline/parity_runs")
+    parser.add_argument("--min-deep-hops", type=int, default=3)
+    parser.add_argument("--max-attempts", type=int, default=100)
+    parser.add_argument("--deep-count-mode", choices=["exact", "tolerance"], default="exact")
+    parser.add_argument("--deep-count-tolerance-pct", type=float, default=10.0)
     parser.add_argument("--node-tolerance-pct", type=float, default=10.0)
     parser.add_argument("--edge-density-tolerance-pct", type=float, default=15.0)
     parser.add_argument("--target-ratio-tolerance-pct", type=float, default=10.0)
     parser.add_argument("--inferred-share-tolerance-pct", type=float, default=10.0)
-    parser.add_argument("--seed-start", type=int, default=23, help="Initial dataset seed")
-    parser.add_argument(
-        "--keep-failed-attempts",
-        action="store_true",
-        help="Keep non-matching attempt directories (default removes them)",
-    )
+    parser.add_argument("--seed-start", type=int, default=23)
+    parser.add_argument("--keep-failed-attempts", action="store_true")
     parser.add_argument(
         "--override",
         action="append",
         default=[],
-        help="Extra Hydra override passed to udm_baseline.create_data (repeatable)",
+        help="Extra Hydra override passed to owl2bench.pipeline (repeatable)",
     )
     args = parser.parse_args()
 
     synth_targets = Path(args.synth_targets)
     synth_facts = Path(args.synth_facts)
-    synth_metrics = Path(args.synth_generation_metrics)
     attempts_root = Path(args.attempts_root)
     attempts_root.mkdir(parents=True, exist_ok=True)
 
@@ -186,8 +173,12 @@ def main() -> None:
 
     synth_stats = extract_dataset_stats(synth_targets, synth_facts, min_deep_hops=args.min_deep_hops)
     k_deep = int(synth_stats["deep_count"])
-    synth_runtime_seconds = load_synth_runtime_seconds(synth_metrics)
-    logger.info("Exp2 parity loop started | K_deep={} | synth_hops={}", k_deep, synth_stats["hop_histogram"])
+
+    synth_runtime_seconds = None
+    if args.synth_generation_metrics:
+        synth_runtime_seconds = load_synth_runtime_seconds(Path(args.synth_generation_metrics))
+
+    logger.info("Exp3 parity loop started | K_deep={} | synth_hops={}", k_deep, synth_stats["hop_histogram"])
 
     attempt_summaries: list[dict[str, Any]] = []
     matched_attempt = None
@@ -202,20 +193,25 @@ def main() -> None:
             shutil.rmtree(attempt_dir)
         attempt_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info("Running {} with seed={}", attempt_name, seed)
+        logger.info("Running {} with seed={} universities={}", attempt_name, seed, args.universities)
         attempt_start = time.perf_counter()
-        _run_baseline_attempt(attempt_dir=attempt_dir, seed=seed, extra_overrides=args.override)
+        _run_baseline_attempt(
+            attempt_dir=attempt_dir,
+            universities=args.universities,
+            seed=seed,
+            extra_overrides=args.override,
+        )
         attempt_wall_seconds = time.perf_counter() - attempt_start
         cumulative_attempt_seconds += attempt_wall_seconds
 
-        targets_csv = attempt_dir / "train" / "targets.csv"
-        facts_csv = attempt_dir / "train" / "facts.csv"
+        targets_csv, facts_csv = _resolve_train_csvs(attempt_dir)
         stats = extract_dataset_stats(targets_csv, facts_csv, min_deep_hops=args.min_deep_hops)
+
         structural = _evaluate_structural_parity(
             synth_stats,
             stats,
             deep_count_mode=args.deep_count_mode,
-            deep_count_tolerance_pct=args.tolerance_pct,
+            deep_count_tolerance_pct=args.deep_count_tolerance_pct,
             node_tolerance_pct=args.node_tolerance_pct,
             edge_density_tolerance_pct=args.edge_density_tolerance_pct,
             target_ratio_tolerance_pct=args.target_ratio_tolerance_pct,
@@ -259,13 +255,6 @@ def main() -> None:
         if not args.keep_failed_attempts:
             shutil.rmtree(attempt_dir, ignore_errors=True)
 
-    report = build_parity_report(
-        synth_targets=synth_targets,
-        synth_facts=synth_facts,
-        attempts_root=attempts_root,
-        min_deep_hops=args.min_deep_hops,
-    )
-
     baseline_time_to_parity_seconds = (
         float(matched_attempt["cumulative_attempt_seconds"]) if matched_attempt is not None else cumulative_attempt_seconds
     )
@@ -274,12 +263,13 @@ def main() -> None:
         baseline_vs_synth_time_ratio = baseline_time_to_parity_seconds / synth_runtime_seconds
 
     run_summary = {
+        "universities": args.universities,
         "k_deep": k_deep,
         "synthology_stats": synth_stats,
         "min_deep_hops": args.min_deep_hops,
         "max_attempts": args.max_attempts,
         "deep_count_mode": args.deep_count_mode,
-        "tolerance_pct": args.tolerance_pct,
+        "deep_count_tolerance_pct": args.deep_count_tolerance_pct,
         "node_tolerance_pct": args.node_tolerance_pct,
         "edge_density_tolerance_pct": args.edge_density_tolerance_pct,
         "target_ratio_tolerance_pct": args.target_ratio_tolerance_pct,
@@ -289,7 +279,6 @@ def main() -> None:
         "baseline_vs_synth_time_ratio": baseline_vs_synth_time_ratio,
         "matched_attempt": matched_attempt,
         "attempts": attempt_summaries,
-        "report": report,
     }
 
     summary_path = attempts_root / "parity_loop_summary.json"

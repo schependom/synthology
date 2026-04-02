@@ -82,6 +82,10 @@ def train(cfg: DictConfig) -> None:
         logger.info(f"Instantiating logger <{cfg.logger._target_}>")
         pl_logger = hydra.utils.instantiate(cfg.logger)
 
+    # Validate periodically inside each epoch (in training batches) instead of
+    # only at epoch end. This makes W&B curves appear continuously.
+    val_check_interval = cfg.hyperparams.get("eval_every", 1) if "hyperparams" in cfg else 1
+
     trainer = pl.Trainer(
         accelerator="auto",
         devices=1,  # num of GPUs
@@ -92,6 +96,7 @@ def train(cfg: DictConfig) -> None:
         precision="16-mixed" if cfg.get("use_amp", False) else 32,
         # num_nodes=cfg.get("num_nodes", 1), # for multi-node training
         log_every_n_steps=1,
+        val_check_interval=val_check_interval,
     )
 
     # 6. Train

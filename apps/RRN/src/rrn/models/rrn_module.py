@@ -142,9 +142,9 @@ class RRNSystem(pl.LightningModule):
         )
 
         # 3. Logging
-        self.log("train/total_loss", total_loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=1)
-        self.log("train/class_loss", class_loss, on_step=False, on_epoch=True, batch_size=1)
-        self.log("train/relation_loss", relation_loss, on_step=False, on_epoch=True, batch_size=1)
+        self.log("train/total_loss", total_loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=1)
+        self.log("train/class_loss", class_loss, on_step=True, on_epoch=True, batch_size=1)
+        self.log("train/relation_loss", relation_loss, on_step=True, on_epoch=True, batch_size=1)
 
         return total_loss
 
@@ -300,13 +300,21 @@ class RRNSystem(pl.LightningModule):
         binary_metrics = self._compute_binary_metrics(known_probs, known_targets)
 
         # Return dict, avoiding empty tensor errors
+        hop_acc = {f"acc_hops_{k}": (sum(v) / len(v) if len(v) > 0 else float("nan")) for k, v in hops_hits.items()}
+        # Keep a stable set of hop keys in logs so charts don't disappear when
+        # a bucket has no support in a given validation pass.
+        for k in range(4):
+            hop_acc.setdefault(f"acc_hops_{k}", float("nan"))
+
         return {
             "acc_all": all_known_scores.mean().item() if all_known_scores.numel() > 0 else float("nan"),
             "acc_pos": positive_scores.mean().item() if positive_scores.numel() > 0 else float("nan"),
             "acc_neg": negative_scores.mean().item() if negative_scores.numel() > 0 else float("nan"),
             **binary_metrics,
-            **{f"acc_hops_{k}": sum(v) / len(v) for k, v in hops_hits.items()},
-            **{f"acc_type_{k}": sum(v) / len(v) for k, v in type_hits.items()},
+            **hop_acc,
+            **{f"support_hops_{k}": len(v) for k, v in hops_hits.items()},
+            **{f"acc_type_{k}": (sum(v) / len(v) if len(v) > 0 else float("nan")) for k, v in type_hits.items()},
+            **{f"support_type_{k}": len(v) for k, v in type_hits.items()},
         }
 
     def _evaluate_triples(
@@ -395,13 +403,19 @@ class RRNSystem(pl.LightningModule):
         targets_t = torch.cat(all_targets) if all_targets else torch.tensor([], device=device)
         binary_metrics = self._compute_binary_metrics(probs_t, targets_t)
 
+        hop_acc = {f"acc_hops_{k}": (sum(v) / len(v) if len(v) > 0 else float("nan")) for k, v in hops_hits.items()}
+        for k in range(4):
+            hop_acc.setdefault(f"acc_hops_{k}", float("nan"))
+
         return {
             "acc_all": torch.cat(all_hits).mean().item() if all_hits else float("nan"),
             "acc_pos": torch.cat(pos_hits).mean().item() if pos_hits else float("nan"),
             "acc_neg": torch.cat(neg_hits).mean().item() if neg_hits else float("nan"),
             **binary_metrics,
-            **{f"acc_hops_{k}": sum(v) / len(v) for k, v in hops_hits.items()},
-            **{f"acc_type_{k}": sum(v) / len(v) for k, v in type_hits.items()},
+            **hop_acc,
+            **{f"support_hops_{k}": len(v) for k, v in hops_hits.items()},
+            **{f"acc_type_{k}": (sum(v) / len(v) if len(v) > 0 else float("nan")) for k, v in type_hits.items()},
+            **{f"support_type_{k}": len(v) for k, v in type_hits.items()},
         }
 
     def _compute_binary_metrics(self, probs: torch.Tensor, targets: torch.Tensor) -> Dict[str, float]:

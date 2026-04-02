@@ -22,7 +22,13 @@ Apache Jena computes fixpoint closure internally in one reasoning call.
     - Run one-shot Jena closure.
     - Convert to `facts.csv` and `targets.csv`.
     - Compute deep-target proxy stats from exported targets.
-    - Keep/discard based on parity criterion (`>= K_deep` or tolerance band).
+        - Keep/discard based on structural parity criterion:
+            - deep inferred count (`d >= 3`),
+            - node count,
+            - edge density,
+            - global positive/negative ratio,
+            - inferred-positive share.
+        - Track cumulative baseline wall-clock time until parity is reached (Time to Structural Parity).
 3. Freeze one additional deep-only Synthology test set (`d >= 3`) for both models.
 4. Train baseline vs Synthology RRNs with identical hyperparameters.
 5. Evaluate on the same frozen deep test set.
@@ -36,6 +42,16 @@ To match the paper discussion around trivial-fact dominance, always report metri
 - 2-plus-hop positives
 
 And keep global metrics (`PR-AUC`, `AUC-ROC`, `F1`, `FPR`) beside these bucketed results.
+
+## Time-to-Parity metric (mandatory)
+
+Report:
+
+- Synthology generation runtime (from generation metrics)
+- Baseline cumulative runtime across parity attempts
+- Runtime ratio `baseline_time_to_parity / synthology_time`
+
+This is the key efficiency claim: random forward-chaining is measured by time-to-equivalent structural signal, not by one attempt.
 
 ## Practical quick start (UDM + Apache Jena)
 

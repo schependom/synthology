@@ -265,6 +265,11 @@ def main() -> None:
             "baseline_stats": baseline_stats,
             "matched_attempt": matched_attempt,
             "tries_before_match": tries_before_match,
+            "time_to_parity": {
+                "synth_runtime_seconds": parity_summary.get("synth_runtime_seconds"),
+                "baseline_time_to_parity_seconds": parity_summary.get("baseline_time_to_parity_seconds"),
+                "baseline_vs_synth_time_ratio": parity_summary.get("baseline_vs_synth_time_ratio"),
+            },
         },
         "exp3": exp3_summary,
     }
