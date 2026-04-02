@@ -1,32 +1,73 @@
 defaults:
   - _self_
-  - dataset: familytree # or owl2bench
+  - dataset: familytree # Switch to owl2bench for Exp3-style generation
+
+# Global seed for reproducibility across split generation.
+seed: 23
 
 ontology:
+  # TBox path used by the backward-chaining generator.
   path: "ontologies/family.ttl"
 
+# Optional exports for diagnostics/visual checks.
 export_proofs: false
 export_graphs: false
 
 generator:
+
+  # Dataset construction controls (not dataset identity itself).
+  min_individuals: 1
+  max_individuals: 1000
+  # Minimum number of ontology rules to activate per generated sample.
+  # Higher values force richer/more entangled reasoning traces.
+  min_rules: 1
+  # Maximum number of rules to activate per sample.
+  # Controls complexity ceiling and generation runtime.
+  max_rules: 5
+  # Per selected rule, target at least this many proof paths before sampling targets.
+  # Increasing this improves multi-hop diversity but can slow generation.
+  target_min_proofs_rule: 5
+
+  # Backward-chaining search controls.
   max_recursion: 5
   global_max_depth: 10
   max_proofs_per_atom: 5
   min_lcc_ratio: 0.6
+
+  # Proof path sampling behavior.
+  # Strategy for choosing proof difficulty mix when multiple proofs exist.
+  # Common values: random, weighted, or custom strategies supported by code.
   proof_selection_strategy: "random"
+  # Relative sampling weights per proof difficulty bucket.
+  # Only used by weighted-style strategies; larger value = sampled more often.
   proof_selection_weights:
     easy: 20
     medium: 40
     hard: 40
+
+  # Individual generation/sampling behavior.
   individual_pool_size: 60
   individual_reuse_prob: 0.7
   use_signature_sampling: true
+  # Lower bound on proof root candidates sampled per rule.
+  # Helps avoid sparse reasoning coverage in small samples.
   min_proof_roots: 5
+  # Upper bound on proof root candidates sampled per rule.
+  # Keeps search breadth bounded for runtime/memory stability.
   max_proof_roots: 20
+  # If set to an integer, overrides min/max proof roots with a fixed count per rule.
+  # Keep null to use the [min_proof_roots, max_proof_roots] range.
   proof_roots_per_rule: null
+  # When true, always emit a base-fact backbone even if proof-driven generation is sparse.
+  # Useful to prevent empty/trivial graphs in difficult ontology regions.
   always_generate_base: false
+  # Save every generated sample as separate CSV files in addition to split-level CSVs.
+  # Good for debugging; disable for large runs to reduce I/O and disk usage.
+  save_individual_samples: false
 
 neg_sampling:
+
+  # Negative sampling strategy for target corruption.
   strategy: "mixed"
   ratio: 1.0
   corrupt_base_facts: false

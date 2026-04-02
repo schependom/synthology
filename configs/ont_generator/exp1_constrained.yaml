@@ -1,5 +1,8 @@
+# See config.yaml for more details about all configuration options.
+# The README file also contains further details.
+
 defaults:
-  - config
+  - config # override default config options
   - _self_
 
 dataset:

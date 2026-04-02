@@ -1,5 +1,10 @@
+# See config.yaml for more details about all configuration options.
+# The README file also contains further details.
+
 defaults:
   - _self_
+
+seed: 23
 
 ontology:
   path: "ontologies/family.ttl"
@@ -9,7 +14,6 @@ proof_output_path: "data/ont/output/family-single/proofs/"
 
 dataset:
   output_dir: "data/ont/output/family-single"
-  seed: 23
 
 export_proofs: true
 export_graphs: true

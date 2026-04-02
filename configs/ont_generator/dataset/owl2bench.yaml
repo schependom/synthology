@@ -1,0 +1,20 @@
+# Dataset identity used in downstream metadata/logging.
+name: owl2bench
+
+# Number of generated samples per split.
+n_train: 5000
+n_test: 500
+n_val: 500
+
+# Optional caps for sampled base facts per split (null = uncapped).
+train_fact_cap: null
+val_fact_cap: null
+test_fact_cap: null
+
+# Optional caps for inferred targets per split (null = uncapped).
+train_target_cap: null
+val_target_cap: null
+test_target_cap: null
+
+# Output root for this dataset profile.
+output_dir: "data/ont/output/owl2bench"

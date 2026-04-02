@@ -1,5 +1,10 @@
+# See config.yaml for more details about all configuration options.
+# The README file also contains further details.
+
 defaults:
-  - _self_
+  - _self_ 
+
+seed: 23
 
 ontology:
   path: "ontologies/family.ttl"
@@ -11,18 +16,17 @@ dataset:
   n_train: 5
   n_test: 2
   n_val: 2
-  min_individuals: 1
-  max_individuals: 1000
-  min_rules: 1
-  max_rules: 5
-  target_min_proofs_rule: 3
   output_dir: "data/ont/output/family-visualize"
-  seed: 23
 
 export_proofs: true
 export_graphs: true
 
 generator:
+  min_individuals: 1
+  max_individuals: 1000
+  min_rules: 1
+  max_rules: 5
+  target_min_proofs_rule: 3
   max_recursion: 3
   global_max_depth: 8
   max_proofs_per_atom: 3

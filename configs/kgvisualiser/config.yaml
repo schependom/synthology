@@ -1,3 +1,7 @@
+#################################################################
+# CONFIGURATIONS FOR VISUALIZING A KG SAMPLE
+#################################################################
+
 io:
   # Path to either facts.csv or targets.csv.
   input_csv: data/OWL2Bench/output/owl2bench_10/train/facts.csv

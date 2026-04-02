@@ -1,19 +1,20 @@
+# Dataset identity used in downstream metadata/logging.
 name: familytree
 
+# Number of generated samples per split.
 n_train: 5000
 n_test: 500
 n_val: 500
+
+# Optional caps for sampled base facts per split (null = uncapped).
 train_fact_cap: null
 val_fact_cap: null
 test_fact_cap: null
+
+# Optional caps for inferred targets per split (null = uncapped).
 train_target_cap: null
 val_target_cap: null
 test_target_cap: null
-min_individuals: 1
-max_individuals: 1000
-min_rules: 1
-max_rules: 5
-target_min_proofs_rule: 5
+
+# Output root for this dataset profile.
 output_dir: "data/ont/output/family-tree"
-seed: 23
-save_individual_samples: false

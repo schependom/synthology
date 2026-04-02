@@ -1,6 +1,12 @@
+# See config.yaml for more details about all configuration options.
+# The README file also contains further details.
+
 defaults:
-  - config
+  - config # override default config options
   - _self_
+
+# Fixed seed to keep parity runs deterministic.
+seed: 23
 
 ontology:
   path: "ontologies/family.ttl"
@@ -15,14 +21,7 @@ dataset:
   train_target_cap: null
   val_target_cap: null
   test_target_cap: null
-  min_individuals: 1
-  max_individuals: 1000
-  min_rules: 1
-  max_rules: 5
-  target_min_proofs_rule: 5
   output_dir: "data/exp2/synthology/family_tree"
-  seed: 23
-  save_individual_samples: false
 
 hydra:
   run:
@@ -32,6 +31,12 @@ export_proofs: false
 export_graphs: false
 
 generator:
+  min_individuals: 1
+  max_individuals: 1000
+  min_rules: 1
+  max_rules: 5
+  target_min_proofs_rule: 5
+  save_individual_samples: false
   max_recursion: 3
   global_max_depth: 10
   max_proofs_per_atom: 5

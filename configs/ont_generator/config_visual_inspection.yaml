@@ -1,21 +1,24 @@
+# See config.yaml for more details about all configuration options.
+# The README file also contains further details.
+
 defaults:
-  - config
+  - config # override default config options
   - _self_
 
 dataset:
   n_train: 3
   n_val: 0
   n_test: 0
-  min_individuals: 10
-  max_individuals: 50
-  min_rules: 2
-  max_rules: 6
   output_dir: "visual-verification"
 
 export_proofs: true
 export_graphs: true
 
 generator:
+  min_individuals: 10
+  max_individuals: 50
+  min_rules: 2
+  max_rules: 6
   max_recursion: 3
   min_lcc_ratio: 0.6
 
