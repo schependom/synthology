@@ -871,8 +871,8 @@ class FCBaselineGenerator:
         if self._timing_enabled:
             logger.info(
                 "Timing recorder summary | run_id={} | events={} | jsonl={} | csv={} "
-                "| includes_metrics=[per_call:{serialize_seconds,java_seconds,parse_seconds,total_seconds},"
-                "per_iteration:{working_triples,closure_triples,newly_inferred,iteration_wall_seconds}]",
+                "| includes_metrics=[per_call:serialize_seconds,java_seconds,parse_seconds,total_seconds;"
+                "per_iteration:working_triples,closure_triples,newly_inferred,iteration_wall_seconds]",
                 self._timing_run_id,
                 self._timing_event_count,
                 self._timing_jsonl_path.resolve(),
