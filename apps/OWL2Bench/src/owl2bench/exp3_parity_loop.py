@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from loguru import logger
+
 from owl2bench.exp3_parity_report import extract_dataset_stats, load_synth_runtime_seconds
 
 
@@ -256,7 +257,9 @@ def main() -> None:
             shutil.rmtree(attempt_dir, ignore_errors=True)
 
     baseline_time_to_parity_seconds = (
-        float(matched_attempt["cumulative_attempt_seconds"]) if matched_attempt is not None else cumulative_attempt_seconds
+        float(matched_attempt["cumulative_attempt_seconds"])
+        if matched_attempt is not None
+        else cumulative_attempt_seconds
     )
     baseline_vs_synth_time_ratio = None
     if synth_runtime_seconds is not None and synth_runtime_seconds > 0:

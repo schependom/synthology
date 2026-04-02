@@ -208,7 +208,9 @@ def _write_attempts_csv(report: dict[str, Any], csv_path: Path) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Summarize Exp 3 parity attempts against Synthology deep/structural stats.")
+    parser = argparse.ArgumentParser(
+        description="Summarize Exp 3 parity attempts against Synthology deep/structural stats."
+    )
     parser.add_argument("--synth-targets", required=True, help="Path to Synthology train targets.csv")
     parser.add_argument("--synth-facts", required=True, help="Path to Synthology train facts.csv")
     parser.add_argument(

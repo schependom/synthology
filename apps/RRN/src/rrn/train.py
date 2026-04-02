@@ -17,7 +17,6 @@ from pytorch_lightning.callbacks import RichModelSummary, RichProgressBar
 
 # Load environment variables from .env file
 load_dotenv()
-from pytorch_lightning.callbacks import RichModelSummary, RichProgressBar
 
 from .dataloading.datamodule import RRNDataModule
 from .models.rrn_module import RRNSystem
