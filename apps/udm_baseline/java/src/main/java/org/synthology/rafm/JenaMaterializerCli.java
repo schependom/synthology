@@ -89,11 +89,7 @@ public final class JenaMaterializerCli {
         if (deriv instanceof RuleDerivation) {
             RuleDerivation ruleDeriv = (RuleDerivation) deriv;
             for (Triple premise : ruleDeriv.getMatches()) {
-                Statement premiseStmt = ResourceFactory.createStatement(
-                    infModel.getRDFNode(premise.getSubject()).asResource(),
-                    infModel.getRDFNode(premise.getPredicate()).asProperty(),
-                    infModel.getRDFNode(premise.getObject())
-                );
+                Statement premiseStmt = infModel.asStatement(premise);
                 maxParentDepth = Math.max(maxParentDepth, calculateDepth(infModel, premiseStmt));
             }
         }
