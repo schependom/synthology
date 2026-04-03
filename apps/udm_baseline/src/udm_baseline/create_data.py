@@ -85,8 +85,8 @@ class JenaMaterializer:
             "elapsed_seconds": time.perf_counter() - t0,
         }
 
-    def materialize(self, ontology_path: str, base_triples: Set[Triple], jena_profile: str = "owl_mini") -> Set[Triple]:
-        """Materialize closure with Jena and return all URI-only closure triples."""
+    def materialize(self, ontology_path: str, base_triples: Set[Triple], jena_profile: str = "owl_mini") -> Tuple[Set[Triple], Dict[Triple, int]]:
+        """Materialize closure with Jena and return all URI-only closure triples and hop depths."""
         run_start = time.perf_counter()
         ensure_stats = self._ensure_built()
 
@@ -143,6 +143,21 @@ class JenaMaterializer:
                 if isinstance(s, URIRef) and isinstance(p, URIRef) and isinstance(o, URIRef)
             }
 
+            hop_depths = {}
+            hops_path = tmp_dir_path / "hops.csv"
+            if hops_path.exists():
+                import csv
+                with open(hops_path, "r", encoding="utf-8") as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        # Extract strings directly; row data might already match URIRef strings
+                        # Assuming the Java stringifier outputs just the URI. 
+                        s = URIRef(row["subject"])
+                        p = URIRef(row["predicate"])
+                        o = URIRef(row["object"])
+                        if (s, p, o) in closure:
+                            hop_depths[(s, p, o)] = int(row["depth"])
+
             total_seconds = time.perf_counter() - run_start
             self.last_run_timing = {
                 "timestamp_utc": datetime.now(timezone.utc).isoformat(),
@@ -153,11 +168,10 @@ class JenaMaterializer:
                 "ensure": ensure_stats,
                 "serialize_seconds": serialize_seconds,
                 "java_seconds": java_seconds,
-                "parse_seconds": parse_seconds,
                 "total_seconds": total_seconds,
             }
 
-            return closure
+            return closure, hop_depths
 
 
 class FCBaselineGenerator:
@@ -425,10 +439,8 @@ class FCBaselineGenerator:
             raise ValueError(f"Unsupported reasoner '{reasoner}'. Expected one of: owlrl, jena")
 
         if reasoner == "jena":
-            if use_iterative:
-                logger.warning(
-                    "materialization.iterative=true is ignored for reasoner=jena. Using single-pass Jena closure (internal fixpoint)"
-                )
+            # Jena computes iterative depths natively within the Java reasoner.
+            # We route to single-pass no matter what use_iterative flag is.
             return self._materialize_singlepass_jena(base_triples, split_name, sample_id, jena_profile)
 
         if use_iterative:
@@ -449,12 +461,15 @@ class FCBaselineGenerator:
         sample_id: str,
         jena_profile: str,
     ) -> Tuple[Set[Triple], Dict[Triple, int]]:
-        """Single-pass Jena materialization: inferred facts marked as hop=1."""
+        """Single-pass Jena materialization."""
         t0 = time.perf_counter()
-        closure = self.jena_materializer.materialize(self.ontology_path, base_triples, jena_profile=jena_profile)
+        closure, native_hop_depths = self.jena_materializer.materialize(self.ontology_path, base_triples, jena_profile=jena_profile)
         schema_uri_triples = self._schema_uri_triples()
         inferred = closure - base_triples - schema_uri_triples
-        hop_depths = {t: 1 for t in inferred}
+        
+        # Hydrate unlogged inferred triples (or single-pass overrides) with hops=1,
+        # but keep the deep native hop depths extracted from the Java engine.
+        hop_depths = {t: native_hop_depths.get(t, 1) for t in inferred}
 
         self._append_timing_event(
             {

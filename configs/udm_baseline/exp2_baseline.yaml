@@ -36,12 +36,9 @@ materialization:
   reasoner: jena
   jena_profile: owl_mini
 
-  # Jena computes full closure in one reasoning call (internal fixpoint).
-  # iterative/max_iterations are kept for backward compatibility and ignored for Jena.
-  iterative: false
-
-  # Legacy field for non-Jena paths.
-  max_iterations: 1
+  # Jena operates via Iterative Diffing over the inference closure.
+  iterative: true
+  max_iterations: 10
   
   # OWL-RL closure expansion options
   rdfs_closure: true

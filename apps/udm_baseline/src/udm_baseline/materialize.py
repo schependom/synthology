@@ -57,7 +57,7 @@ def main() -> None:
 
     materializer = JenaMaterializer()
     reasoning_start = time.perf_counter()
-    closure_uri = materializer.materialize(str(tbox_path), base_uri, jena_profile=args.jena_profile)
+    closure_uri, _ = materializer.materialize(str(tbox_path), base_uri, jena_profile=args.jena_profile)
     reasoning_seconds = time.perf_counter() - reasoning_start
     inferred_uri = closure_uri - base_uri - schema_uri
 

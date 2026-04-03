@@ -36,7 +36,7 @@ dataset:
     materialization:
       reasoner: "jena"
       jena_profile: "owl_mini"
-      # Deprecated for Jena paths: Jena already computes internal fixpoint in one call.
+      # Enforce single-pass Jena for OWL2Bench to prevent massive iteration overhead.
       iterative: false
       max_iterations: 1
       timing:

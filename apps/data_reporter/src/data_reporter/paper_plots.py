@@ -171,7 +171,7 @@ def _plot_exp3_hops(exp3_stats: dict[str, Any], out_path: Path) -> None:
 
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.bar(labels, values)
-    ax.set_title("Exp3 Hop Distribution (Train Positives)")
+    ax.set_title("Exp3 Hop Distribution (Train Positives)\nNote: Baseline depths are obscured (1-hop) by single-pass Jena. Synthology natively provides deep-hop metadata.", fontsize=10)
     ax.set_xlabel("hops")
     ax.set_ylabel("count")
     ax.grid(axis="y", linestyle="--", alpha=0.4)

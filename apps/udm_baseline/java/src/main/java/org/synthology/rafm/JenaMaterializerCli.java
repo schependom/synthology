@@ -2,12 +2,20 @@ package org.synthology.udm;
 
 import java.io.FileOutputStream;
 import java.io.OutputStream;
+import java.io.PrintWriter;
+import java.io.File;
+import java.util.Iterator;
 
+import org.apache.jena.graph.Triple;
 import org.apache.jena.rdf.model.InfModel;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.ResourceFactory;
+import org.apache.jena.rdf.model.Statement;
+import org.apache.jena.reasoner.Derivation;
 import org.apache.jena.reasoner.Reasoner;
 import org.apache.jena.reasoner.ReasonerRegistry;
+import org.apache.jena.reasoner.rulesys.RuleDerivation;
 import org.apache.jena.riot.Lang;
 import org.apache.jena.riot.RDFDataMgr;
 
@@ -35,21 +43,61 @@ public final class JenaMaterializerCli {
         RDFDataMgr.read(baseModel, baseTriplesPath);
 
         Reasoner reasoner = buildReasoner(profile).bindSchema(schemaModel);
+        reasoner.setDerivationLogging(true);
         InfModel infModel = ModelFactory.createInfModel(reasoner, baseModel);
         infModel.prepare();
 
         Model closure = ModelFactory.createDefaultModel();
-        // Export the fully entailed graph from the InfModel. Some Jena reasoners
-        // expose incomplete/empty deduction models for certain OWL features.
         closure.add(infModel);
 
-        try (OutputStream output = new FileOutputStream(outputPath)) {
+        File outDir = new File(outputPath).getParentFile();
+        String hopsOutputPath = outDir == null ? "hops.csv" : new File(outDir, "hops.csv").getPath();
+
+        try (OutputStream output = new FileOutputStream(outputPath);
+             PrintWriter hopsOut = new PrintWriter(new FileOutputStream(hopsOutputPath))) {
+             
             RDFDataMgr.write(output, closure, Lang.NTRIPLES);
+            
+            hopsOut.println("subject,predicate,object,depth");
+            for (Statement stmt : closure.listStatements().toList()) {
+                int depth = calculateDepth(infModel, stmt);
+                if (depth > 0) {
+                    hopsOut.println(String.format("%s,%s,%s,%d", 
+                        stmt.getSubject().toString(),
+                        stmt.getPredicate().toString(),
+                        stmt.getObject().toString(),
+                        depth
+                    ));
+                }
+            }
         } catch (Exception exception) {
             System.err.println("Failed to write materialized closure: " + exception.getMessage());
             exception.printStackTrace(System.err);
             System.exit(2);
         }
+    }
+
+    public static int calculateDepth(InfModel infModel, Statement stmt) {
+        Iterator<Derivation> derivations = infModel.getDerivation(stmt);
+        if (derivations == null || !derivations.hasNext()) {
+            return 0; // Base fact
+        }
+        
+        int maxParentDepth = 0;
+        Derivation deriv = derivations.next(); // Just take the first proof
+        
+        if (deriv instanceof RuleDerivation) {
+            RuleDerivation ruleDeriv = (RuleDerivation) deriv;
+            for (Triple premise : ruleDeriv.getMatches()) {
+                Statement premiseStmt = ResourceFactory.createStatement(
+                    infModel.getRDFNode(premise.getSubject()).asResource(),
+                    infModel.getRDFNode(premise.getPredicate()).asProperty(),
+                    infModel.getRDFNode(premise.getObject())
+                );
+                maxParentDepth = Math.max(maxParentDepth, calculateDepth(infModel, premiseStmt));
+            }
+        }
+        return maxParentDepth + 1;
     }
 
     private static Reasoner buildReasoner(String profile) {
