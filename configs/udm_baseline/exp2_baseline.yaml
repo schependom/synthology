@@ -6,9 +6,9 @@ ontology:
   path: "ontologies/family.ttl"
 
 dataset:
-  n_train: 5000
-  n_val: 500
-  n_test: 500
+  n_train: 2000
+  n_val: 200
+  n_test: 200
   train_fact_cap: null
   val_fact_cap: null
   test_fact_cap: null

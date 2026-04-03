@@ -1128,7 +1128,7 @@ def exp2_parity_loop(
     synth_facts="data/exp2/synthology/family_tree/train/facts.csv",
     synth_generation_metrics="data/exp2/synthology/family_tree/generation_metrics.json",
     attempts_root="data/exp2/baseline/parity_runs",
-    deep_count_mode="exact",
+    deep_count_mode="tolerance",
     node_tolerance_pct=10.0,
     edge_density_tolerance_pct=15.0,
     target_ratio_tolerance_pct=10.0,
@@ -1194,9 +1194,11 @@ def exp2_parity_report(
     min_deep_hops=3,
     synth_targets="data/exp2/synthology/family_tree/train/targets.csv",
     synth_facts="data/exp2/synthology/family_tree/train/facts.csv",
+    synth_generation_metrics="data/exp2/synthology/family_tree/generation_metrics.json",
     attempts_root="data/exp2/baseline/parity_runs",
     out_json="data/exp2/baseline/parity_runs/parity_report.json",
     out_csv="data/exp2/baseline/parity_runs/parity_attempts.csv",
+    out_md="data/exp2/baseline/parity_runs/parity_report.md",
     args="",
 ):
     """Builds Exp 2 parity report: K_deep plus per-attempt depth histograms."""
@@ -1204,6 +1206,7 @@ def exp2_parity_report(
     run_dir = _make_run_archive("exp2", "parity_report", label="parity")
     report_json = run_dir / "parity_report.json"
     report_csv = run_dir / "parity_attempts.csv"
+    report_md = run_dir / "parity_report.md"
     cmd = _build_uv_command(
         "udm_baseline",
         "udm_baseline.exp2_parity_report",
@@ -1212,9 +1215,11 @@ def exp2_parity_report(
             f"--min-deep-hops {min_deep_hops}",
             f"--synth-targets {synth_targets}",
             f"--synth-facts {synth_facts}",
+            f"--synth-generation-metrics {synth_generation_metrics}",
             f"--attempts-root {attempts_root}",
             f"--out-json {shlex.quote(str(report_json))}",
             f"--out-csv {shlex.quote(str(report_csv))}",
+            f"--out-md {shlex.quote(str(report_md))}",
         ),
         args=args,
         env={"LOGURU_COLORIZE": "1"},
@@ -1230,9 +1235,10 @@ def exp2_parity_report(
                 "min_deep_hops": min_deep_hops,
                 "synth_targets": synth_targets,
                 "synth_facts": synth_facts,
+                "synth_generation_metrics": synth_generation_metrics,
                 "attempts_root": attempts_root,
-                "legacy_outputs": {"out_json": out_json, "out_csv": out_csv},
-                "archive_outputs": {"out_json": str(report_json), "out_csv": str(report_csv)},
+                "legacy_outputs": {"out_json": out_json, "out_csv": out_csv, "out_md": out_md},
+                "archive_outputs": {"out_json": str(report_json), "out_csv": str(report_csv), "out_md": str(report_md)},
                 "args": args,
                 "config_files": ["configs/udm_baseline/exp2_baseline.yaml", "configs/udm_baseline/config.yaml"],
             },

@@ -14,6 +14,47 @@ from loguru import logger
 RDF_TYPE = "rdf:type"
 
 
+def _bucketize_hops(hop_histogram: dict[str, int], min_deep_hops: int) -> dict[str, int]:
+    hop0 = 0
+    hop1 = 0
+    hop2_to_3 = 0
+    deep = 0
+
+    for hop_key, count in hop_histogram.items():
+        hop = _to_int(hop_key, default=0)
+        c = _to_int(count, default=0)
+        if hop == 0:
+            hop0 += c
+        elif hop == 1:
+            hop1 += c
+        elif 2 <= hop <= 3:
+            hop2_to_3 += c
+        if hop >= min_deep_hops:
+            deep += c
+
+    return {
+        "hop_0": hop0,
+        "hop_1": hop1,
+        "hop_2_to_3": hop2_to_3,
+        "hop_ge_min_deep": deep,
+    }
+
+
+def _bucket_shares(bucket_counts: dict[str, int], positives: int) -> dict[str, float]:
+    denom = float(positives) if positives > 0 else 0.0
+    if denom == 0.0:
+        return {k: 0.0 for k in bucket_counts.keys()}
+    return {k: (float(v) / denom) for k, v in bucket_counts.items()}
+
+
+def _load_parity_loop_summary(attempts_root: Path) -> dict[str, Any] | None:
+    summary_path = attempts_root / "parity_loop_summary.json"
+    if not summary_path.exists():
+        return None
+    with open(summary_path, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
 def _to_int(value: str | int | None, default: int = 0) -> int:
     if value is None:
         return default
@@ -137,8 +178,30 @@ def build_parity_report(
     synth_facts: Path,
     attempts_root: Path,
     min_deep_hops: int,
+    synth_generation_metrics: Path | None = None,
 ) -> dict[str, Any]:
     synth_stats = extract_dataset_stats(synth_targets, synth_facts, min_deep_hops=min_deep_hops)
+    synth_hop_buckets = _bucketize_hops(synth_stats["hop_histogram"], min_deep_hops=min_deep_hops)
+    synth_hop_bucket_shares = _bucket_shares(synth_hop_buckets, positives=int(synth_stats["positives"]))
+
+    loop_summary = _load_parity_loop_summary(attempts_root)
+    attempts_timing_by_name: dict[str, dict[str, Any]] = {}
+    if loop_summary is not None:
+        for attempt in loop_summary.get("attempts", []):
+            name = str(attempt.get("attempt", "")).strip()
+            if name:
+                attempts_timing_by_name[name] = {
+                    "attempt_wall_seconds": attempt.get("attempt_wall_seconds"),
+                    "cumulative_attempt_seconds": attempt.get("cumulative_attempt_seconds"),
+                    "success": attempt.get("success"),
+                }
+
+    synth_runtime_seconds = None
+    if synth_generation_metrics is not None:
+        synth_runtime_seconds = load_synth_runtime_seconds(synth_generation_metrics)
+    if synth_runtime_seconds is None and loop_summary is not None:
+        synth_runtime_seconds = loop_summary.get("synth_runtime_seconds")
+
     attempts = []
 
     for attempt_name, targets_csv in _discover_attempt_targets(attempts_root):
@@ -147,8 +210,35 @@ def build_parity_report(
             logger.warning("Skipping {} because facts.csv is missing", attempt_name)
             continue
         stats = extract_dataset_stats(targets_csv, facts_csv, min_deep_hops=min_deep_hops)
+        hop_buckets = _bucketize_hops(stats["hop_histogram"], min_deep_hops=min_deep_hops)
+        hop_bucket_shares = _bucket_shares(hop_buckets, positives=int(stats["positives"]))
         stats["attempt"] = attempt_name
+        stats["hop_buckets"] = hop_buckets
+        stats["hop_bucket_shares"] = hop_bucket_shares
+        stats.update(attempts_timing_by_name.get(attempt_name, {}))
         attempts.append(stats)
+
+    matched_attempt = loop_summary.get("matched_attempt") if loop_summary is not None else None
+    baseline_time_to_parity_seconds = None
+    baseline_vs_synth_time_ratio = None
+
+    if loop_summary is not None:
+        baseline_time_to_parity_seconds = loop_summary.get("baseline_time_to_parity_seconds")
+        baseline_vs_synth_time_ratio = loop_summary.get("baseline_vs_synth_time_ratio")
+    elif matched_attempt is not None:
+        baseline_time_to_parity_seconds = matched_attempt.get("cumulative_attempt_seconds")
+
+    if baseline_vs_synth_time_ratio is None and baseline_time_to_parity_seconds and synth_runtime_seconds:
+        if float(synth_runtime_seconds) > 0:
+            baseline_vs_synth_time_ratio = float(baseline_time_to_parity_seconds) / float(synth_runtime_seconds)
+
+    timing_summary = {
+        "synth_runtime_seconds": synth_runtime_seconds,
+        "baseline_time_to_parity_seconds": baseline_time_to_parity_seconds,
+        "baseline_vs_synth_time_ratio": baseline_vs_synth_time_ratio,
+        "attempt_count": len(attempts),
+        "matched_attempt": matched_attempt,
+    }
 
     return {
         "synthology": {
@@ -164,8 +254,11 @@ def build_parity_report(
             "edge_density": synth_stats["edge_density"],
             "pos_neg_ratio": synth_stats["pos_neg_ratio"],
             "inferred_positive_share": synth_stats["inferred_positive_share"],
+            "hop_buckets": synth_hop_buckets,
+            "hop_bucket_shares": synth_hop_bucket_shares,
             "min_deep_hops": min_deep_hops,
         },
+        "timing": timing_summary,
         "attempts": attempts,
     }
 
@@ -187,6 +280,17 @@ def _write_attempts_csv(report: dict[str, Any], csv_path: Path) -> None:
                 "edge_density",
                 "pos_neg_ratio",
                 "inferred_positive_share",
+                "attempt_wall_seconds",
+                "cumulative_attempt_seconds",
+                "success",
+                "hop_0",
+                "hop_1",
+                "hop_2_to_3",
+                "hop_ge_min_deep",
+                "hop_0_share",
+                "hop_1_share",
+                "hop_2_to_3_share",
+                "hop_ge_min_deep_share",
                 "hop_histogram_json",
             ],
         )
@@ -205,9 +309,88 @@ def _write_attempts_csv(report: dict[str, Any], csv_path: Path) -> None:
                     "edge_density": item.get("edge_density"),
                     "pos_neg_ratio": item.get("pos_neg_ratio"),
                     "inferred_positive_share": item.get("inferred_positive_share"),
+                    "attempt_wall_seconds": item.get("attempt_wall_seconds"),
+                    "cumulative_attempt_seconds": item.get("cumulative_attempt_seconds"),
+                    "success": item.get("success"),
+                    "hop_0": item.get("hop_buckets", {}).get("hop_0", 0),
+                    "hop_1": item.get("hop_buckets", {}).get("hop_1", 0),
+                    "hop_2_to_3": item.get("hop_buckets", {}).get("hop_2_to_3", 0),
+                    "hop_ge_min_deep": item.get("hop_buckets", {}).get("hop_ge_min_deep", 0),
+                    "hop_0_share": item.get("hop_bucket_shares", {}).get("hop_0", 0.0),
+                    "hop_1_share": item.get("hop_bucket_shares", {}).get("hop_1", 0.0),
+                    "hop_2_to_3_share": item.get("hop_bucket_shares", {}).get("hop_2_to_3", 0.0),
+                    "hop_ge_min_deep_share": item.get("hop_bucket_shares", {}).get("hop_ge_min_deep", 0.0),
                     "hop_histogram_json": json.dumps(item.get("hop_histogram", {}), sort_keys=True),
                 }
             )
+
+
+def _write_markdown_summary(report: dict[str, Any], out_path: Path) -> None:
+    synth = report.get("synthology", {})
+    timing = report.get("timing", {})
+    attempts = report.get("attempts", [])
+    matched = timing.get("matched_attempt") or {}
+
+    lines = [
+        "# Exp2 Parity Report",
+        "",
+        "## Timing",
+        "",
+        f"- synth_runtime_seconds: {timing.get('synth_runtime_seconds')}",
+        f"- baseline_time_to_parity_seconds: {timing.get('baseline_time_to_parity_seconds')}",
+        f"- baseline_vs_synth_time_ratio: {timing.get('baseline_vs_synth_time_ratio')}",
+        f"- attempts_evaluated: {timing.get('attempt_count')}",
+        f"- matched_attempt: {matched.get('attempt')}",
+        "",
+        "## Synthology Reference",
+        "",
+        f"- k_deep (hop >= {synth.get('min_deep_hops')}): {synth.get('k_deep')}",
+        f"- positives: {synth.get('positives')}",
+        f"- negatives: {synth.get('negatives')}",
+        "",
+        "### Synthology Hop Buckets (Positive Targets)",
+        "",
+        "| bucket | count | share |",
+        "| --- | ---: | ---: |",
+    ]
+
+    synth_bucket_counts = synth.get("hop_buckets", {})
+    synth_bucket_shares = synth.get("hop_bucket_shares", {})
+    for key, label in (
+        ("hop_0", "hop=0"),
+        ("hop_1", "hop=1"),
+        ("hop_2_to_3", "2<=hop<=3"),
+        ("hop_ge_min_deep", f"hop>={synth.get('min_deep_hops')}")
+    ):
+        lines.append(
+            f"| {label} | {synth_bucket_counts.get(key, 0)} | {float(synth_bucket_shares.get(key, 0.0)):.2%} |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Attempts",
+            "",
+            "| attempt | deep_count | hop>=d share | attempt_s | cumulative_s | success |",
+            "| --- | ---: | ---: | ---: | ---: | ---: |",
+        ]
+    )
+
+    for item in attempts:
+        bucket_shares = item.get("hop_bucket_shares", {})
+        lines.append(
+            "| {} | {} | {:.2%} | {} | {} | {} |".format(
+                item.get("attempt"),
+                item.get("deep_count", 0),
+                float(bucket_shares.get("hop_ge_min_deep", 0.0)),
+                item.get("attempt_wall_seconds"),
+                item.get("cumulative_attempt_seconds"),
+                item.get("success"),
+            )
+        )
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main() -> None:
@@ -227,6 +410,11 @@ def main() -> None:
         default="data/exp2/baseline/parity_runs",
         help="Directory containing attempt_*/train/targets.csv",
     )
+    parser.add_argument(
+        "--synth-generation-metrics",
+        default="data/exp2/synthology/family_tree/generation_metrics.json",
+        help="Synthology generation metrics JSON used to report runtime ratio",
+    )
     parser.add_argument("--min-deep-hops", type=int, default=3, help="Minimum hop threshold for deep facts")
     parser.add_argument(
         "--out-json",
@@ -238,13 +426,20 @@ def main() -> None:
         default="data/exp2/baseline/parity_runs/parity_attempts.csv",
         help="Output CSV summary path",
     )
+    parser.add_argument(
+        "--out-md",
+        default="data/exp2/baseline/parity_runs/parity_report.md",
+        help="Output Markdown summary path",
+    )
     args = parser.parse_args()
 
     synth_targets = Path(args.synth_targets)
     synth_facts = Path(args.synth_facts)
     attempts_root = Path(args.attempts_root)
+    synth_generation_metrics = Path(args.synth_generation_metrics)
     out_json = Path(args.out_json)
     out_csv = Path(args.out_csv)
+    out_md = Path(args.out_md)
 
     if not synth_targets.exists():
         raise FileNotFoundError(f"Synthology targets not found: {synth_targets}")
@@ -258,6 +453,7 @@ def main() -> None:
         synth_facts=synth_facts,
         attempts_root=attempts_root,
         min_deep_hops=args.min_deep_hops,
+        synth_generation_metrics=synth_generation_metrics,
     )
 
     out_json.parent.mkdir(parents=True, exist_ok=True)
@@ -265,15 +461,17 @@ def main() -> None:
         json.dump(report, handle, indent=2, sort_keys=True)
 
     _write_attempts_csv(report, out_csv)
+    _write_markdown_summary(report, out_md)
 
     synth = report["synthology"]
     logger.info(
-        "Exp2 parity report | K_deep={} | synth_hops={} | attempts={} | json={} | csv={}",
+        "Exp2 parity report | K_deep={} | synth_hops={} | attempts={} | json={} | csv={} | md={}",
         synth["k_deep"],
         synth["hop_histogram"],
         len(report.get("attempts", [])),
         out_json,
         out_csv,
+        out_md,
     )
 
 
