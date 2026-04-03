@@ -770,6 +770,7 @@ def exp2_analyze_latest_baseline(ctx: Context, args=""):
                 "args": args,
                 "output_dir": str(analysis_dir),
             },
+            hydra_run_dir=False,
         )
     )
 
