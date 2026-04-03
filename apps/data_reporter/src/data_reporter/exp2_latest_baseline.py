@@ -101,6 +101,7 @@ def _analyze_targets(split_dir: Path) -> dict[str, Any]:
     per_sample_targets: Counter[str] = Counter()
     per_sample_facts: Counter[str] = Counter()
     hop_counts: Counter[int] = Counter()
+    hop_counts_positive: Counter[int] = Counter()
     label_counts: Counter[int] = Counter()
     type_counts: Counter[str] = Counter()
 
@@ -108,8 +109,12 @@ def _analyze_targets(split_dir: Path) -> dict[str, Any]:
         sid = str(row.get("sample_id", "")).strip()
         if sid:
             per_sample_targets[sid] += 1
-        hop_counts[_safe_int(row.get("hops", 0), 0)] += 1
-        label_counts[_safe_int(row.get("label", 1), 1)] += 1
+        hop_value = _safe_int(row.get("hops", 0), 0)
+        hop_counts[hop_value] += 1
+        label = _safe_int(row.get("label", 1), 1)
+        label_counts[label] += 1
+        if label == 1:
+            hop_counts_positive[hop_value] += 1
         type_counts[str(row.get("type", "unknown"))] += 1
 
     for row in facts_rows:
@@ -140,6 +145,7 @@ def _analyze_targets(split_dir: Path) -> dict[str, Any]:
             "max_targets_per_sample": max(per_sample_targets.values()) if per_sample_targets else 0,
         },
         "hops": {str(k): int(v) for k, v in sorted(hop_counts.items(), key=lambda item: item[0])},
+        "hops_positive": {str(k): int(v) for k, v in sorted(hop_counts_positive.items(), key=lambda item: item[0])},
         "type_counts": dict(type_counts),
         "inferred_like_targets": inferred_like,
     }
@@ -229,6 +235,10 @@ def _write_markdown(summary: dict[str, Any], out_path: Path) -> None:
     train = dataset.get("train", {})
     rows = train.get("rows", {})
     samples = train.get("samples", {})
+    train_hops_all = train.get("hops", {})
+    train_hops_positive = train.get("hops_positive", {})
+    positive_total = int(rows.get("positive_targets", 0) or 0)
+    all_total = int(rows.get("targets", 0) or 0)
     lines.extend(
         [
             f"- facts rows: {rows.get('facts', 0)}",
@@ -239,6 +249,42 @@ def _write_markdown(summary: dict[str, Any], out_path: Path) -> None:
             f"- avg targets/sample: {samples.get('avg_targets_per_sample', 0.0):.2f}",
             f"- max facts/sample: {samples.get('max_facts_per_sample', 0)}",
             f"- max targets/sample: {samples.get('max_targets_per_sample', 0)}",
+            "",
+            "## Train Hop Distribution (Positive Targets)",
+            "",
+        ]
+    )
+
+    if not train_hops_positive:
+        lines.append("- no positive hop values found")
+    else:
+        lines.append("| hops | count | share |")
+        lines.append("| ---: | ---: | ---: |")
+        for hop in sorted(train_hops_positive.keys(), key=lambda item: int(item)):
+            count = int(train_hops_positive[hop])
+            share = (count / positive_total) if positive_total else 0.0
+            lines.append(f"| {hop} | {count} | {share:.2%} |")
+
+    lines.extend(
+        [
+            "",
+            "## Train Hop Distribution (All Targets)",
+            "",
+        ]
+    )
+
+    if not train_hops_all:
+        lines.append("- no hop values found")
+    else:
+        lines.append("| hops | count | share |")
+        lines.append("| ---: | ---: | ---: |")
+        for hop in sorted(train_hops_all.keys(), key=lambda item: int(item)):
+            count = int(train_hops_all[hop])
+            share = (count / all_total) if all_total else 0.0
+            lines.append(f"| {hop} | {count} | {share:.2%} |")
+
+    lines.extend(
+        [
             "",
             "## Timing Overview",
             "",
@@ -315,7 +361,7 @@ def main() -> None:
             dataset_summary[split] = _analyze_targets(split_dir)
 
     timing_summary = _analyze_timing(timing_csv, timing_run_id)
-    train_hops = dataset_summary.get("train", {}).get("hops", {})
+    train_hops = dataset_summary.get("train", {}).get("hops_positive", {})
     _plot_train_hops(train_hops, out_dir / "train_hop_distribution")
 
     summary = {
