@@ -360,7 +360,7 @@ def _write_markdown_summary(report: dict[str, Any], out_path: Path) -> None:
         ("hop_0", "hop=0"),
         ("hop_1", "hop=1"),
         ("hop_2_to_3", "2<=hop<=3"),
-        ("hop_ge_min_deep", f"hop>={synth.get('min_deep_hops')}")
+        ("hop_ge_min_deep", f"hop>={synth.get('min_deep_hops')}"),
     ):
         lines.append(
             f"| {label} | {synth_bucket_counts.get(key, 0)} | {float(synth_bucket_shares.get(key, 0.0)):.2%} |"
