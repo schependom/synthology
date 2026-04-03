@@ -370,7 +370,20 @@ Use these commands to verify Apache Jena-backed UDM materialization and inspect 
 
     This generates a tiny baseline dataset with Jena reasoning and writes a rendered sample graph to `visual-verification/exp2_smoke`, which is useful for quickly checking inferred-fact presence and graph structure.
 
-2. **Family-tree UDM baseline generation (task wrapper)**
+  2. **Paper-ready UDM visual verification (Synthology-comparable PDFs)**
+
+    ```bash
+    uv run invoke udm-visual-verification
+    ```
+
+    This generates UDM baseline samples with visual settings aligned to `synthology-visual-verification` (same split style and explicit graph naming), then renders train-sample PDFs to `visual-verification/graphs` with names like `udm_baseline_sample_1001.pdf` for side-by-side paper figures.
+    The command uses a balanced fast profile by default (relation labels enabled + moderately larger graphs + capped edges for runtime). If you want denser/heavier plots, override explicitly via `--args`, for example:
+
+    ```bash
+    uv run invoke udm-visual-verification --n-samples=1 --args="filters.include_negatives=true filters.max_edges=120 render.show_edge_labels=true"
+    ```
+
+  3. **Family-tree UDM baseline generation (task wrapper)**
 
     ```bash
     uv run invoke gen-ft-fc
@@ -378,7 +391,7 @@ Use these commands to verify Apache Jena-backed UDM materialization and inspect 
 
     This is the reusable UDM baseline generation command for family-tree style data and is the quickest way to validate that baseline `facts.csv` and `targets.csv` generation is healthy.
 
-3. **Exp3 baseline chaining (OWL2Bench generation + UDM materialization)**
+4. **Exp3 baseline chaining (OWL2Bench generation + UDM materialization)**
 
     ```bash
     uv run invoke exp3-generate-baseline --universities=50
@@ -386,7 +399,7 @@ Use these commands to verify Apache Jena-backed UDM materialization and inspect 
 
     This runs the baseline chain used in Exp3: OWL2Bench ABox generation followed by UDM/Jena materialization, producing closure/inferred artifacts for benchmarking.
 
-4. **Direct ABox materialization with UDM/Jena**
+5. **Direct ABox materialization with UDM/Jena**
 
     ```bash
     uv run invoke exp3-materialize-abox \

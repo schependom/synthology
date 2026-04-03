@@ -283,6 +283,177 @@ def synthology_visual_verification(ctx: Context, args=""):
 
 
 @task
+def udm_visual_verification(ctx: Context, n_samples=3, args=""):
+    """
+    Generates UDM baseline samples and renders comparable PDF graph visuals
+    for side-by-side inspection against synthology-visual-verification outputs.
+
+    Output is written to visual-verification/udm_baseline/.
+    """
+
+    print("\nRunning UDM visual verification generator.")
+    run_dir = _make_run_archive("udm_baseline", "visual_verification", label="inspection")
+
+    output_root = Path("visual-verification") / "udm_baseline"
+    dataset_output_dir = output_root
+    # Match Synthology visual output location while keeping UDM filenames explicit.
+    graphs_output_dir = Path("visual-verification") / "graphs"
+
+    try:
+        n_samples_int = max(1, int(n_samples))
+    except (TypeError, ValueError):
+        raise ValueError(f"n_samples must be an integer >= 1, got: {n_samples}")
+
+    n_train_for_render = max(1, n_samples_int)
+
+    cmd = _build_uv_command(
+        "udm_baseline",
+        "udm_baseline.create_data",
+        overrides=(
+            f"dataset.n_train={n_train_for_render}",
+            "dataset.n_val=0",
+            "dataset.n_test=0",
+            f"dataset.output_dir={dataset_output_dir.as_posix()}",
+            "generator.min_individuals=8",
+            "generator.max_individuals=18",
+            "generator.min_base_relations=8",
+            "generator.max_base_relations=24",
+            "neg_sampling.ratio=0.5",
+            "materialization.reasoner=jena",
+            "materialization.jena_profile=owl_mini",
+            "materialization.iterative=false",
+        ),
+        args=args,
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    _run_logged_command(cmd, run_dir / "run.log")
+
+    targets_csv = dataset_output_dir / "train" / "targets.csv"
+    facts_csv = dataset_output_dir / "train" / "facts.csv"
+
+    if not targets_csv.exists():
+        raise RuntimeError(f"Expected targets CSV not found at {targets_csv}")
+    if not facts_csv.exists():
+        raise RuntimeError(f"Expected facts CSV not found at {facts_csv}")
+
+    per_sample: Dict[str, Dict[str, Any]] = {}
+    with targets_csv.open("r", newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            sample_id = str(row.get("sample_id", "")).strip()
+            if not sample_id:
+                continue
+
+            stats = per_sample.setdefault(
+                sample_id,
+                {
+                    "sample_id": sample_id,
+                    "total": 0,
+                    "base": 0,
+                    "inferred": 0,
+                    "negative": 0,
+                },
+            )
+            stats["total"] += 1
+
+            row_type = str(row.get("type", "")).strip().lower()
+            if row_type == "base_fact":
+                stats["base"] += 1
+            elif row_type.startswith("inf") or row_type == "inferred":
+                stats["inferred"] += 1
+
+            if _is_negative_row(row):
+                stats["negative"] += 1
+
+    def _numeric_sample_key(sample_id: str) -> int:
+        try:
+            return int(sample_id)
+        except ValueError:
+            return -1
+
+    ranked_samples = sorted(
+        per_sample.values(),
+        key=lambda s: (
+            min(int(s["base"]), int(s["inferred"])),
+            int(s["base"]),
+            int(s["inferred"]),
+            int(s["total"]),
+            int(s["negative"]),
+            _numeric_sample_key(str(s["sample_id"])),
+        ),
+        reverse=True,
+    )
+
+    if not ranked_samples:
+        raise RuntimeError(f"No sample_id values found in {targets_csv}")
+
+    selected_sample_ids = [str(stats["sample_id"]) for stats in ranked_samples[:n_samples_int]]
+    graphs_output_dir.mkdir(parents=True, exist_ok=True)
+
+    visualization_commands = []
+    for sample_id in selected_sample_ids:
+        output_stem = f"udm_baseline_sample_{sample_id}"
+        viz_cmd = _build_uv_command(
+            "kgvisualiser",
+            "kgvisualiser.visualize",
+            overrides=(
+                f"io.input_csv={facts_csv.as_posix()}",
+                f"io.targets_csv={targets_csv.as_posix()}",
+                f"io.sample_id={sample_id}",
+                f"output.dir={graphs_output_dir.as_posix()}",
+                f"output.name_template={output_stem}",
+                "output.format=pdf",
+                "filters.include_negatives=false",
+                "filters.max_edges=75",
+                "render.engine=dot",
+                "render.overlap=false",
+                "render.splines=curved",
+                "render.class_nodes=false",
+                "render.show_edge_labels=true",
+            ),
+            env={"LOGURU_COLORIZE": "1"},
+        )
+        _run_logged_command(viz_cmd, run_dir / f"visualize_{sample_id}.log")
+
+        expected_pdf = graphs_output_dir / f"{output_stem}.pdf"
+        if not expected_pdf.exists():
+            source_graph = graphs_output_dir / output_stem
+            if source_graph.exists():
+                fallback_cmd = f"dot -Tpdf {shlex.quote(str(source_graph))} -o {shlex.quote(str(expected_pdf))}"
+                _run_logged_command(fallback_cmd, run_dir / f"render_fallback_{sample_id}.log")
+
+            if not expected_pdf.exists():
+                raise RuntimeError(
+                    f"Expected PDF not generated for sample {sample_id}: {expected_pdf}. "
+                    f"Ensure Graphviz is installed and available on PATH."
+                )
+
+        visualization_commands.append(viz_cmd)
+
+    _write_json(
+        run_dir / "manifest.json",
+        {
+            "experiment": "udm_baseline",
+            "task": "visual_verification",
+            "args": args,
+            "n_samples": n_samples_int,
+            "selected_sample_ids": selected_sample_ids,
+            "generation_command": cmd,
+            "visualization_commands": visualization_commands,
+            "outputs": {
+                "dataset_output_dir": dataset_output_dir.as_posix(),
+                "graphs_output_dir": graphs_output_dir.as_posix(),
+            },
+        },
+    )
+
+    print(
+        f"Rendered {len(selected_sample_ids)} UDM visual verification PDF(s) to {graphs_output_dir.as_posix()}",
+        flush=True,
+    )
+
+
+@task
 def visualize_proofs(ctx: Context, args=""):
     """
     Generates a small dataset with all negative sampling strategies
