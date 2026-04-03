@@ -78,8 +78,18 @@ public final class JenaMaterializerCli {
     }
 
     public static int calculateDepth(InfModel infModel, Statement stmt) {
+        return calculateDepth(infModel, stmt, new java.util.HashSet<>());
+    }
+
+    private static int calculateDepth(InfModel infModel, Statement stmt, java.util.Set<Statement> visited) {
+        // Break infinite recursion in cyclic proofs
+        if (!visited.add(stmt)) {
+            return 0;
+        }
+
         Iterator<Derivation> derivations = infModel.getDerivation(stmt);
         if (derivations == null || !derivations.hasNext()) {
+            visited.remove(stmt);
             return 0; // Base fact
         }
         
@@ -91,9 +101,11 @@ public final class JenaMaterializerCli {
             for (Triple premise : ruleDeriv.getMatches()) {
                 if (premise == null) continue;
                 Statement premiseStmt = infModel.asStatement(premise);
-                maxParentDepth = Math.max(maxParentDepth, calculateDepth(infModel, premiseStmt));
+                maxParentDepth = Math.max(maxParentDepth, calculateDepth(infModel, premiseStmt, visited));
             }
         }
+
+        visited.remove(stmt);
         return maxParentDepth + 1;
     }
 
