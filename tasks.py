@@ -598,7 +598,7 @@ def exp1_train_rrn(ctx: Context, strategy="random", args=""):
 
 
 @task
-def exp2_generate_gold_test(ctx: Context, args=""):
+def exp2_1_generate_gold_test(ctx: Context, args=""):
     """Generates the frozen shared test set for Exp 2."""
     print("\nGenerating Exp 2 frozen test set.")
     cmd = _build_uv_command(
@@ -625,7 +625,7 @@ def exp2_generate_gold_test(ctx: Context, args=""):
 
 
 @task
-def exp2_generate_baseline(ctx: Context, fact_cap=None, target_cap=None, base_facts_per_sample=None, args=""):
+def exp2_2_generate_baseline(ctx: Context, fact_cap=None, target_cap=None, base_facts_per_sample=None, args=""):
     """
     Generates Exp 2 forward-chaining baseline data.
 
@@ -670,7 +670,7 @@ def exp2_generate_baseline(ctx: Context, fact_cap=None, target_cap=None, base_fa
 
 
 @task
-def exp2_generate_synthology(ctx: Context, fact_cap=None, target_cap=None, proof_roots_per_rule=None, args=""):
+def exp2_3_generate_synthology(ctx: Context, fact_cap=None, target_cap=None, proof_roots_per_rule=None, args=""):
     """
     Generates Exp 2 Synthology backward-chaining data.
 
@@ -715,7 +715,7 @@ def exp2_generate_synthology(ctx: Context, fact_cap=None, target_cap=None, proof
 
 
 @task
-def exp2_report_data(ctx: Context, args=""):
+def exp2_8_report_data(ctx: Context, args=""):
     """Generates parity/distribution reports for Exp 2 methods."""
     print("\nGenerating Exp 2 comparison report.")
     run_dir = _make_run_archive("exp2", "report_data", label="compare")
@@ -745,7 +745,37 @@ def exp2_report_data(ctx: Context, args=""):
 
 
 @task
-def exp2_train_rrn(ctx: Context, dataset="baseline", args=""):
+def exp2_analyze_latest_baseline(ctx: Context, args=""):
+    """Analyzes the latest archived Exp2 baseline run (hop distribution + timing summary)."""
+    print("\nAnalyzing latest Exp 2 baseline run.")
+    run_dir = _make_run_archive("exp2", "analyze_latest_baseline", label="baseline")
+    analysis_dir = run_dir / "analysis"
+    cmd = _build_uv_command(
+        "data_reporter",
+        "data_reporter.exp2_latest_baseline",
+        overrides=(
+            f"--repo-root {shlex.quote(str(REPO_ROOT))}",
+            f"--out-dir {shlex.quote(str(analysis_dir))}",
+        ),
+        args=args,
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    _run_experiment_spec(
+        ExperimentRunSpec(
+            experiment="exp2",
+            task_name="analyze_latest_baseline",
+            label="baseline",
+            command=cmd,
+            manifest={
+                "args": args,
+                "output_dir": str(analysis_dir),
+            },
+        )
+    )
+
+
+@task
+def exp2_9_train_rrn(ctx: Context, dataset="baseline", args=""):
     """Trains RRN for Exp 2 on either baseline or synthology dataset."""
     dataset_key = dataset.strip().lower()
     if dataset_key not in {"baseline", "synthology"}:
@@ -780,7 +810,7 @@ def exp2_train_rrn(ctx: Context, dataset="baseline", args=""):
 
 
 @task
-def exp2_generate_both(
+def exp2_4_generate_both(
     ctx: Context,
     fact_cap=None,
     target_cap=None,
@@ -802,14 +832,14 @@ def exp2_generate_both(
             "args": args,
         },
     )
-    exp2_generate_baseline(
+    exp2_2_generate_baseline(
         ctx,
         fact_cap=fact_cap,
         target_cap=target_cap,
         base_facts_per_sample=baseline_base_facts,
         args=args,
     )
-    exp2_generate_synthology(
+    exp2_3_generate_synthology(
         ctx,
         fact_cap=fact_cap,
         target_cap=target_cap,
@@ -830,7 +860,7 @@ def exp2_generate_both(
 
 
 @task
-def exp2_balance_datasets(
+def exp2_5_balance_datasets(
     ctx: Context,
     fact_cap,
     target_cap=None,
@@ -852,7 +882,7 @@ def exp2_balance_datasets(
             "args": args,
         },
     )
-    exp2_generate_both(
+    exp2_4_generate_both(
         ctx,
         fact_cap=fact_cap,
         target_cap=target_cap,
@@ -876,7 +906,7 @@ def exp2_balance_datasets(
 
 
 @task
-def exp2_smoke_jena_visual(ctx: Context, args=""):
+def exp2_10_smoke_jena_visual(ctx: Context, args=""):
     """Runs a tiny Jena-backed baseline generation and visualizes one sample graph."""
     print("\nRunning Exp 2 Jena smoke generation (visual).")
     run_dir = _make_run_archive("exp2", "smoke_jena_visual", label="visual")
@@ -917,7 +947,7 @@ def exp2_smoke_jena_visual(ctx: Context, args=""):
 
 
 @task
-def exp2_parity_loop(
+def exp2_6_parity_loop(
     ctx: Context,
     max_attempts=250,
     min_deep_hops=3,
@@ -987,7 +1017,7 @@ def exp2_parity_loop(
 
 
 @task
-def exp2_parity_report(
+def exp2_7_parity_report(
     ctx: Context,
     min_deep_hops=3,
     synth_targets="data/exp2/synthology/family_tree/train/targets.csv",

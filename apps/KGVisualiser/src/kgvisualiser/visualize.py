@@ -303,7 +303,30 @@ def main(cfg: DictConfig) -> None:
     )
 
     output_path = output_dir / output_name
-    rendered = dot.render(filename=output_path.name, directory=str(output_dir), format=output_format, cleanup=True)
+
+    try:
+        rendered = dot.render(filename=output_path.name, directory=str(output_dir), format=output_format, cleanup=True)
+    except Exception as exc:
+        # Some HPC Graphviz builds lack the triangulation library required by
+        # overlap=prism (common with sfdp). Retry with conservative defaults.
+        err = str(exc).lower()
+        needs_safe_fallback = (
+            "triangulation" in err
+            or "remove_overlap" in err
+            or 'overlap value "prism" unsupported' in err
+            or "overlap value 'prism' unsupported" in err
+        )
+
+        if not needs_safe_fallback:
+            raise
+
+        logger.warning(
+            "Graphviz prism/triangulation support unavailable; retrying render with overlap=false and engine=dot"
+        )
+        dot.attr(overlap="false")
+        dot.engine = "dot"
+        rendered = dot.render(filename=output_path.name, directory=str(output_dir), format=output_format, cleanup=True)
+
     logger.info("Graph saved to {}", rendered)
 
 

@@ -46,6 +46,8 @@ This repository implements this generator and evaluates the quality of the gener
     - [Activation of virtual environment](#activation-of-virtual-environment)
     - [DLV](#dlv-1)
     - [Development tools](#development-tools)
+  - [High Performance Cluster (HPC)](#high-performance-cluster-hpc)
+    - [Dependencies](#dependencies)
 - [Reproducability](#reproducability)
 - [Training RRN model](#training-rrn-model)
 - [Data generation](#data-generation)
@@ -220,6 +222,30 @@ You don't need to install DLV manually (like on macOS/Linux), as it is already i
 #### Development tools
 
 See the [Development](#development) section for instructions on setting up development tools like `ruff` and `ty` (using VS Code extensions is recommended).
+
+### High Performance Cluster (HPC)
+
+If you want to run the experiments on an LSF cluster, you can use the provided job scripts in `jobscripts/` as templates. Make sure to adjust the resource requests and module loads according to your cluster's specifications.
+
+#### Dependencies
+
+The same dependencies apply as for the local installation (Python, uv, Java, Maven, OWL2Bench, Apache Jena).
+
+If you're on an LSF cluster, you can load Java and Maven modules as follows:
+
+```bash
+# Load Java 21 (required by Jena 5.x)
+module load openjdk/21
+
+# Verify Java is available and correct version
+which java && java -version
+
+# Now install Maven
+./install-mvn.sh
+
+# Verify Maven is available
+which mvn && mvn -v
+```
 
 ## Reproducability
 

@@ -9,11 +9,20 @@ uv sync
 uv run invoke --list
 ```
 
-Optional quick sanity checks:
+### HPC preflight for Jena-backed steps (Exp2 baseline, OWL2Bench materialization)
 
 ```bash
-uv run invoke exp2-smoke-jena-visual
-SYNTHOLOGY_JENA_XMX_MB=3072 uv run invoke gen-owl2bench-toy
+# Load Java 21 (required by Jena 5.x)
+module load openjdk/21
+
+# Verify Java is available and correct version
+which java && java -version
+
+# Now install Maven
+./install-mvn.sh
+
+# Verify Maven is available
+which mvn && mvn -v
 ```
 
 ## Logging And Artifacts

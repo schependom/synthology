@@ -55,6 +55,56 @@ This is the key efficiency claim: random forward-chaining is measured by time-to
 
 ## Practical quick start (UDM + Apache Jena)
 
+### HPC prerequisite (run this first)
+
+The Exp2 baseline generator builds and runs a Java helper for Jena materialization.
+If `mvn` is missing, `exp2-generate-baseline` will fail before data generation starts.
+
+1. Fix shell init noise first (optional but recommended):
+    - If you see `/.../.bashrc: ... envexport: No such file or directory`, open your `.bashrc` and remove or guard that line.
+2. Load Java and Maven on the cluster:
+
+```bash
+module avail maven
+module avail java
+module load java
+module load maven
+```
+
+3. Verify tools are visible:
+
+```bash
+which java && java -version
+which mvn && mvn -v
+```
+
+4. Build the Jena helper once (recommended preflight):
+
+```bash
+cd apps/udm_baseline/java
+mvn -q -DskipTests package
+ls -lh target/jena-materializer-1.0.0-shaded.jar
+cd ../../..
+```
+
+5. Run Exp2 commands:
+
+```bash
+uv run invoke exp2-generate-gold-test
+uv run invoke exp2-generate-baseline
+uv run invoke exp2-generate-synthology
+uv run invoke exp2-parity-loop
+uv run invoke exp2-parity-report
+```
+
+If your cluster does not provide a Maven module, install Maven in your home directory and prepend it to `PATH` in the current shell:
+
+```bash
+export MAVEN_HOME="$HOME/apache-maven-3.9.9"
+export PATH="$MAVEN_HOME/bin:$PATH"
+mvn -v
+```
+
 1. Baseline generation:
 
 ```bash
