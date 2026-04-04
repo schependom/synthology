@@ -141,10 +141,27 @@ class RRNSystem(pl.LightningModule):
             embeddings=embeddings, triples=all_triples, membership_targets=all_memberships
         )
 
-        # 3. Logging
+        # 3. Evaluate Metrics
+        individuals = batch.get("individuals", None)
+        class_metrics = self._evaluate_classes(embeddings, all_memberships, individuals)
+        triple_metrics = self._evaluate_triples(embeddings, all_triples)
+
+        # 4. Logging
         self.log("train/total_loss", total_loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=1)
         self.log("train/class_loss", class_loss, on_step=True, on_epoch=True, batch_size=1)
         self.log("train/relation_loss", relation_loss, on_step=True, on_epoch=True, batch_size=1)
+
+        for key, value in class_metrics.items():
+            if not math.isnan(value):
+                self.log(
+                    f"train/class_{key}", value, on_step=False, on_epoch=True, batch_size=1
+                )
+
+        for key, value in triple_metrics.items():
+            if not math.isnan(value):
+                self.log(
+                    f"train/triple_{key}", value, on_step=False, on_epoch=True, batch_size=1
+                )
 
         return total_loss
 
@@ -217,16 +234,26 @@ class RRNSystem(pl.LightningModule):
         # 3. RRN Inference (Always using BASE facts)
         embeddings = self(base_grouped, base_memberships)
 
-        # 4. Evaluate Class Predictions
+        # 4. Compute Loss (test loss)
+        test_loss, test_class_loss, test_rel_loss = self._compute_loss(
+            embeddings=embeddings, triples=target_triples, membership_targets=target_memberships
+        )
+
+        # 5. Evaluate Class Predictions
         individuals = batch.get("individuals", None)
         class_metrics = self._evaluate_classes(
             embeddings=embeddings, membership_labels=target_memberships, individuals=individuals
         )
 
-        # 5. Evaluate Relation Predictions
+        # 6. Evaluate Relation Predictions
         triple_metrics = self._evaluate_triples(embeddings=embeddings, triples=target_triples)
 
-        # 6. Logging
+        # 7. Logging
+        self.log("test_loss", test_loss, on_step=False, on_epoch=True, prog_bar=True, batch_size=1)
+        self.log("test/total_loss", test_loss, on_step=False, on_epoch=True, batch_size=1)
+        self.log("test/class_loss", test_class_loss, on_step=False, on_epoch=True, batch_size=1)
+        self.log("test/relation_loss", test_rel_loss, on_step=False, on_epoch=True, batch_size=1)
+
         # Lightning automatically accumulates these over the epoch
         for key, value in class_metrics.items():
             if not math.isnan(value):
@@ -312,9 +339,7 @@ class RRNSystem(pl.LightningModule):
             "acc_neg": negative_scores.mean().item() if negative_scores.numel() > 0 else float("nan"),
             **binary_metrics,
             **hop_acc,
-            **{f"support_hops_{k}": len(v) for k, v in hops_hits.items()},
             **{f"acc_type_{k}": (sum(v) / len(v) if len(v) > 0 else float("nan")) for k, v in type_hits.items()},
-            **{f"support_type_{k}": len(v) for k, v in type_hits.items()},
         }
 
     def _evaluate_triples(
@@ -413,9 +438,7 @@ class RRNSystem(pl.LightningModule):
             "acc_neg": torch.cat(neg_hits).mean().item() if neg_hits else float("nan"),
             **binary_metrics,
             **hop_acc,
-            **{f"support_hops_{k}": len(v) for k, v in hops_hits.items()},
             **{f"acc_type_{k}": (sum(v) / len(v) if len(v) > 0 else float("nan")) for k, v in type_hits.items()},
-            **{f"support_type_{k}": len(v) for k, v in type_hits.items()},
         }
 
     def _compute_binary_metrics(self, probs: torch.Tensor, targets: torch.Tensor) -> Dict[str, float]:

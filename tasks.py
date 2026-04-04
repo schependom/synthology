@@ -1133,10 +1133,18 @@ def exp2_parity_loop(
     edge_density_tolerance_pct=15.0,
     target_ratio_tolerance_pct=10.0,
     inferred_share_tolerance_pct=10.0,
+    ensure_synth_reference=True,
     args="",
 ):
     """Retries UDM baseline generation until Exp 2 deep and structural parity targets are reached."""
     print("\nRunning Exp 2 UDM parity loop.")
+
+    synth_targets_path = Path(synth_targets)
+    synth_facts_path = Path(synth_facts)
+    if ensure_synth_reference and (not synth_targets_path.exists() or not synth_facts_path.exists()):
+        print("Synthology reference dataset missing; generating Exp 2 synthology dataset first.")
+        exp2_generate_synthology(ctx)
+
     run_dir = _make_run_archive("exp2", "parity_loop", label="parity")
     attempts_dir = run_dir / "attempts"
     cmd = _build_uv_command(
@@ -1179,6 +1187,7 @@ def exp2_parity_loop(
                 "edge_density_tolerance_pct": edge_density_tolerance_pct,
                 "target_ratio_tolerance_pct": target_ratio_tolerance_pct,
                 "inferred_share_tolerance_pct": inferred_share_tolerance_pct,
+                "ensure_synth_reference": ensure_synth_reference,
                 "args": args,
                 "config_files": ["configs/udm_baseline/exp2_baseline.yaml", "configs/udm_baseline/config.yaml"],
                 "attempts_root": str(attempts_dir),
