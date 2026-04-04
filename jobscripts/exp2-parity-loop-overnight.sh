@@ -2,12 +2,6 @@
 
 set -euo pipefail
 
-# LSF CPU job example (no GPU required).
-# Submit with: bsub < jobscripts/exp2-parity-loop-overnight.sh
-# You can override defaults at submit time, e.g.:
-# MAX_ATTEMPTS=400 DEEP_COUNT_MODE=tolerance TOLERANCE_PCT=10 RUN_PARITY_REPORT=1 \
-#   bsub < jobscripts/exp2-parity-loop-overnight.sh
-
 ### General options
 #BSUB -q hpc
 #BSUB -J exp2-parity-loop
@@ -52,18 +46,16 @@ echo "  tolerance_pct=${TOLERANCE_PCT}"
 
 # Environment bootstrap
 if command -v module >/dev/null 2>&1; then
-  module load python3/3.11.9 || true
-  module load maven || true
-  module load java || true
+  module load python3/3.9.19 || true
+  module load openjdk/21 || true
 fi
+
+# Export mvn
+export MAVEN_HOME="apache-maven-3.9.13"
+export PATH="${MAVEN_HOME}/bin:${PATH}" 
 
 source .venv/bin/activate
 run_cmd uv sync
-
-# Optional: regenerate Synthology reference first so K_deep is fresh.
-if [[ "${RUN_SYNTH_FIRST}" == "1" ]]; then
-  run_cmd uv run invoke exp2-generate-synthology
-fi
 
 # Run parity loop with explicit attempts root for reproducible follow-up reporting.
 run_cmd uv run invoke exp2-parity-loop --args="--attempts-root ${ATTEMPTS_ROOT} --max-attempts ${MAX_ATTEMPTS} --min-deep-hops ${MIN_DEEP_HOPS} --deep-count-mode ${DEEP_COUNT_MODE} --tolerance-pct ${TOLERANCE_PCT} --node-tolerance-pct ${NODE_TOLERANCE_PCT} --edge-density-tolerance-pct ${EDGE_DENSITY_TOLERANCE_PCT} --target-ratio-tolerance-pct ${TARGET_RATIO_TOLERANCE_PCT} --inferred-share-tolerance-pct ${INFERRED_SHARE_TOLERANCE_PCT}"

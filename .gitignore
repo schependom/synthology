@@ -232,3 +232,4 @@ matlab/out
 
 apache-maven*.*
 *.out
+*.err
