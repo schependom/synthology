@@ -689,7 +689,6 @@ class NegativeSampler:
         if "proof_based" in strategies:
             kg = self._proof_based_corruption(kg, fractional_ratio, corrupt_base_facts, export_proofs, output_dir)
 
-        return kg
 
         # For memberships, we just use random corruption for now as it's less critical
         # TODO

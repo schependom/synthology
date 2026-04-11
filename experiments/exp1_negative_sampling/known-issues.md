@@ -170,27 +170,6 @@ that random and constrained models do not share.
 
 ---
 
-## 7. Table 1 values do not match observed validation curves
-
-**Severity:** ⚠️ Consistency issue  
-**Description:**  
-Table 1 in the paper currently shows (PR-AUC / F1 / FPR):
-- Random: 0.65 / 0.62 / 0.28
-- Constrained: 0.72 / 0.70 / 0.18
-- Proof-based: 0.88 / 0.85 / 0.05
-
-The W&B validation curves show F1 for proof-based at ~0.70 (not 0.85) and FPR at
-~0.40 (not 0.05). These are likely placeholder/aspirational values, not real results.
-
-**Cause:**  
-The table was written before experiments completed, or was populated with expected
-values. These must be replaced with actual test-set evaluation numbers once
-`trainer.test()` is run on the frozen test set. The frozen test set (skewed toward
-near-misses) may indeed yield better FPR numbers than the mixed validation set, but
-this needs to be verified.
-
----
-
 ## Summary table
 
 | # | Problem | Severity | Action required |
@@ -201,4 +180,3 @@ this needs to be verified.
 | 4 | proof_based absent from neg_intermediate/neg_base_fact metrics | ✅ Expected | Document; expected by design |
 | 5 | Noisy neg_base_fact metric | ⚠️ Minor | Do not report without CI; ignore in paper |
 | 6 | Test set distributional bias | ⚠️ Design | Add to Threats to Validity section |
-| 7 | Table 1 placeholder values | ⚠️ Consistency | Replace with actual test-set numbers |

@@ -85,3 +85,9 @@ All runs must log metrics to W&B under `exp1_negative_sampling`.
 ## Expected Result
 
 The `proof_based` strategy should be the winner on hard negatives, with lower `FPR` and stronger `PR-AUC` than `random` and `constrained`, then be frozen for later experiments.
+
+## Known Limitations & Threats to Validity
+
+- **Class Metrics Limitation**: Proof-based corruption operates solely at the base-fact level for relations and propagates substitutions up the proof tree. It does not target `rdf:type` (class membership) assertions. As a result, the `proof_based` training split contains no negative class targets. All class-level metrics (`val/class_fpr`, `val/class_auc_roc`, etc.) are undefined and unreportable for this strategy. The experiment effectively covers relation link prediction only.
+- **Base Fact Limitations**: By design, proof-based corruption produces negatives of type `neg_inf_root` (corrupted inferred goals). There are no negatives of type `neg_inf_intermediate` or `neg_base_fact`.
+- **Distributional Bias**: The frozen test set (`data/exp1/test_set`) is intentionally generated using proof-based corruption (the "gold standard" for hard negatives). Consequently, the `proof_based` model enjoys a distributional advantage, whereas `random` and `constrained` models are evaluated out-of-distribution. This should be explicitly noted in the Threats to Validity section of the paper.

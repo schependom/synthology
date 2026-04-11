@@ -96,6 +96,7 @@ def train(cfg: DictConfig) -> None:
         # num_nodes=cfg.get("num_nodes", 1), # for multi-node training
         log_every_n_steps=1,
         val_check_interval=val_check_interval,
+        gradient_clip_val=1.0,
     )
 
     # 6. Train
