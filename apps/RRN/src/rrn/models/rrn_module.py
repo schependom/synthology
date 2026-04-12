@@ -105,7 +105,16 @@ class RRNSystem(pl.LightningModule):
         optimizer = instantiate(self.cfg.hyperparams.optimizer, params=self.parameters())
         logger.info(f"Using optimizer: {self.cfg.hyperparams.optimizer._target_}")
 
-        return optimizer
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(
+                    optimizer, mode="min", factor=0.5, patience=15, verbose=True
+                ),
+                "monitor": "val/total_loss",
+                "frequency": 1,
+            },
+        }
 
     def transfer_batch_to_device(self, batch, device, dataloader_idx):
         """
@@ -599,6 +608,8 @@ class RRNSystem(pl.LightningModule):
             if num_pos > 0 and num_neg > 0:
                 # The actual weight to apply to positive samples
                 ratio = num_neg.float() / num_pos.float()
+                # Clamp ratio to prevent extreme gradient explosions on imbalanced graphs
+                ratio = torch.clamp(ratio, max=10.0)
                 all_weights[rel_targets == 1.0] = ratio
 
             # Compute weighted loss
@@ -618,5 +629,5 @@ class RRNSystem(pl.LightningModule):
         #                                  TOTAL LOSS                                  #
         # ---------------------------------------------------------------------------- #
 
-        total_loss = total_class_loss + total_relation_loss
+        total_loss = (0.2 * total_class_loss) + total_relation_loss
         return total_loss, total_class_loss, total_relation_loss
