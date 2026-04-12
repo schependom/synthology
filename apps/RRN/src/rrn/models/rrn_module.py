@@ -105,12 +105,17 @@ class RRNSystem(pl.LightningModule):
         optimizer = instantiate(self.cfg.hyperparams.optimizer, params=self.parameters())
         logger.info(f"Using optimizer: {self.cfg.hyperparams.optimizer._target_}")
 
+        scheduler_kwargs = {"mode": "min", "factor": 0.5, "patience": 15}
+        try:
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, verbose=True, **scheduler_kwargs)
+        except TypeError:
+            # Older PyTorch versions do not support the `verbose` kwarg.
+            scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, **scheduler_kwargs)
+
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
-                "scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(
-                    optimizer, mode="min", factor=0.5, patience=15, verbose=True
-                ),
+                "scheduler": scheduler,
                 "monitor": "val/total_loss",
                 "frequency": 1,
             },
@@ -162,15 +167,11 @@ class RRNSystem(pl.LightningModule):
 
         for key, value in class_metrics.items():
             if not math.isnan(value):
-                self.log(
-                    f"train/class_{key}", value, on_step=False, on_epoch=True, batch_size=1
-                )
+                self.log(f"train/class_{key}", value, on_step=False, on_epoch=True, batch_size=1)
 
         for key, value in triple_metrics.items():
             if not math.isnan(value):
-                self.log(
-                    f"train/triple_{key}", value, on_step=False, on_epoch=True, batch_size=1
-                )
+                self.log(f"train/triple_{key}", value, on_step=False, on_epoch=True, batch_size=1)
 
         return total_loss
 
