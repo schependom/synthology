@@ -552,11 +552,22 @@ class RRNSystem(pl.LightningModule):
         # Convert labels from {-1,0,1} to {0.0, 0.5, 1.0} for BCE
         cls_targets = (targets_tensor_cls + 1.0) / 2.0
 
+        # Create weights mask dynamically to counteract class imbalance
+        num_pos = ((cls_targets == 1.0) & (mask == 1.0)).sum()
+        num_neg = ((cls_targets == 0.0) & (mask == 1.0)).sum()
+        
+        all_weights = torch.ones_like(cls_targets, device=device)
+
+        if num_pos > 0 and num_neg > 0:
+            ratio = num_neg.float() / num_pos.float()
+            ratio = torch.clamp(ratio, max=10.0)
+            all_weights[(cls_targets == 1.0) & (mask == 1.0)] = ratio
+
         # Compute un-reduced loss PER SAMPLE
         unreduced_class_loss = non_reduced_criterion(cls_logits, cls_targets)
 
-        # Apply mask to zero out losses for unspecified class memberships
-        masked_class_loss = unreduced_class_loss * mask
+        # Apply weights and mask
+        masked_class_loss = unreduced_class_loss * mask * all_weights
 
         # Average loss over known labels only
         num_known_labels = mask.sum()
