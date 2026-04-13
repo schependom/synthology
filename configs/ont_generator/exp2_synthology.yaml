@@ -12,9 +12,9 @@ ontology:
   path: "ontologies/family.ttl"
 
 dataset:
-  n_train: 2000
-  n_val: 200
-  n_test: 200
+  n_train: 1200
+  n_val: 150
+  n_test: 150
   train_fact_cap: null
   val_fact_cap: null
   test_fact_cap: null
@@ -31,8 +31,8 @@ export_proofs: false
 export_graphs: false
 
 generator:
-  min_individuals: 1
-  max_individuals: 1000
+  min_individuals: 4
+  max_individuals: 240
   min_rules: 1
   max_rules: 5
   target_min_proofs_rule: 5

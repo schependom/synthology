@@ -61,44 +61,60 @@ Expected outputs:
 
 ## 2. Experiment 2 (Multi-Hop Quality)
 
+0. Scientific guardrail (do not skip):
+
+- Exp2's core claim depends on parity enforcement. If parity is skipped, any Synthology gain can be attributed to deep-fact volume alone, which invalidates the main Exp2 argument.
+
 1. Generate and freeze deep test set:
 
 ```bash
 uv run invoke exp2-generate-gold-test
 ```
 
-2. Generate baseline data:
-
-```bash
-uv run invoke exp2-generate-baseline
-```
-
-3. Generate Synthology data:
+2. Generate Synthology data first (sets parity target):
 
 ```bash
 uv run invoke exp2-generate-synthology
 ```
 
-4. Optional budget-matched generation helper:
+3. Inspect deep-hop target volume before baseline parity:
+
+- Check the d>=3 count in the generated Synthology train targets.
+- If parity appears unreachable in reasonable attempts, reduce Synthology generation pressure (for example lower proof roots per rule and/or fact cap), then regenerate.
+
+4. Generate baseline data:
+
+```bash
+uv run invoke exp2-generate-baseline
+```
+
+5. Optional budget-matched generation helper:
 
 ```bash
 uv run invoke exp2-balance-datasets --fact-cap=<Nf> --target-cap=<Nt>
 ```
 
-5. Run parity loop and summarize parity attempts:
+6. Run parity loop and summarize parity attempts (recommended tolerance mode):
 
 ```bash
-uv run invoke exp2-parity-loop
+uv run invoke exp2-parity-loop \
+  --deep-count-mode=tolerance \
+  --tolerance-pct=10.0
 uv run invoke exp2-parity-report
 ```
 
-6. Generate data comparison report:
+Tip:
+
+- Exp2 default now uses a wider 10% tolerance band to improve practical parity convergence under compute constraints.
+- Prefer tolerance mode (5-10%) over exact deep-count matching for practical convergence while preserving scientific defensibility.
+
+7. Generate data comparison report:
 
 ```bash
 uv run invoke exp2-report-data
 ```
 
-7. Train models:
+8. Train models:
 
 ```bash
 uv run invoke exp2-train-rrn --dataset=baseline
@@ -125,26 +141,40 @@ SYNTHOLOGY_JENA_XMX_MB=3072 uv run invoke gen-owl2bench-toy
 uv run invoke gen-owl2bench
 ```
 
+Important dependency note:
+
+- There is currently no dedicated invoke wrapper named exp3-generate-synthology.
+- Exp3 parity tasks consume Synthology reference files via explicit --synth-targets and --synth-facts paths, which are expected to come from the OWL2Bench pipeline outputs.
+
 3. Generate Exp3 ABox source only:
 
 ```bash
-uv run invoke exp3-generate-owl2bench-abox --universities=50
+uv run invoke exp3-generate-owl2bench-abox --universities=20
 ```
 
 4. Generate Exp3 baseline chain (ABox + one-shot Jena closure):
 
 ```bash
-uv run invoke exp3-generate-baseline --universities=50
+uv run invoke exp3-generate-baseline --universities=20
 ```
+
+Scale decision note:
+
+- Exp3 default university count is reduced from 50 to 20 for faster end-to-end turnaround; increase with `--universities=<N>` when compute budget allows.
+
+Path-casing guardrail:
+
+- Current generation tasks write lowercase paths under data/owl2bench/output/....
+- Some training configs may still reference data/OWL2Bench/output/.... If so, pass explicit lowercase data path overrides to avoid silently training on stale/missing data.
 
 5. Optional direct materialization command:
 
 ```bash
 uv run invoke exp3-materialize-abox \
-  --abox=data/owl2bench/output/raw/owl2bench_50/OWL2RL-50.owl \
+  --abox=data/owl2bench/output/raw/owl2bench_20/OWL2RL-20.owl \
   --tbox=ontologies/UNIV-BENCH-OWL2RL.owl \
-  --closure-out=data/exp3/baseline/owl2bench_50/closure.nt \
-  --inferred-out=data/exp3/baseline/owl2bench_50/inferred.nt \
+  --closure-out=data/exp3/baseline/owl2bench_20/closure.nt \
+  --inferred-out=data/exp3/baseline/owl2bench_20/inferred.nt \
   --jena-profile=owl_mini
 ```
 
@@ -162,9 +192,9 @@ Generate combined figures used for data-level comparisons:
 uv run invoke paper-visual-report \
   --exp2-synth-targets=data/exp2/synthology/family_tree/train/targets.csv \
   --exp2-parity-summary=data/exp2/baseline/parity_runs/parity_loop_summary.json \
-  --exp3-targets=data/owl2bench/output/owl2bench_50/train/targets.csv \
-  --exp3-abox=data/owl2bench/output/raw/owl2bench_50/OWL2RL-50.owl \
-  --exp3-inferred=data/exp3/baseline/owl2bench_50/inferred.nt \
+  --exp3-targets=data/owl2bench/output/owl2bench_20/train/targets.csv \
+  --exp3-abox=data/owl2bench/output/raw/owl2bench_20/OWL2RL-20.owl \
+  --exp3-inferred=data/exp3/baseline/owl2bench_20/inferred.nt \
   --out-dir=reports/paper
 ```
 

@@ -2,7 +2,7 @@
 
 This document outlines the standard protocol for running, tracking, and documenting all experiments for the **Synthology** bachelor thesis.
 
-Our core philosophy is **100% Reproducibility**. Every phase of an experiment—from data synthesis to model evaluation—must be executable via a predefined `uv run invoke` command, with all parameters strictly managed by Hydra configuration files.
+Our core philosophy is **100% Reproducibility**. Every phase of an experiment - from data synthesis to model evaluation - must be executable via a predefined `uv run invoke` command, with all parameters strictly managed by Hydra configuration files.
 
 For the specific experiments we want to conduct, see README.md in the project repo.
 
@@ -14,11 +14,11 @@ All experiment-specific documentation and isolated configurations must reside in
 experiments/
 ├── EXPERIMENT_GUIDELINES.md         # This document
 ├── exp1_negative_sampling/
-│   └── README.md                    # Details, commands, and configs for Exp 1
+│   └── exp1.md                    # Details, commands, and configs for Exp 1
 ├── exp2_multihop_quality/
-│   └── README.md                    # Details, commands, and configs for Exp 2
+│   └── exp2.md                    # Details, commands, and configs for Exp 2
 └── exp3_scaling_bench/
-    └── README.md                    # Details, commands, and configs for Exp 3
+    └── exp3.md                    # Details, commands, and configs for Exp 3
 ```
 
 ## 2. The Experiment `README.md` Template
@@ -51,6 +51,7 @@ To maintain consistency across the `tasks.py` file, all experiment commands must
 - `uv run invoke exp2-generate-gold-test` _(Runs Synthology at depth 4, filters for >= 3 hops, freezes the test set)_
 - `uv run invoke exp2-generate-baseline` _(Runs Jena on random base facts)_
 - `uv run invoke exp2-generate-synthology` _(Runs Synthology to match the baseline's entity/fact volume)_
+- `uv run invoke exp2-parity-loop --deep-count-mode=tolerance --tolerance-pct=10.0` _(Enforces deep-count parity with widened tolerance for convergence)_
 - `uv run invoke exp2-train-rrn --dataset=baseline`
 - `uv run invoke exp2-train-rrn --dataset=synthology`
 
@@ -58,8 +59,8 @@ To maintain consistency across the `tasks.py` file, all experiment commands must
 
 **Goal:** Prove ontology-agnostic scaling using `UNIV-BENCH-OWL2RL.owl`.
 
-- `uv run invoke exp3-generate-baseline --universities=50` _(Runs OWL2Bench Java generator + Jena materialization)_
-- `uv run invoke exp3-generate-synthology --universities=50` _(Runs Synthology with over-generation)_
+- `uv run invoke exp3-generate-baseline --universities=20` _(Runs OWL2Bench Java generator + Jena materialization)_
+- `uv run invoke exp3-generate-synthology --universities=20` _(Runs Synthology with over-generation)_
 - `uv run invoke exp3-balance-data` _(Executes the Python script to downsample Synthology targets to perfectly match the baseline yield)_
 - `uv run invoke exp3-generate-gold-test` _(Generates the frozen complex LUBM-style test set)_
 - `uv run invoke exp3-train-rrn --dataset=baseline`

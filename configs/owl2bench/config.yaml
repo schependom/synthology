@@ -1,6 +1,6 @@
 dataset:
   name: "owl2bench"
-  universities: [10]
+  universities: [20]
   output_dir: "data/owl2bench/output"
 
   split:
@@ -14,19 +14,19 @@ dataset:
   # bfs_subgraphs: paper-aligned many small graphs; university_prefix: one graph per university; chunk: legacy.
   partition_mode: "bfs_subgraphs"
   bfs:
-    sample_count: 5000
-    max_individuals_per_sample: 200
+    sample_count: 1800
+    max_individuals_per_sample: 120
   # Enforce multiple sample_id graphs in each non-empty split CSV.
   require_multiple_graphs_per_csv: true
   # Set >0 to cap inferred positive targets for fair cross-generator matching.
-  inferred_target_limit: 0
+  inferred_target_limit: 250000
   # Negative targets generated per positive target.
   negatives_per_positive: 1
   diagnostics:
     enabled: true
     output_dir: "data/owl2bench/output/diagnostics"
     # <= 0 means write all rows to each diagnostics TSV file.
-    max_rows_per_file: 0
+    max_rows_per_file: 200000
 
   reasoning:
     tbox_path: "ontologies/UNIV-BENCH-OWL2RL.owl"

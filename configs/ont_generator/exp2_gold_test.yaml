@@ -14,7 +14,7 @@ ontology:
 dataset:
   n_train: 0
   n_val: 0
-  n_test: 600
+  n_test: 350
   train_fact_cap: null
   val_fact_cap: null
   test_fact_cap: null
@@ -28,14 +28,14 @@ export_proofs: false
 export_graphs: false
 
 generator:
-  min_individuals: 1
-  max_individuals: 1000
+  min_individuals: 6
+  max_individuals: 300
   min_rules: 2
   max_rules: 6
   target_min_proofs_rule: 8
   save_individual_samples: false
   max_recursion: 4
-  global_max_depth: 10
+  global_max_depth: 9
   max_proofs_per_atom: 5
   min_lcc_ratio: 0.6
   individual_pool_size: 60

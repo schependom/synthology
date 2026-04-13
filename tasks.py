@@ -1262,7 +1262,7 @@ def exp2_parity_report(
 
 
 @task
-def exp3_generate_owl2bench_abox(ctx: Context, universities=50, args="", archive_dir: Optional[str] = None):
+def exp3_generate_owl2bench_abox(ctx: Context, universities=20, args="", archive_dir: Optional[str] = None):
     """Runs the existing OWL2Bench pipeline and stores raw generated OWL (ABox source)."""
     print(f"\nGenerating OWL2Bench data for Exp 3 (universities={universities}).")
     run_dir = (
@@ -1276,7 +1276,6 @@ def exp3_generate_owl2bench_abox(ctx: Context, universities=50, args="", archive
         "owl2bench.pipeline",
         overrides=(
             f"dataset.universities=[{universities}]",
-            "dataset.output_dir=data/owl2bench/output",
             f"dataset.reasoning.materialization.timing.output_dir={shlex.quote(str(timing_dir))}",
             "dataset.reasoning.materialization.timing.enabled=true",
             f"dataset.reasoning.materialization.timing.run_tag=exp3_owl2bench_abox_{universities}",
@@ -1304,7 +1303,7 @@ def exp3_generate_owl2bench_abox(ctx: Context, universities=50, args="", archive
 
 
 @task
-def exp3_generate_baseline(ctx: Context, universities=50, args=""):
+def exp3_generate_baseline(ctx: Context, universities=20, args=""):
     """Generates Exp 3 baseline by chaining OWL2Bench generation with UDM/Jena materialization."""
     run_dir = _make_run_archive("exp3", "generate_baseline", label=str(universities))
     _snapshot_configs(
@@ -1428,11 +1427,11 @@ def exp3_materialize_abox(
 @task
 def exp3_parity_loop(
     ctx: Context,
-    universities=50,
+    universities=20,
     max_attempts=100,
     min_deep_hops=3,
-    synth_targets="data/owl2bench/output/owl2bench_50/train/targets.csv",
-    synth_facts="data/owl2bench/output/owl2bench_50/train/facts.csv",
+    synth_targets="data/owl2bench/output/owl2bench_20/train/targets.csv",
+    synth_facts="data/owl2bench/output/owl2bench_20/train/facts.csv",
     synth_generation_metrics="",
     attempts_root="data/exp3/baseline/parity_runs",
     deep_count_mode="exact",
@@ -1503,8 +1502,8 @@ def exp3_parity_loop(
 def exp3_parity_report(
     ctx: Context,
     min_deep_hops=3,
-    synth_targets="data/owl2bench/output/owl2bench_50/train/targets.csv",
-    synth_facts="data/owl2bench/output/owl2bench_50/train/facts.csv",
+    synth_targets="data/owl2bench/output/owl2bench_20/train/targets.csv",
+    synth_facts="data/owl2bench/output/owl2bench_20/train/facts.csv",
     attempts_root="data/exp3/baseline/parity_runs",
     summary_json="data/exp3/baseline/parity_runs/parity_loop_summary.json",
     out_json="data/exp3/baseline/parity_runs/parity_report.json",
