@@ -35,12 +35,12 @@ dataset:
       "http://swat.cse.lehigh.edu/onto/univ-bench.owl#": "https://kracr.iiitd.edu.in/OWL2Bench#"
     materialization:
       reasoner: "jena"
-      jena_profile: "owl_mini"
+      jena_profile: "owl_micro"
       # Enforce single-pass Jena for OWL2Bench to prevent massive iteration overhead.
       iterative: false
       max_iterations: 1
       timing:
-        enabled: false
+        enabled: true
         output_dir: "data/exp3/timings"
         run_tag: "exp3_owl2bench"
 
