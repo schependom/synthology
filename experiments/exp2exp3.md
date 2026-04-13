@@ -315,3 +315,19 @@ Optional performance warning suppression (shared filesystems):
 ```bash
 export UV_LINK_MODE=copy
 ```
+
+If you get `No space left on device` under `~/.m2/repository`:
+
+```bash
+mkdir -p /dtu/blackhole/16/221590/synthology/.cache/m2
+export MAVEN_OPTS="-Dmaven.repo.local=/dtu/blackhole/16/221590/synthology/.cache/m2"
+
+SYNTHOLOGY_JENA_XMX_MB=3072 \
+uv run invoke gen-owl2bench-toy \
+    --args='generator.maven_executable=/dtu/blackhole/16/221590/synthology/apache-maven-3.9.13/bin/mvn'
+```
+
+Notes:
+
+- This redirects Maven downloads/build artifacts away from home quota to project storage.
+- The task layer now also sets this repo-local Maven cache automatically for OWL2Bench tasks.

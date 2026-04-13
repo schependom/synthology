@@ -1868,6 +1868,12 @@ def _resolve_owl2bench_env(run_dir: Path) -> Dict[str, str]:
     """Return env vars for OWL2Bench tasks, ensuring Maven is available."""
     env: Dict[str, str] = {"LOGURU_COLORIZE": "1"}
 
+    # Keep Maven artifacts out of small home quotas on HPC nodes.
+    maven_repo_local = REPO_ROOT / ".cache" / "m2"
+    maven_repo_local.mkdir(parents=True, exist_ok=True)
+    existing_opts = os.environ.get("MAVEN_OPTS", "").strip()
+    env["MAVEN_OPTS"] = f"{existing_opts} -Dmaven.repo.local={maven_repo_local}".strip()
+
     if shutil.which("mvn"):
         return env
 
