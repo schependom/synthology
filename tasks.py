@@ -1387,6 +1387,50 @@ def exp3_generate_baseline(ctx: Context, universities=5, args=""):
 
 
 @task
+def exp3_generate_synthology(ctx: Context, universities=5, args=""):
+    """Generates Exp 3 Synthology-side OWL2Bench dataset for a specific university count."""
+    print(f"\nGenerating Exp 3 synthology dataset (universities={universities}).")
+    run_dir = _make_run_archive("exp3", "generate_synthology", label=str(universities))
+    _snapshot_configs(
+        run_dir,
+        [
+            "configs/owl2bench/config.yaml",
+            "configs/owl2bench/config_toy.yaml",
+        ],
+    )
+
+    owl2bench_env = _resolve_owl2bench_env(run_dir)
+    cmd = _build_uv_command(
+        "owl2bench",
+        "owl2bench.pipeline",
+        overrides=(f"dataset.universities=[{universities}]",),
+        args=args,
+        env=owl2bench_env,
+    )
+    _run_experiment_spec(
+        ExperimentRunSpec(
+            experiment="exp3",
+            task_name="generate_synthology",
+            label=str(universities),
+            command=cmd,
+            config_paths=("configs/owl2bench/config.yaml", "configs/owl2bench/config_toy.yaml"),
+            manifest={
+                "universities": universities,
+                "args": args,
+                "config_files": ["configs/owl2bench/config.yaml", "configs/owl2bench/config_toy.yaml"],
+                "output_dir": f"data/owl2bench/output/owl2bench_{universities}",
+                "raw_output_dir": f"data/owl2bench/output/raw/owl2bench_{universities}",
+            },
+            cwd=REPO_ROOT,
+            artifact_paths=(
+                str(REPO_ROOT / "data" / "owl2bench" / "output" / f"owl2bench_{universities}"),
+                str(REPO_ROOT / "data" / "owl2bench" / "output" / "raw" / f"owl2bench_{universities}"),
+            ),
+        )
+    )
+
+
+@task
 def exp3_materialize_abox(
     ctx: Context,
     abox,
@@ -1444,137 +1488,6 @@ def exp3_materialize_abox(
     shutil.copy2(inferred_archive, inferred_target)
 
 
-@task
-def exp3_parity_loop(
-    ctx: Context,
-    universities=5,
-    max_attempts=100,
-    min_deep_hops=3,
-    synth_targets="data/owl2bench/output/owl2bench_20/train/targets.csv",
-    synth_facts="data/owl2bench/output/owl2bench_20/train/facts.csv",
-    synth_generation_metrics="",
-    attempts_root="data/exp3/baseline/parity_runs",
-    deep_count_mode="exact",
-    deep_count_tolerance_pct=10.0,
-    node_tolerance_pct=10.0,
-    edge_density_tolerance_pct=15.0,
-    target_ratio_tolerance_pct=10.0,
-    inferred_share_tolerance_pct=10.0,
-    args="",
-):
-    """Retries OWL2Bench baseline generation until Exp 3 deep and structural parity targets are reached."""
-    print("\nRunning Exp 3 OWL2Bench parity loop.")
-    run_dir = _make_run_archive("exp3", "parity_loop", label="parity")
-    attempts_dir = run_dir / "attempts"
-    cmd = _build_uv_command(
-        "owl2bench",
-        "owl2bench.exp3_parity_loop",
-        python_module=True,
-        overrides=(
-            f"--universities {universities}",
-            f"--max-attempts {max_attempts}",
-            f"--min-deep-hops {min_deep_hops}",
-            f"--deep-count-mode {deep_count_mode}",
-            f"--deep-count-tolerance-pct {deep_count_tolerance_pct}",
-            f"--node-tolerance-pct {node_tolerance_pct}",
-            f"--edge-density-tolerance-pct {edge_density_tolerance_pct}",
-            f"--target-ratio-tolerance-pct {target_ratio_tolerance_pct}",
-            f"--inferred-share-tolerance-pct {inferred_share_tolerance_pct}",
-            f"--synth-targets {synth_targets}",
-            f"--synth-facts {synth_facts}",
-            f"--attempts-root {shlex.quote(str(attempts_dir))}",
-        ),
-        args=args,
-        env={"LOGURU_COLORIZE": "1"},
-    )
-    if synth_generation_metrics:
-        cmd += f" --synth-generation-metrics {synth_generation_metrics}"
-    _run_experiment_spec(
-        ExperimentRunSpec(
-            experiment="exp3",
-            task_name="parity_loop",
-            label="parity",
-            command=cmd,
-            config_paths=("configs/owl2bench/config.yaml",),
-            manifest={
-                "universities": universities,
-                "max_attempts": max_attempts,
-                "min_deep_hops": min_deep_hops,
-                "deep_count_mode": deep_count_mode,
-                "deep_count_tolerance_pct": deep_count_tolerance_pct,
-                "node_tolerance_pct": node_tolerance_pct,
-                "edge_density_tolerance_pct": edge_density_tolerance_pct,
-                "target_ratio_tolerance_pct": target_ratio_tolerance_pct,
-                "inferred_share_tolerance_pct": inferred_share_tolerance_pct,
-                "synth_targets": synth_targets,
-                "synth_facts": synth_facts,
-                "synth_generation_metrics": synth_generation_metrics,
-                "attempts_root": str(attempts_dir),
-                "args": args,
-                "config_files": ["configs/owl2bench/config.yaml"],
-            },
-            hydra_run_dir=False,
-        )
-    )
-
-
-@task
-def exp3_parity_report(
-    ctx: Context,
-    min_deep_hops=3,
-    synth_targets="data/owl2bench/output/owl2bench_20/train/targets.csv",
-    synth_facts="data/owl2bench/output/owl2bench_20/train/facts.csv",
-    attempts_root="data/exp3/baseline/parity_runs",
-    summary_json="data/exp3/baseline/parity_runs/parity_loop_summary.json",
-    out_json="data/exp3/baseline/parity_runs/parity_report.json",
-    out_csv="data/exp3/baseline/parity_runs/parity_attempts.csv",
-    args="",
-):
-    """Builds Exp 3 parity report with deep/structural metrics and time-to-parity summary."""
-    print("\nGenerating Exp 3 parity report.")
-    run_dir = _make_run_archive("exp3", "parity_report", label="parity")
-    report_json = run_dir / "parity_report.json"
-    report_csv = run_dir / "parity_attempts.csv"
-    cmd = _build_uv_command(
-        "owl2bench",
-        "owl2bench.exp3_parity_report",
-        python_module=True,
-        overrides=(
-            f"--min-deep-hops {min_deep_hops}",
-            f"--synth-targets {synth_targets}",
-            f"--synth-facts {synth_facts}",
-            f"--attempts-root {attempts_root}",
-            f"--out-json {shlex.quote(str(report_json))}",
-            f"--out-csv {shlex.quote(str(report_csv))}",
-        ),
-        args=args,
-        env={"LOGURU_COLORIZE": "1"},
-    )
-    if summary_json:
-        cmd += f" --summary-json {summary_json}"
-    _run_experiment_spec(
-        ExperimentRunSpec(
-            experiment="exp3",
-            task_name="parity_report",
-            label="parity",
-            command=cmd,
-            config_paths=("configs/owl2bench/config.yaml",),
-            manifest={
-                "min_deep_hops": min_deep_hops,
-                "synth_targets": synth_targets,
-                "synth_facts": synth_facts,
-                "attempts_root": attempts_root,
-                "summary_json": summary_json,
-                "legacy_outputs": {"out_json": out_json, "out_csv": out_csv},
-                "archive_outputs": {"out_json": str(report_json), "out_csv": str(report_csv)},
-                "args": args,
-                "config_files": ["configs/owl2bench/config.yaml"],
-            },
-            hydra_run_dir=False,
-        )
-    )
-
-
 # ------------------------------------------------------------ #
 # Helper methods
 # ------------------------------------------------------------ #
@@ -1608,6 +1521,7 @@ def _run_experiment_spec(spec: ExperimentRunSpec) -> Path:
 def _run_logged_command(command: str, log_path: Path, cwd: Optional[Path] = None) -> None:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     environment = os.environ.copy()
+    _apply_global_hpc_heap_overrides(environment)
     environment.setdefault("PYTHONUNBUFFERED", "1")
     environment.setdefault("LOGURU_COLORIZE", "1")
     process = subprocess.Popen(
@@ -1637,6 +1551,45 @@ def _run_logged_command(command: str, log_path: Path, cwd: Optional[Path] = None
 
     if return_code != 0:
         raise subprocess.CalledProcessError(return_code, command)
+
+
+def _apply_global_hpc_heap_overrides(environment: Dict[str, str]) -> None:
+    """Apply one-shot JVM heap policy across experiment commands on HPC.
+
+    Priority:
+    1) SYNTHOLOGY_JAVA_XMX_MB
+    2) SYNTHOLOGY_HEAP_MB
+    """
+
+    heap_mb = os.environ.get("SYNTHOLOGY_JAVA_XMX_MB") or os.environ.get("SYNTHOLOGY_HEAP_MB")
+    if not heap_mb:
+        return
+
+    heap_mb = str(heap_mb).strip()
+    if not heap_mb.isdigit() or int(heap_mb) <= 0:
+        return
+
+    # UDM baseline Jena helper reads these variables directly.
+    environment.setdefault("SYNTHOLOGY_UDM_BASELINE_XMX_MB", heap_mb)
+    environment.setdefault("SYNTHOLOGY_JENA_XMX_MB", heap_mb)
+
+    # Maven-backed Java runs (e.g. OWL2Bench generator) should use the same heap cap.
+    current_maven_opts = environment.get("MAVEN_OPTS", "")
+    environment["MAVEN_OPTS"] = _upsert_xmx_option(current_maven_opts, heap_mb)
+
+
+def _upsert_xmx_option(raw_options: str, heap_mb: str) -> str:
+    """Ensure exactly one -Xmx option is present in a JVM options string."""
+
+    text = str(raw_options or "").strip()
+    try:
+        tokens = shlex.split(text) if text else []
+    except ValueError:
+        tokens = text.split() if text else []
+
+    filtered = [token for token in tokens if not token.startswith("-Xmx")]
+    filtered.append(f"-Xmx{heap_mb}m")
+    return " ".join(filtered).strip()
 
 
 def _archive_path(source: Path, destination_root: Path) -> Path:

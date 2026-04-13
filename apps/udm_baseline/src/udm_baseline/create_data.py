@@ -9,6 +9,7 @@ import csv
 import json
 import os
 import random
+import shlex
 import subprocess
 import tempfile
 import time
@@ -107,10 +108,39 @@ class JenaMaterializer:
             ]
 
             # Allow runtime heap tuning without code changes, e.g.:
-            # SYNTHOLOGY_JENA_XMX_MB=4096 uv run invoke gen-owl2bench-toy
-            xmx_mb = os.environ.get("SYNTHOLOGY_JENA_XMX_MB")
+            # SYNTHOLOGY_UDM_BASELINE_XMX_MB=4096 uv run invoke exp3-generate-baseline --universities=1
+            # Backward compatible fallback: SYNTHOLOGY_JENA_XMX_MB
+            xmx_mb = (
+                os.environ.get("SYNTHOLOGY_UDM_BASELINE_XMX_MB")
+                or os.environ.get("SYNTHOLOGY_JENA_XMX_MB")
+                or os.environ.get("SYNTHOLOGY_HEAP_MB")
+            )
             if xmx_mb:
                 cmd.append(f"-Xmx{xmx_mb}m")
+
+            java_env = os.environ.copy()
+            if xmx_mb:
+                # Ensure explicit SYNTHOLOGY_JENA_XMX_MB is not shadowed by inherited JVM heap flags.
+                for env_key in ("JAVA_TOOL_OPTIONS", "_JAVA_OPTIONS", "JDK_JAVA_OPTIONS"):
+                    raw_opts = java_env.get(env_key)
+                    if not raw_opts:
+                        continue
+                    try:
+                        tokens = shlex.split(raw_opts)
+                    except ValueError:
+                        tokens = raw_opts.split()
+
+                    filtered = [tok for tok in tokens if not tok.startswith("-Xmx")]
+                    if filtered != tokens:
+                        if filtered:
+                            java_env[env_key] = " ".join(filtered)
+                        else:
+                            java_env.pop(env_key, None)
+                        logger.warning(
+                            "Removed inherited -Xmx option(s) from {} to honor UDM baseline heap setting (Xmx={}m).",
+                            env_key,
+                            xmx_mb,
+                        )
 
             cmd += [
                 "-jar",
@@ -123,7 +153,7 @@ class JenaMaterializer:
 
             try:
                 java_start = time.perf_counter()
-                subprocess.run(cmd, check=True, capture_output=True, text=True)
+                subprocess.run(cmd, check=True, capture_output=True, text=True, env=java_env)
                 java_seconds = time.perf_counter() - java_start
             except FileNotFoundError as exc:
                 raise RuntimeError("Java runtime (java) is not installed or not in PATH.") from exc

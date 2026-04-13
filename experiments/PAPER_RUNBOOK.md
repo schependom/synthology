@@ -23,6 +23,10 @@ which java && java -version
 
 # Verify Maven is available
 which mvn && mvn -v
+
+# Optional but recommended: one global heap setting for all experiment commands
+# (applies to Maven-backed Java runs and Jena materialization helper).
+export SYNTHOLOGY_HEAP_MB=16384
 ```
 
 ## Logging And Artifacts
@@ -135,32 +139,50 @@ Expected outputs:
 SYNTHOLOGY_JENA_XMX_MB=3072 uv run invoke gen-owl2bench-toy
 ```
 
-2. Generate OWL2Bench pipeline output:
+2. Generate Exp3 Synthology-side OWL2Bench output:
 
 ```bash
-uv run invoke gen-owl2bench
+SYNTHOLOGY_JENA_XMX_MB=16384 uv run invoke exp3-generate-synthology --universities=5
+```
+
+If this still OOMs on your node, re-run with explicit caps:
+
+```bash
+SYNTHOLOGY_JENA_XMX_MB=16384 uv run invoke exp3-generate-synthology --universities=5 \
+  --args='dataset.reasoning_input_triple_cap=80000 dataset.inferred_target_limit=120000 dataset.bfs.sample_count=1200 dataset.bfs.max_individuals_per_sample=100'
 ```
 
 Important dependency note:
 
-- There is currently no dedicated invoke wrapper named exp3-generate-synthology.
-- Exp3 parity tasks consume Synthology reference files via explicit --synth-targets and --synth-facts paths, which are expected to come from the OWL2Bench pipeline outputs.
+- Exp3 baseline and Synthology-side data are generated independently; use explicit dataset paths when training/evaluating to avoid path-casing mismatches.
 
 3. Generate Exp3 ABox source only:
 
 ```bash
-uv run invoke exp3-generate-owl2bench-abox --universities=20
+uv run invoke exp3-generate-owl2bench-abox --universities=5
 ```
 
 4. Generate Exp3 baseline chain (ABox + one-shot Jena closure):
 
 ```bash
-uv run invoke exp3-generate-baseline --universities=20
+SYNTHOLOGY_UDM_BASELINE_XMX_MB=16384 uv run invoke exp3-generate-baseline --universities=5
 ```
+
+Or use the global heap knob once in your shell/session and omit per-command heap flags:
+
+```bash
+export SYNTHOLOGY_HEAP_MB=16384
+uv run invoke exp3-generate-baseline --universities=5
+```
+
+HPC heap guardrail:
+
+- If your cluster profile exports `JAVA_TOOL_OPTIONS` or `_JAVA_OPTIONS` with `-Xmx...`, that can force a smaller heap than expected for Jena materialization.
+- Keep `SYNTHOLOGY_UDM_BASELINE_XMX_MB` as the single source of heap sizing for this step (for example by removing inherited `-Xmx` defaults in your job environment).
 
 Scale decision note:
 
-- Exp3 default university count is reduced from 50 to 20 for faster end-to-end turnaround; increase with `--universities=<N>` when compute budget allows.
+- Exp3 default university count in this runbook is 5 for practical one-week turnaround; increase with `--universities=<N>` when compute budget allows.
 
 Path-casing guardrail:
 
@@ -171,10 +193,10 @@ Path-casing guardrail:
 
 ```bash
 uv run invoke exp3-materialize-abox \
-  --abox=data/owl2bench/output/raw/owl2bench_20/OWL2RL-20.owl \
+  --abox=data/owl2bench/output/raw/owl2bench_5/OWL2RL-5.owl \
   --tbox=ontologies/UNIV-BENCH-OWL2RL.owl \
-  --closure-out=data/exp3/baseline/owl2bench_20/closure.nt \
-  --inferred-out=data/exp3/baseline/owl2bench_20/inferred.nt \
+  --closure-out=data/exp3/baseline/owl2bench_5/closure.nt \
+  --inferred-out=data/exp3/baseline/owl2bench_5/inferred.nt \
   --jena-profile=owl_mini
 ```
 

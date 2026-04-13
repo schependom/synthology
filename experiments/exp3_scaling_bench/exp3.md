@@ -28,8 +28,7 @@ All task wrappers archive canonical evidence under:
 1. Generate OWL2Bench ABox data (procedural benchmark generation).
 2. Materialize with UDM/Jena baseline semantics.
 3. Split/slice large graphs via BFS subgraph partitioning for train/val/test consumption.
-4. Run parity diagnostics against a provided Synthology reference dataset.
-5. Produce parity reports and paper-oriented diagnostics.
+4. Produce paper-oriented diagnostics and training artifacts.
 
 Critical baseline semantics in Exp3:
 
@@ -46,8 +45,8 @@ Critical baseline semantics in Exp3:
 
 Important notes for reviewers:
 
-- The task layer currently provides explicit Exp3 wrappers for baseline generation/materialization/parity.
-- There is no dedicated `exp3-generate-synthology` invoke task in current `tasks.py`; parity commands therefore require explicit `--synth-targets` and `--synth-facts` input paths pointing to the Synthology reference dataset used for comparison.
+- The task layer provides explicit Exp3 wrappers for baseline generation/materialization.
+- The task layer provides an explicit `exp3-generate-synthology` wrapper for Synthology-side OWL2Bench data generation.
 
 ## Preconditions
 
@@ -73,10 +72,10 @@ Optional ultra-fast smoke override:
 SYNTHOLOGY_JENA_XMX_MB=3072 uv run invoke gen-owl2bench-toy --args='dataset.reasoning_input_triple_cap=600 dataset.bfs.sample_count=6 dataset.inferred_target_limit=200'
 ```
 
-### 2. Full OWL2Bench pipeline generation
+### 2. Exp3 Synthology-side generation
 
 ```bash
-uv run invoke gen-owl2bench
+uv run invoke exp3-generate-synthology --universities=20
 ```
 
 ### 3. Exp3 ABox generation wrapper (explicit university count)
@@ -102,23 +101,7 @@ uv run invoke exp3-materialize-abox \
   --jena-profile=owl_mini
 ```
 
-### 6. Exp3 parity loop (against Synthology reference)
-
-```bash
-uv run invoke exp3-parity-loop --universities=20 \
-  --synth-targets=data/owl2bench/output/owl2bench_20/train/targets.csv \
-  --synth-facts=data/owl2bench/output/owl2bench_20/train/facts.csv
-```
-
-### 7. Exp3 parity report
-
-```bash
-uv run invoke exp3-parity-report \
-  --synth-targets=data/owl2bench/output/owl2bench_20/train/targets.csv \
-  --synth-facts=data/owl2bench/output/owl2bench_20/train/facts.csv
-```
-
-### 8. Paper visuals including Exp3 artifacts
+### 6. Paper visuals including Exp3 artifacts
 
 ```bash
 uv run invoke paper-visual-report \
@@ -153,8 +136,8 @@ For baseline-vs-Synthology comparative training, execute this training task sepa
 
 At minimum, include:
 
-- Runtime and scalability evidence (ABox generation, materialization, partitioning/parity overhead).
-- Structural diagnostics from parity outputs and report artifacts.
+- Runtime and scalability evidence (ABox generation, materialization, partitioning overhead).
+- Structural diagnostics from generated datasets and exported artifacts.
 - Trivial/schema-dominance analysis for baseline closure behavior.
 - Downstream RRN metrics (`PR-AUC`, `AUC-ROC`, `F1`, `FPR`) for whichever Exp3 datasets are trained/evaluated.
 
@@ -169,10 +152,9 @@ Primary evidence locations:
 ## Reviewer Checklist
 
 1. Confirm Exp3 configs keep Jena in single-pass mode (`iterative: false`, `max_iterations: 1`).
-2. Confirm parity loop/report commands reference the exact Synthology target/fact CSV pair used for comparison.
-3. Confirm all run archives include `manifest.json`, `run.log`, and copied artifacts.
-4. Confirm any RRN run uses explicit data path overrides if path casing differs on disk.
-5. Confirm paper figures are generated from the same run outputs cited in the summary.
+2. Confirm all run archives include `manifest.json`, `run.log`, and copied artifacts.
+3. Confirm any RRN run uses explicit data path overrides if path casing differs on disk.
+4. Confirm paper figures are generated from the same run outputs cited in the summary.
 
 ## Cross-Reference
 
