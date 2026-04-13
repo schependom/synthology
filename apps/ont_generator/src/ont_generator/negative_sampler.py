@@ -564,6 +564,33 @@ class NegativeSampler:
                 self.strategy_usage["proof_based"] += 1
 
         kg.triples.extend(negative_triples)
+
+        # Add negative memberships (fallback to constrained corruption for proof-based)
+        positive_memberships = [m for m in kg.memberships if m.is_member]
+        n_neg_memberships = int(len(positive_memberships) * ratio)
+        negative_memberships = []
+
+        for _ in range(n_neg_memberships):
+            if not positive_memberships:
+                break
+            
+            pos_mem = random.choice(positive_memberships)
+            current_classes = {m.cls.name for m in kg.memberships if m.individual == pos_mem.individual and m.is_member}
+            candidate_classes = [c for c in self.schema_classes.values() if c.name not in current_classes]
+            
+            if candidate_classes:
+                neg_cls = random.choice(candidate_classes)
+                neg_mem = Membership(
+                    pos_mem.individual,
+                    neg_cls,
+                    is_member=False,
+                    proofs=[],
+                    metadata={"source_type": "base" if pos_mem.is_base_fact else "inferred"},
+                )
+                negative_memberships.append(neg_mem)
+
+        kg.memberships.extend(negative_memberships)
+
         return kg
 
     def _type_aware_corruption(self, kg: KnowledgeGraph, ratio: float) -> KnowledgeGraph:
@@ -654,6 +681,33 @@ class NegativeSampler:
                 self.strategy_usage[used_strategy] += 1
 
         kg.triples.extend(negative_triples)
+
+        # Add negative memberships (fallback to constrained corruption for type-aware)
+        positive_memberships = [m for m in kg.memberships if m.is_member]
+        n_neg_memberships = int(len(positive_memberships) * ratio)
+        negative_memberships = []
+
+        for _ in range(n_neg_memberships):
+            if not positive_memberships:
+                break
+            
+            pos_mem = random.choice(positive_memberships)
+            current_classes = {m.cls.name for m in kg.memberships if m.individual == pos_mem.individual and m.is_member}
+            candidate_classes = [c for c in self.schema_classes.values() if c.name not in current_classes]
+            
+            if candidate_classes:
+                neg_cls = random.choice(candidate_classes)
+                neg_mem = Membership(
+                    pos_mem.individual,
+                    neg_cls,
+                    is_member=False,
+                    proofs=[],
+                    metadata={"source_type": "base" if pos_mem.is_base_fact else "inferred"},
+                )
+                negative_memberships.append(neg_mem)
+
+        kg.memberships.extend(negative_memberships)
+
         return kg
 
     def _mixed_corruption(
