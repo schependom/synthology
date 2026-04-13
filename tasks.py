@@ -546,14 +546,31 @@ def gen_owl2bench_toy(ctx: Context, args=""):
     _run_logged_command(cmd, run_dir / "run.log")
 
     csv_path, sample_id = _find_visualization_target()
+    targets_csv = Path(csv_path)
+    facts_csv = targets_csv.with_name("facts.csv")
     print(f"\nAuto-visualizing toy sample {sample_id} from {csv_path}.", flush=True)
     viz_cmd = _build_uv_command(
         "kgvisualiser",
         "kgvisualiser.visualize",
-        overrides=(f"io.input_csv={csv_path}", f"io.sample_id={sample_id}"),
+        overrides=(
+            f"io.input_csv={facts_csv.as_posix()}",
+            f"io.targets_csv={targets_csv.as_posix()}",
+            f"io.sample_id={sample_id}",
+        ),
         env={"LOGURU_COLORIZE": "1"},
     )
-    _write_text(run_dir / "visualize.log", f"input_csv={csv_path}\nsample_id={sample_id}\ncommand={viz_cmd}\n")
+    _write_text(
+        run_dir / "visualize.log",
+        "\n".join(
+            [
+                f"input_csv={facts_csv.as_posix()}",
+                f"targets_csv={targets_csv.as_posix()}",
+                f"sample_id={sample_id}",
+                f"command={viz_cmd}",
+            ]
+        )
+        + "\n",
+    )
     _run_logged_command(viz_cmd, run_dir / "visualize-run.log")
 
 
@@ -1264,7 +1281,7 @@ def exp2_parity_report(
 
 
 @task
-def exp3_generate_owl2bench_abox(ctx: Context, universities=20, args="", archive_dir: Optional[str] = None):
+def exp3_generate_owl2bench_abox(ctx: Context, universities=5, args="", archive_dir: Optional[str] = None):
     """Runs the existing OWL2Bench pipeline and stores raw generated OWL (ABox source)."""
     print(f"\nGenerating OWL2Bench data for Exp 3 (universities={universities}).")
     run_dir = (
@@ -1305,7 +1322,7 @@ def exp3_generate_owl2bench_abox(ctx: Context, universities=20, args="", archive
 
 
 @task
-def exp3_generate_baseline(ctx: Context, universities=20, args=""):
+def exp3_generate_baseline(ctx: Context, universities=5, args=""):
     """Generates Exp 3 baseline by chaining OWL2Bench generation with UDM/Jena materialization."""
     run_dir = _make_run_archive("exp3", "generate_baseline", label=str(universities))
     _snapshot_configs(
@@ -1429,7 +1446,7 @@ def exp3_materialize_abox(
 @task
 def exp3_parity_loop(
     ctx: Context,
-    universities=20,
+    universities=5,
     max_attempts=100,
     min_deep_hops=3,
     synth_targets="data/owl2bench/output/owl2bench_20/train/targets.csv",
