@@ -86,7 +86,9 @@ class JenaMaterializer:
             "elapsed_seconds": time.perf_counter() - t0,
         }
 
-    def materialize(self, ontology_path: str, base_triples: Set[Triple], jena_profile: str = "owl_mini") -> Tuple[Set[Triple], Dict[Triple, int]]:
+    def materialize(
+        self, ontology_path: str, base_triples: Set[Triple], jena_profile: str = "owl_mini"
+    ) -> Tuple[Set[Triple], Dict[Triple, int]]:
         """Materialize closure with Jena and return all URI-only closure triples and hop depths."""
         run_start = time.perf_counter()
         ensure_stats = self._ensure_built()
@@ -177,11 +179,12 @@ class JenaMaterializer:
             hops_path = tmp_dir_path / "hops.csv"
             if hops_path.exists():
                 import csv
+
                 with open(hops_path, "r", encoding="utf-8") as f:
                     reader = csv.DictReader(f)
                     for row in reader:
                         # Extract strings directly; row data might already match URIRef strings
-                        # Assuming the Java stringifier outputs just the URI. 
+                        # Assuming the Java stringifier outputs just the URI.
                         s = URIRef(row["subject"])
                         p = URIRef(row["predicate"])
                         o = URIRef(row["object"])
@@ -493,10 +496,12 @@ class FCBaselineGenerator:
     ) -> Tuple[Set[Triple], Dict[Triple, int]]:
         """Single-pass Jena materialization."""
         t0 = time.perf_counter()
-        closure, native_hop_depths = self.jena_materializer.materialize(self.ontology_path, base_triples, jena_profile=jena_profile)
+        closure, native_hop_depths = self.jena_materializer.materialize(
+            self.ontology_path, base_triples, jena_profile=jena_profile
+        )
         schema_uri_triples = self._schema_uri_triples()
         inferred = closure - base_triples - schema_uri_triples
-        
+
         # Hydrate unlogged inferred triples (or single-pass overrides) with hops=1,
         # but keep the deep native hop depths extracted from the Java engine.
         hop_depths = {t: native_hop_depths.get(t, 1) for t in inferred}
