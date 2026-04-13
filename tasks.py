@@ -1872,7 +1872,10 @@ def _resolve_owl2bench_env(run_dir: Path) -> Dict[str, str]:
     maven_repo_local = REPO_ROOT / ".cache" / "m2"
     maven_repo_local.mkdir(parents=True, exist_ok=True)
     existing_opts = os.environ.get("MAVEN_OPTS", "").strip()
-    env["MAVEN_OPTS"] = f"{existing_opts} -Dmaven.repo.local={maven_repo_local}".strip()
+    if "maven.repo.local=" in existing_opts:
+        env["MAVEN_OPTS"] = existing_opts
+    else:
+        env["MAVEN_OPTS"] = f"{existing_opts} -Dmaven.repo.local={maven_repo_local}".strip()
 
     if shutil.which("mvn"):
         return env

@@ -197,10 +197,15 @@ def compute_inferred_triples(
 
     logger.info("Jena materialization one-shot | base_triples={} | profile={}", len(base_uri_triples), jena_profile)
     iter_start = time.perf_counter()
-    closure_final = jena.materialize(str(tbox_path), base_uri_triples, jena_profile=jena_profile)
+    materialized = jena.materialize(str(tbox_path), base_uri_triples, jena_profile=jena_profile)
     iter_elapsed = time.perf_counter() - iter_start
+    if isinstance(materialized, tuple):
+        closure_final, native_hop_depths = materialized
+    else:
+        # Backward compatibility if materializer returns only closure triples.
+        closure_final, native_hop_depths = materialized, {}
     newly_inferred = closure_final - base_uri_triples - tbox_uri_triples
-    hop_depths = {triple: 1 for triple in newly_inferred}
+    hop_depths = {triple: int(native_hop_depths.get(triple, 1)) for triple in newly_inferred}
 
     logger.info(
         "Jena materialization one-shot complete | closure={} | newly_inferred={}",
