@@ -556,6 +556,7 @@ def gen_owl2bench_toy(ctx: Context, args=""):
             f"io.input_csv={facts_csv.as_posix()}",
             f"io.targets_csv={targets_csv.as_posix()}",
             f"io.sample_id={sample_id}",
+            "filters.include_negatives=true",
         ),
         env={"LOGURU_COLORIZE": "1"},
     )
