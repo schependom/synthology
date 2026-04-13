@@ -34,7 +34,7 @@ materialization:
   # Reasoner choice: 'owlrl' or 'jena'
   # Exp 2 uses Apache Jena for parity/depth analysis.
   reasoner: jena
-  jena_profile: owl_mini
+  jena_profile: owl_micro
 
   # Jena operates via Iterative Diffing over the inference closure.
   iterative: true

@@ -15,10 +15,10 @@ dataset:
   n_train: 1200
   n_val: 150
   n_test: 150
-  train_fact_cap: null
+  train_fact_cap: 180000
   val_fact_cap: null
   test_fact_cap: null
-  train_target_cap: null
+  train_target_cap: 140000
   val_target_cap: null
   test_target_cap: null
   output_dir: "data/exp2/synthology/family_tree"
@@ -32,7 +32,7 @@ export_graphs: false
 
 generator:
   min_individuals: 4
-  max_individuals: 240
+  max_individuals: 150
   min_rules: 1
   max_rules: 5
   target_min_proofs_rule: 5
@@ -51,7 +51,7 @@ generator:
   use_signature_sampling: true
   min_proof_roots: 5
   max_proof_roots: 20
-  proof_roots_per_rule: null
+  proof_roots_per_rule: 8
   always_generate_base: false
 
 neg_sampling:
