@@ -49,4 +49,4 @@ generator:
   vendor_dir: "vendor/OWL2Bench"
   profile: "RL"
   seed: 1
-  maven_executable: "mvn"
+  maven_executable: "${oc.env:MAVEN_EXECUTABLE,mvn}"

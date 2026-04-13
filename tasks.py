@@ -515,10 +515,11 @@ def gen_owl2bench(ctx: Context, args=""):
     """
     print("\nRunning OWL2Bench OWL 2 RL generation pipeline.")
     run_dir = _make_run_archive("owl2bench", "generate", label="default")
+    owl2bench_env = _resolve_owl2bench_env(run_dir)
     cmd = _build_uv_command(
         "owl2bench",
         "owl2bench.pipeline",
-        env={"LOGURU_COLORIZE": "1"},
+        env=owl2bench_env,
         args=args,
     )
     _write_json(run_dir / "manifest.json", {"task": "generate", "args": args, "command": cmd})
@@ -533,12 +534,13 @@ def gen_owl2bench_toy(ctx: Context, args=""):
     """
     print("\nRunning OWL2Bench TOY generation pipeline.")
     run_dir = _make_run_archive("owl2bench", "generate_toy", label="toy")
+    owl2bench_env = _resolve_owl2bench_env(run_dir)
     cmd = _build_uv_command(
         "owl2bench",
         "owl2bench.pipeline",
         config_name="config_toy",
         args=args,
-        env={"LOGURU_COLORIZE": "1"},
+        env=owl2bench_env,
     )
     _write_json(run_dir / "manifest.json", {"task": "generate_toy", "args": args, "command": cmd})
     _run_logged_command(cmd, run_dir / "run.log")
@@ -1860,3 +1862,23 @@ def _build_uv_command(
         env_commands.append(f"export {key}={shlex.quote(str(value))}")
 
     return _compose_shell_command([*env_commands, base_command])
+
+
+def _resolve_owl2bench_env(run_dir: Path) -> Dict[str, str]:
+    """Return env vars for OWL2Bench tasks, ensuring Maven is available."""
+    env: Dict[str, str] = {"LOGURU_COLORIZE": "1"}
+
+    if shutil.which("mvn"):
+        return env
+
+    local_mvn = REPO_ROOT / "apache-maven-3.9.13" / "bin" / "mvn"
+
+    if not local_mvn.exists():
+        setup_cmd = "bash ./install-mvn.sh"
+        _run_logged_command(setup_cmd, run_dir / "maven-setup.log")
+
+    if local_mvn.exists():
+        env["MAVEN_EXECUTABLE"] = str(local_mvn)
+        return env
+
+    raise RuntimeError("Maven executable could not be resolved. Install Maven or load a module so 'mvn' is available.")
