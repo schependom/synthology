@@ -4,7 +4,7 @@
 #BSUB -J exp2-parity-loop
 #BSUB -n 8
 #BSUB -W 24:00
-#BSUB -R "rusage[mem=32GB]"
+#BSUB -R "rusage[mem=8GB]"
 #BSUB -o logs/exp2_parity_%J.out
 #BSUB -e logs/exp2_parity_%J.err
 

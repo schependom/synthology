@@ -31,7 +31,6 @@ generator:
   namespace_base: "http://synthology.org/exp2/fc/"
 
 materialization:
-  # Reasoner choice: 'owlrl' or 'jena'
   # Exp 2 uses Apache Jena for parity/depth analysis.
   reasoner: jena
   jena_profile: owl_micro
@@ -40,10 +39,6 @@ materialization:
   iterative: true
   max_iterations: 10
   
-  # OWL-RL closure expansion options
-  rdfs_closure: true
-  axiomatic_triples: false
-  datatype_axioms: false
   timing:
     enabled: true
     output_dir: "data/exp2/timings"

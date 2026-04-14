@@ -30,16 +30,13 @@ generator:
   namespace_base: "http://synthology.kuleuven.be/udm/"
 
 materialization:
-  # Supported: owlrl, jena
-  reasoner: owlrl
-  # Used when reasoner=jena. Choices: owl_micro, owl_mini, owl_full
+  # Jena-only materialization backend.
+  reasoner: jena
+  # Apache Jena profile. Choices: owl_micro, owl_mini, owl_full
   jena_profile: owl_mini
-  # Deprecated for Jena paths: Jena computes internal fixpoint in one reasoning call.
+  # Kept for backward compatibility; ignored because Jena computes fixpoint internally.
   iterative: false
   max_iterations: 10
-  rdfs_closure: true
-  axiomatic_triples: false
-  datatype_axioms: false
   timing:
     enabled: false
     output_dir: "data/exp2/timings"

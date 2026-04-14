@@ -1,7 +1,7 @@
 [project]
 name = "udm_baseline"
 version = "0.1.0"
-description = "Random base facts baseline with OWLRL/Jena forward-chaining materialization"
+description = "Random base facts baseline with Apache Jena forward-chaining materialization"
 readme = "README.md"
 authors = [
     { name = "Vincent Van Schependom", email = "vincent.van.schependom@gmail.com" }
@@ -10,7 +10,6 @@ requires-python = ">=3.9"
 dependencies = [
     "hydra-core>=1.3.2",
     "loguru>=0.7.3",
-    "owlrl>=7.1.4",
     "rdflib>=7.5.0",
 ]
 

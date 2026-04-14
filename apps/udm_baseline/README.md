@@ -1,11 +1,11 @@
 # UDM Baseline Generator
 
-Random ABox Fact Materialization (UDM) baseline with reusable materialization backends.
+Random ABox Fact Materialization (UDM) baseline with Apache Jena materialization.
 
 This package can:
 
 1. Sample random base facts from an ontology schema.
-2. Materialize inferred facts with either `owlrl` or Apache Jena.
+2. Materialize inferred facts with Apache Jena.
 3. Assign layered hop depths using iterative materialization mode.
 4. Export standard split files (`facts.csv`, `targets.csv`).
 

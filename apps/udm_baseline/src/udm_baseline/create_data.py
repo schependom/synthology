@@ -2,7 +2,7 @@
 Random-base + forward-chaining baseline generator.
 
 Generates train/val/test splits by sampling random base ABox facts from ontology
-schema declarations and materializing inferred facts with owlrl.
+schema declarations and materializing inferred facts with Apache Jena.
 """
 
 import csv
@@ -20,7 +20,6 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 import hydra
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
-from owlrl import DeductiveClosure, OWLRL_Semantics
 from rdflib import Graph, URIRef
 from rdflib.namespace import OWL, RDF, RDFS
 
@@ -463,22 +462,8 @@ class FCBaselineGenerator:
             Tuple of (inferred_triples, hop_depths)
             where hop_depths[triple] = iteration at which triple was first inferred
         """
-        reasoner = str(self.cfg.materialization.get("reasoner", "owlrl")).lower()
-        use_iterative = self.cfg.materialization.get("iterative", False)
-        max_iterations = self.cfg.materialization.get("max_iterations", 10)
         jena_profile = str(self.cfg.materialization.get("jena_profile", "owl_mini"))
-
-        if reasoner not in {"owlrl", "jena"}:
-            raise ValueError(f"Unsupported reasoner '{reasoner}'. Expected one of: owlrl, jena")
-
-        if reasoner == "jena":
-            # Jena computes iterative depths natively within the Java reasoner.
-            # We route to single-pass no matter what use_iterative flag is.
-            return self._materialize_singlepass_jena(base_triples, split_name, sample_id, jena_profile)
-
-        if use_iterative:
-            return self._materialize_iterative(base_triples, max_iterations)
-        return self._materialize_singlepass(base_triples)
+        return self._materialize_singlepass_jena(base_triples, split_name, sample_id, jena_profile)
 
     def _schema_uri_triples(self) -> Set[Triple]:
         return {
@@ -521,157 +506,6 @@ class FCBaselineGenerator:
             }
         )
         return inferred, hop_depths
-
-    def _materialize_iterative_jena(
-        self,
-        base_triples: Set[Triple],
-        max_iterations: int,
-        split_name: str,
-        sample_id: str,
-    ) -> Tuple[Set[Triple], Dict[Triple, int]]:
-        """
-        Iterative Jena materialization for layered depth assignment.
-
-        Layer 0 = base facts.
-        Layer k = triples first appearing when materializing base + layers < k.
-        """
-        current_working_set = set(base_triples)
-        all_inferred: Set[Triple] = set()
-        hop_depths: Dict[Triple, int] = {}
-        schema_uri_triples = self._schema_uri_triples()
-
-        iterative_start = time.perf_counter()
-        for iteration in range(1, max_iterations + 1):
-            iter_start = time.perf_counter()
-            closure = self.jena_materializer.materialize(self.ontology_path, current_working_set)
-            newly_inferred = closure - current_working_set - schema_uri_triples
-
-            self._append_timing_event(
-                {
-                    "event_type": "jena_iterative_iteration",
-                    "split": split_name,
-                    "sample_id": sample_id,
-                    "iteration": iteration,
-                    "working_triples": len(current_working_set),
-                    "closure_triples": len(closure),
-                    "newly_inferred": len(newly_inferred),
-                    "iteration_wall_seconds": time.perf_counter() - iter_start,
-                    **self.jena_materializer.last_run_timing,
-                }
-            )
-
-            if not newly_inferred:
-                logger.debug(f"Jena iterative materialization fixpoint reached at iteration {iteration}")
-                break
-
-            for triple in newly_inferred:
-                if triple not in hop_depths:
-                    hop_depths[triple] = iteration
-                    all_inferred.add(triple)
-
-            current_working_set |= newly_inferred
-            logger.debug(
-                f"Jena iteration {iteration}: discovered {len(newly_inferred)} new triples, "
-                f"total inferred now {len(all_inferred)}"
-            )
-
-        self._append_timing_event(
-            {
-                "event_type": "jena_iterative_summary",
-                "split": split_name,
-                "sample_id": sample_id,
-                "max_iterations": max_iterations,
-                "inferred_total": len(all_inferred),
-                "function_total_seconds": time.perf_counter() - iterative_start,
-            }
-        )
-
-        return all_inferred, hop_depths
-
-    def _materialize_singlepass(self, base_triples: Set[Triple]) -> Tuple[Set[Triple], Dict[Triple, int]]:
-        """Single-pass materialization: one closure call, all inferred facts marked as hop=1."""
-        g = Graph()
-        for t in self.ontology_graph:
-            g.add(t)
-        for triple in base_triples:
-            g.add(triple)
-
-        before = set(g)
-        DeductiveClosure(
-            OWLRL_Semantics,
-            rdfs_closure=self.cfg.materialization.rdfs_closure,
-            axiomatic_triples=self.cfg.materialization.axiomatic_triples,
-            datatype_axioms=self.cfg.materialization.datatype_axioms,
-        ).expand(g)
-        after = set(g)
-
-        inferred = after - before
-        inferred_filtered = {
-            (s, p, o)
-            for s, p, o in inferred
-            if isinstance(s, URIRef) and isinstance(p, URIRef) and isinstance(o, URIRef)
-        }
-
-        # All inferred facts in single-pass are marked as hop=1
-        hop_depths = {t: 1 for t in inferred_filtered}
-        return inferred_filtered, hop_depths
-
-    def _materialize_iterative(
-        self, base_triples: Set[Triple], max_iterations: int
-    ) -> Tuple[Set[Triple], Dict[Triple, int]]:
-        """
-        Iterative materialization: run closure multiple times, tracking hop depth.
-
-        Iteration 1: materialize from base_triples -> all inferred marked hop=1
-        Iteration 2: add iteration-1 inferred to graph, materialize -> marked hop=2
-        ... repeat until fixpoint or max_iterations reached
-        """
-        current_working_set = set(base_triples)
-        all_inferred: Set[Triple] = set()
-        hop_depths: Dict[Triple, int] = {}
-
-        for iteration in range(1, max_iterations + 1):
-            g = Graph()
-            for t in self.ontology_graph:
-                g.add(t)
-            for triple in current_working_set:
-                g.add(triple)
-
-            before = set(g)
-            DeductiveClosure(
-                OWLRL_Semantics,
-                rdfs_closure=self.cfg.materialization.rdfs_closure,
-                axiomatic_triples=self.cfg.materialization.axiomatic_triples,
-                datatype_axioms=self.cfg.materialization.datatype_axioms,
-            ).expand(g)
-            after = set(g)
-
-            newly_inferred = after - before
-            newly_inferred_filtered = {
-                (s, p, o)
-                for s, p, o in newly_inferred
-                if isinstance(s, URIRef) and isinstance(p, URIRef) and isinstance(o, URIRef)
-            }
-
-            # Mark newly discovered facts with their iteration number
-            for triple in newly_inferred_filtered:
-                if triple not in hop_depths:
-                    hop_depths[triple] = iteration
-                    all_inferred.add(triple)
-
-            # If no new facts in this iteration, we've reached fixpoint
-            if not newly_inferred_filtered or len(newly_inferred_filtered) == 0:
-                logger.debug(f"Iterative materialization fixpoint reached at iteration {iteration}")
-                break
-
-            # For next iteration: include base + all inferred so far
-            current_working_set = set(base_triples) | all_inferred
-            logger.debug(
-                f"Iteration {iteration}: discovered {len(newly_inferred_filtered)} new triples, "
-                f"total inferred now {len(all_inferred)}"
-            )
-
-        return all_inferred, hop_depths
 
     def _filter_instance_triples(
         self,

@@ -4,7 +4,7 @@
 #BSUB -J exp3-generate-baseline
 #BSUB -n 8
 #BSUB -W 24:00
-#BSUB -R "rusage[mem=96GB]"
+#BSUB -R "rusage[mem=8GB]"
 #BSUB -o logs/exp3_generate_baseline_%J.out
 #BSUB -e logs/exp3_generate_baseline_%J.err
 
