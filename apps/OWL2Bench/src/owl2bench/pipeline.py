@@ -10,7 +10,7 @@ import time
 import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Dict, Optional
 
 import hydra
 import rdflib
@@ -117,10 +117,15 @@ def apply_namespace_map(graph: rdflib.Graph, namespace_map: dict[str, str]) -> t
 def run_owl2bench_generator(
     vendor_dir: Path, profile: str, universities: int, seed: int, maven_executable: str
 ) -> Path:
+    maven_repo_local = os.environ.get("MAVEN_REPO_LOCAL", "").strip()
     cmd = [
         maven_executable,
         "-q",
         "-DskipTests",
+    ]
+    if maven_repo_local:
+        cmd.append(f"-Dmaven.repo.local={maven_repo_local}")
+    cmd += [
         "compile",
         "exec:java",
         "-Dexec.mainClass=ABoxGen.InstanceGenerator.Generator",
@@ -588,10 +593,26 @@ def _write_split(
     target_ratio: float,
     mask_base_facts: bool,
     negatives_per_positive: int,
-) -> tuple[int, int]:
+) -> Dict[str, Any]:
     facts_rows = []
     targets_rows = []
     inferred_positive_count = 0
+    eligible_positive_targets_total = 0
+    fully_eligible_positive_targets_total = 0
+    partially_eligible_positive_targets_total = 0
+    ineligible_positive_targets_total = 0
+    generated_negative_total = 0
+    rejected_collision_with_positive_total = 0
+    rejected_duplicate_negative_total = 0
+    skipped_negative_slots_total = 0
+
+    def _target_key(row: dict[str, Any]) -> tuple[str, str, str, str]:
+        return (
+            str(row.get("sample_id", "")),
+            str(row.get("subject", "")),
+            str(row.get("predicate", "")),
+            str(row.get("object", "")),
+        )
 
     for sid, sample_base_clean in split_samples:
         all_individuals = set()
@@ -605,6 +626,8 @@ def _write_split(
                 all_individuals.add(o)
 
         positive_targets = []
+        sample_positive_keys: set[tuple[str, str, str, str]] = set()
+        sample_negative_keys: set[tuple[str, str, str, str]] = set()
 
         for s, p, o in sample_base_clean:
             is_target_only = mask_base_facts and (random.random() < target_ratio)
@@ -626,9 +649,11 @@ def _write_split(
             if fact_type == "base_fact":
                 facts_rows.append(fact)
                 targets_rows.append(target)
+                sample_positive_keys.add(_target_key(target))
             else:
                 positive_targets.append(target)
                 targets_rows.append(target)
+                sample_positive_keys.add(_target_key(target))
 
         for s, p, o, hops in inferred_by_sample.get(sid, []):
             inferred_target = {
@@ -644,6 +669,7 @@ def _write_split(
             }
             positive_targets.append(inferred_target)
             targets_rows.append(inferred_target)
+            sample_positive_keys.add(_target_key(inferred_target))
             inferred_positive_count += 1
 
             all_individuals.add(s)
@@ -654,10 +680,13 @@ def _write_split(
 
         all_individuals = list(all_individuals)
         all_classes = list(all_classes)
+        eligible_positive_targets_total += len(positive_targets)
 
         for pos_tgt in positive_targets:
-            for _ in range(max(0, negatives_per_positive)):
-                corrupt_object = random.choice([True, False])
+            needed = max(0, negatives_per_positive)
+            candidate_map: Dict[tuple[str, str, str, str], Dict[str, Any]] = {}
+
+            for corrupt_object in (False, True):
                 if pos_tgt["predicate"] == "rdf:type" and corrupt_object:
                     choices = all_classes
                 else:
@@ -666,22 +695,56 @@ def _write_split(
                 if len(choices) < 2:
                     continue
 
-                corrupted_entity = random.choice(choices)
-                while corrupted_entity == (pos_tgt["object"] if corrupt_object else pos_tgt["subject"]):
-                    corrupted_entity = random.choice(choices)
+                for corrupted_entity in choices:
+                    if corrupted_entity == (pos_tgt["object"] if corrupt_object else pos_tgt["subject"]):
+                        continue
 
-                neg_target = {
-                    "sample_id": pos_tgt["sample_id"],
-                    "subject": pos_tgt["subject"] if not corrupt_object else corrupted_entity,
-                    "predicate": pos_tgt["predicate"],
-                    "object": corrupted_entity if corrupt_object else pos_tgt["object"],
-                    "label": 0,
-                    "truth_value": "False",
-                    "type": "inferred",
-                    "hops": pos_tgt.get("hops", 0),
-                    "corruption_method": "random",
-                }
+                    neg_target = {
+                        "sample_id": pos_tgt["sample_id"],
+                        "subject": pos_tgt["subject"] if not corrupt_object else corrupted_entity,
+                        "predicate": pos_tgt["predicate"],
+                        "object": corrupted_entity if corrupt_object else pos_tgt["object"],
+                        "label": 0,
+                        "truth_value": "False",
+                        "type": "inferred",
+                        "hops": pos_tgt.get("hops", 0),
+                        "corruption_method": "random",
+                    }
+                    neg_key = _target_key(neg_target)
+
+                    if neg_key in sample_positive_keys:
+                        rejected_collision_with_positive_total += 1
+                        continue
+                    if neg_key in candidate_map:
+                        rejected_duplicate_negative_total += 1
+                        continue
+
+                    candidate_map[neg_key] = neg_target
+
+            available_candidates = [
+                (key, row) for key, row in candidate_map.items() if key not in sample_negative_keys
+            ]
+            if len(available_candidates) < len(candidate_map):
+                rejected_duplicate_negative_total += len(candidate_map) - len(available_candidates)
+
+            if len(available_candidates) >= needed:
+                fully_eligible_positive_targets_total += 1
+            elif len(available_candidates) > 0:
+                partially_eligible_positive_targets_total += 1
+            else:
+                ineligible_positive_targets_total += 1
+
+            to_generate = min(needed, len(available_candidates))
+            skipped_negative_slots_total += max(0, needed - to_generate)
+
+            if to_generate <= 0:
+                continue
+
+            chosen = random.sample(available_candidates, to_generate)
+            for neg_key, neg_target in chosen:
                 targets_rows.append(neg_target)
+                sample_negative_keys.add(neg_key)
+                generated_negative_total += 1
 
     split_dir.mkdir(parents=True, exist_ok=True)
 
@@ -708,7 +771,36 @@ def _write_split(
         writer.writeheader()
         writer.writerows(targets_rows)
 
-    return len(facts_rows), inferred_positive_count
+    positive_total = sum(1 for row in targets_rows if int(row.get("label", 1)) == 1)
+    negative_total = sum(1 for row in targets_rows if int(row.get("label", 1)) == 0)
+    expected_negative_total = generated_negative_total
+
+    if negative_total != expected_negative_total:
+        raise ValueError(
+            "Negative generation count mismatch in split '{}': expected {} negatives, got {}.".format(
+                split_dir,
+                expected_negative_total,
+                negative_total,
+            )
+        )
+
+    return {
+        "facts_rows": len(facts_rows),
+        "inferred_positive_targets": inferred_positive_count,
+        "positive_targets_total": positive_total,
+        "negative_targets_total": negative_total,
+        "eligible_positive_targets": eligible_positive_targets_total,
+        "fully_eligible_positive_targets": fully_eligible_positive_targets_total,
+        "partially_eligible_positive_targets": partially_eligible_positive_targets_total,
+        "ineligible_positive_targets": ineligible_positive_targets_total,
+        "configured_negatives_per_positive": max(0, negatives_per_positive),
+        "expected_negative_targets": expected_negative_total,
+        "generated_negative_targets": generated_negative_total,
+        "rejected_collision_with_positive": rejected_collision_with_positive_total,
+        "rejected_duplicate_negative": rejected_duplicate_negative_total,
+        "skipped_negative_slots": skipped_negative_slots_total,
+        "positive_negative_ratio": (positive_total / negative_total) if negative_total > 0 else None,
+    }
 
 
 def _parse_generated_to_csv(
@@ -863,10 +955,22 @@ def _parse_generated_to_csv(
 
     total_facts = 0
     total_inferred = 0
+    total_positive_targets = 0
+    total_negative_targets = 0
+    total_eligible_positive_targets = 0
+    total_fully_eligible_positive_targets = 0
+    total_partially_eligible_positive_targets = 0
+    total_ineligible_positive_targets = 0
+    total_expected_negative_targets = 0
+    total_generated_negative_targets = 0
+    total_rejected_collision_with_positive = 0
+    total_rejected_duplicate_negative = 0
+    total_skipped_negative_slots = 0
+    split_export_stats: Dict[str, Dict[str, Any]] = {}
     for split_name, split_samples in splits.items():
         if not split_samples:
             continue
-        facts_count, inferred_count = _write_split(
+        split_stats = _write_split(
             output_dir / split_name,
             split_samples,
             inferred_by_sample,
@@ -874,13 +978,50 @@ def _parse_generated_to_csv(
             mask_base_facts,
             negatives_per_positive,
         )
-        total_facts += facts_count
-        total_inferred += inferred_count
+        split_export_stats[split_name] = split_stats
+        total_facts += int(split_stats["facts_rows"])
+        total_inferred += int(split_stats["inferred_positive_targets"])
+        total_positive_targets += int(split_stats["positive_targets_total"])
+        total_negative_targets += int(split_stats["negative_targets_total"])
+        total_eligible_positive_targets += int(split_stats["eligible_positive_targets"])
+        total_fully_eligible_positive_targets += int(split_stats["fully_eligible_positive_targets"])
+        total_partially_eligible_positive_targets += int(split_stats["partially_eligible_positive_targets"])
+        total_ineligible_positive_targets += int(split_stats["ineligible_positive_targets"])
+        total_expected_negative_targets += int(split_stats["expected_negative_targets"])
+        total_generated_negative_targets += int(split_stats["generated_negative_targets"])
+        total_rejected_collision_with_positive += int(split_stats["rejected_collision_with_positive"])
+        total_rejected_duplicate_negative += int(split_stats["rejected_duplicate_negative"])
+        total_skipped_negative_slots += int(split_stats["skipped_negative_slots"])
+
+        logger.info(
+            "Split export stats | split={} | positive={} | negative={} | pos_neg_ratio={} | "
+            "eligible_pos_for_neg={} | fully_eligible={} | partially_eligible={} | ineligible={} | "
+            "configured_neg_per_pos={} | expected_neg={} | generated_neg={} | skipped_neg_slots={} | "
+            "rejected_collisions={} | rejected_duplicates={}",
+            split_name,
+            split_stats["positive_targets_total"],
+            split_stats["negative_targets_total"],
+            split_stats["positive_negative_ratio"],
+            split_stats["eligible_positive_targets"],
+            split_stats["fully_eligible_positive_targets"],
+            split_stats["partially_eligible_positive_targets"],
+            split_stats["ineligible_positive_targets"],
+            split_stats["configured_negatives_per_positive"],
+            split_stats["expected_negative_targets"],
+            split_stats["generated_negative_targets"],
+            split_stats["skipped_negative_slots"],
+            split_stats["rejected_collision_with_positive"],
+            split_stats["rejected_duplicate_negative"],
+        )
 
     logger.success(
-        "Generated OWL2Bench CSV | base_facts={} | inferred_targets={} | output={}",
+        "Generated OWL2Bench CSV | base_facts={} | inferred_targets={} | positives={} | negatives={} | "
+        "pos_neg_ratio={} | output={}",
         total_facts,
         total_inferred,
+        total_positive_targets,
+        total_negative_targets,
+        (total_positive_targets / total_negative_targets) if total_negative_targets > 0 else None,
         output_dir,
     )
 
@@ -909,6 +1050,21 @@ def _parse_generated_to_csv(
             "final_export": {
                 "facts_csv_rows": total_facts,
                 "inferred_targets_csv_rows": total_inferred,
+                "positive_targets_csv_rows": total_positive_targets,
+                "negative_targets_csv_rows": total_negative_targets,
+                "positive_negative_ratio": (total_positive_targets / total_negative_targets)
+                if total_negative_targets > 0
+                else None,
+                "eligible_positive_targets_for_negatives": total_eligible_positive_targets,
+                "fully_eligible_positive_targets_for_negatives": total_fully_eligible_positive_targets,
+                "partially_eligible_positive_targets_for_negatives": total_partially_eligible_positive_targets,
+                "ineligible_positive_targets_for_negatives": total_ineligible_positive_targets,
+                "expected_negative_targets": total_expected_negative_targets,
+                "generated_negative_targets": total_generated_negative_targets,
+                "skipped_negative_slots": total_skipped_negative_slots,
+                "rejected_negative_collisions_with_positive": total_rejected_collision_with_positive,
+                "rejected_duplicate_negatives": total_rejected_duplicate_negative,
+                "split_export": split_export_stats,
             },
         }
         with open(run_dir / "summary.json", "w", encoding="utf-8") as f:
@@ -935,6 +1091,21 @@ def main(cfg: DictConfig) -> None:
     profile = str(cfg.generator.profile)
     seed = int(cfg.generator.seed)
     maven_executable = str(cfg.generator.maven_executable)
+    # Support both PATH lookups (e.g. "mvn") and repo-relative executable paths.
+    if os.path.sep in maven_executable and not os.path.isabs(maven_executable):
+        maven_executable = str((cwd / maven_executable).resolve())
+
+    if os.path.sep in maven_executable:
+        if not Path(maven_executable).exists():
+            raise FileNotFoundError(
+                "Configured Maven executable does not exist: "
+                f"{maven_executable}. Set generator.maven_executable to an absolute path or a PATH-resolved command like 'mvn'."
+            )
+    elif shutil.which(maven_executable) is None:
+        raise FileNotFoundError(
+            f"Maven executable '{maven_executable}' was not found on PATH. "
+            "Set generator.maven_executable to an absolute path or export PATH/MAVEN_HOME accordingly."
+        )
 
     if profile.upper() != "RL":
         raise ValueError("This pipeline is restricted to OWL2Bench RL profile.")

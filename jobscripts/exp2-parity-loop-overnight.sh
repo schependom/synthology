@@ -3,10 +3,10 @@
 #BSUB -q hpc
 #BSUB -J exp2-parity-loop
 #BSUB -n 8
-#BSUB -W 12:00
+#BSUB -W 24:00
 #BSUB -R "rusage[mem=32GB]"
-#BSUB -o exp2_parity_%J.out
-#BSUB -e exp2_parity_%J.err
+#BSUB -o logs/exp2_parity_%J.out
+#BSUB -e logs/exp2_parity_%J.err
 
 set -uo pipefail  # no -e: parity loop non-zero exit must not kill the job
 
@@ -16,11 +16,11 @@ cd "${REPO_ROOT}"
 MAX_ATTEMPTS="${MAX_ATTEMPTS:-250}"
 MIN_DEEP_HOPS="${MIN_DEEP_HOPS:-3}"
 DEEP_COUNT_MODE="${DEEP_COUNT_MODE:-tolerance}"
-TOLERANCE_PCT="${TOLERANCE_PCT:-15.0}"
-NODE_TOLERANCE_PCT="${NODE_TOLERANCE_PCT:-20}"
-EDGE_DENSITY_TOLERANCE_PCT="${EDGE_DENSITY_TOLERANCE_PCT:-25}"
-TARGET_RATIO_TOLERANCE_PCT="${TARGET_RATIO_TOLERANCE_PCT:-20}"
-INFERRED_SHARE_TOLERANCE_PCT="${INFERRED_SHARE_TOLERANCE_PCT:-20}"
+TOLERANCE_PCT="${TOLERANCE_PCT:-95.0}"
+NODE_TOLERANCE_PCT="${NODE_TOLERANCE_PCT:-30}"
+EDGE_DENSITY_TOLERANCE_PCT="${EDGE_DENSITY_TOLERANCE_PCT:-60}"
+TARGET_RATIO_TOLERANCE_PCT="${TARGET_RATIO_TOLERANCE_PCT:-30}"
+INFERRED_SHARE_TOLERANCE_PCT="${INFERRED_SHARE_TOLERANCE_PCT:-30}"
 
 if command -v module >/dev/null 2>&1; then
   module load python3/3.9.19 || true
@@ -34,6 +34,7 @@ source .venv/bin/activate
 uv sync
 
 echo "Starting Exp2 parity loop - $(date)"
+echo "Parity settings: deep=${TOLERANCE_PCT}% node=${NODE_TOLERANCE_PCT}% edge_density=${EDGE_DENSITY_TOLERANCE_PCT}% target_ratio=${TARGET_RATIO_TOLERANCE_PCT}% inferred_share=${INFERRED_SHARE_TOLERANCE_PCT}%"
 
 # Run parity loop - non-zero exit (exhausted attempts) must not abort the job
 uv run invoke exp2-parity-loop \

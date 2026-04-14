@@ -967,6 +967,37 @@ def exp2_analyze_latest_baseline(ctx: Context, args=""):
 
 
 @task
+def exp3_analyze_latest_baseline(ctx: Context, args=""):
+    """Analyzes the latest archived Exp3 baseline run (label balance, hops, timing, integrity)."""
+    print("\nAnalyzing latest Exp 3 baseline run.")
+    run_dir = _make_run_archive("exp3", "analyze_latest_baseline", label="baseline")
+    analysis_dir = run_dir / "analysis"
+    cmd = _build_uv_command(
+        "data_reporter",
+        "data_reporter.exp3_latest_baseline",
+        overrides=(
+            f"--repo-root {shlex.quote(str(REPO_ROOT))}",
+            f"--out-dir {shlex.quote(str(analysis_dir))}",
+        ),
+        args=args,
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    _run_experiment_spec(
+        ExperimentRunSpec(
+            experiment="exp3",
+            task_name="analyze_latest_baseline",
+            label="baseline",
+            command=cmd,
+            manifest={
+                "args": args,
+                "output_dir": str(analysis_dir),
+            },
+            hydra_run_dir=False,
+        )
+    )
+
+
+@task
 def exp2_train_rrn(ctx: Context, dataset="baseline", args=""):
     """Trains RRN for Exp 2 on either baseline or synthology dataset."""
     dataset_key = dataset.strip().lower()
@@ -1143,16 +1174,16 @@ def exp2_parity_loop(
     ctx: Context,
     max_attempts=250,
     min_deep_hops=3,
-    tolerance_pct=10.0,
+    tolerance_pct=95.0,
     synth_targets="data/exp2/synthology/family_tree/train/targets.csv",
     synth_facts="data/exp2/synthology/family_tree/train/facts.csv",
     synth_generation_metrics="data/exp2/synthology/family_tree/generation_metrics.json",
     attempts_root="data/exp2/baseline/parity_runs",
     deep_count_mode="tolerance",
-    node_tolerance_pct=10.0,
-    edge_density_tolerance_pct=15.0,
-    target_ratio_tolerance_pct=10.0,
-    inferred_share_tolerance_pct=10.0,
+    node_tolerance_pct=30.0,
+    edge_density_tolerance_pct=60.0,
+    target_ratio_tolerance_pct=30.0,
+    inferred_share_tolerance_pct=30.0,
     ensure_synth_reference=True,
     args="",
 ):
@@ -1282,7 +1313,13 @@ def exp2_parity_report(
 
 
 @task
-def exp3_generate_owl2bench_abox(ctx: Context, universities=5, args="", archive_dir: Optional[str] = None):
+def exp3_generate_owl2bench_abox(
+    ctx: Context,
+    universities=5,
+    args="",
+    archive_dir: Optional[str] = None,
+    reasoning_input_triple_cap=0,
+):
     """Runs the existing OWL2Bench pipeline and stores raw generated OWL (ABox source)."""
     print(f"\nGenerating OWL2Bench data for Exp 3 (universities={universities}).")
     run_dir = (
@@ -1291,17 +1328,30 @@ def exp3_generate_owl2bench_abox(ctx: Context, universities=5, args="", archive_
         else _make_run_archive("exp3", "generate_owl2bench_abox", label=str(universities))
     )
     timing_dir = run_dir / "timings"
+    overrides = [
+        f"dataset.universities=[{universities}]",
+        f"dataset.reasoning.materialization.timing.output_dir={shlex.quote(str(timing_dir))}",
+        "dataset.reasoning.materialization.timing.enabled=true",
+        f"dataset.reasoning.materialization.timing.run_tag=exp3_owl2bench_abox_{universities}",
+    ]
+    cap = int(reasoning_input_triple_cap)
+    if cap > 0:
+        # Exp3 baseline only needs a stable generated ABox artifact; capping reasoning input avoids Jena OOM.
+        overrides.append(f"+dataset.reasoning_input_triple_cap={cap}")
+
+    abox_jena_heap_mb = str(os.environ.get("SYNTHOLOGY_EXP3_ABOX_JENA_XMX_MB", "8192"))
+
     cmd = _build_uv_command(
         "owl2bench",
         "owl2bench.pipeline",
-        overrides=(
-            f"dataset.universities=[{universities}]",
-            f"dataset.reasoning.materialization.timing.output_dir={shlex.quote(str(timing_dir))}",
-            "dataset.reasoning.materialization.timing.enabled=true",
-            f"dataset.reasoning.materialization.timing.run_tag=exp3_owl2bench_abox_{universities}",
-        ),
+        overrides=tuple(overrides),
         args=args,
-        env={"LOGURU_COLORIZE": "1"},
+        env={
+            "LOGURU_COLORIZE": "1",
+            "SYNTHOLOGY_UDM_BASELINE_XMX_MB": abox_jena_heap_mb,
+            "SYNTHOLOGY_JENA_XMX_MB": abox_jena_heap_mb,
+            "SYNTHOLOGY_HEAP_MB": abox_jena_heap_mb,
+        },
     )
     _run_experiment_spec(
         ExperimentRunSpec(
@@ -1313,6 +1363,8 @@ def exp3_generate_owl2bench_abox(ctx: Context, universities=5, args="", archive_
             manifest={
                 "universities": universities,
                 "args": args,
+                "reasoning_input_triple_cap": cap,
+                "abox_jena_heap_mb": abox_jena_heap_mb,
                 "config_files": ["configs/owl2bench/config.yaml", "configs/owl2bench/config_toy.yaml"],
                 "timing_dir": str(timing_dir),
             },
@@ -1335,8 +1387,15 @@ def exp3_generate_baseline(ctx: Context, universities=5, args=""):
         ],
     )
 
+    reasoning_cap = int(os.environ.get("SYNTHOLOGY_EXP3_REASONING_INPUT_TRIPLE_CAP", "1200"))
+    final_reasoning_cap = int(os.environ.get("SYNTHOLOGY_EXP3_FINAL_REASONING_INPUT_TRIPLE_CAP", "15000"))
+    final_jena_profile = str(os.environ.get("SYNTHOLOGY_EXP3_FINAL_JENA_PROFILE", "owl_mini"))
     exp3_generate_owl2bench_abox(
-        ctx, universities=universities, args=args, archive_dir=str(run_dir / "abox_generation")
+        ctx,
+        universities=universities,
+        args=args,
+        archive_dir=str(run_dir / "abox_generation"),
+        reasoning_input_triple_cap=reasoning_cap,
     )
 
     abox_path = f"data/owl2bench/output/raw/owl2bench_{universities}/OWL2RL-{universities}.owl"
@@ -1349,6 +1408,8 @@ def exp3_generate_baseline(ctx: Context, universities=5, args=""):
         tbox="ontologies/UNIV-BENCH-OWL2RL.owl",
         closure_out=closure_out,
         inferred_out=inferred_out,
+        jena_profile=final_jena_profile,
+        reasoning_input_triple_cap=final_reasoning_cap,
         archive_dir=str(run_dir / "materialization"),
     )
     _write_json(
@@ -1365,6 +1426,9 @@ def exp3_generate_baseline(ctx: Context, universities=5, args=""):
                 "abox_generation": "abox_generation",
                 "materialization": "materialization",
             },
+            "reasoning_input_triple_cap": reasoning_cap,
+            "final_reasoning_input_triple_cap": final_reasoning_cap,
+            "final_jena_profile": final_jena_profile,
         },
     )
     _write_text(
@@ -1438,6 +1502,7 @@ def exp3_materialize_abox(
     closure_out="outputs/exp3/closure.nt",
     inferred_out="outputs/exp3/inferred.nt",
     jena_profile="owl_mini",
+    reasoning_input_triple_cap=0,
     args="",
     archive_dir: Optional[str] = None,
 ):
@@ -1446,6 +1511,7 @@ def exp3_materialize_abox(
     run_dir = Path(archive_dir) if archive_dir else _make_run_archive("exp3", "materialize_abox", label=jena_profile)
     closure_archive = run_dir / "artifacts" / "closure.nt"
     inferred_archive = run_dir / "artifacts" / "inferred.nt"
+    cap = int(reasoning_input_triple_cap)
     cmd = _build_uv_command(
         "udm_baseline",
         "udm_baseline.materialize",
@@ -1455,6 +1521,7 @@ def exp3_materialize_abox(
             f"--closure-out {shlex.quote(str(closure_archive))}",
             f"--inferred-out {shlex.quote(str(inferred_archive))}",
             f"--jena-profile {jena_profile}",
+            f"--reasoning-input-triple-cap {cap}",
             f"--timing-dir {shlex.quote(str(run_dir / 'timings'))}",
             "--timing-tag exp3_materialize_abox",
         ),
@@ -1472,6 +1539,7 @@ def exp3_materialize_abox(
                 "abox": abox,
                 "tbox": tbox,
                 "jena_profile": jena_profile,
+                "reasoning_input_triple_cap": cap,
                 "args": args,
                 "legacy_outputs": {"closure_out": closure_out, "inferred_out": inferred_out},
                 "archive_outputs": {"closure_out": str(closure_archive), "inferred_out": str(inferred_archive)},

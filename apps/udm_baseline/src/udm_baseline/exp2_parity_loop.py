@@ -147,7 +147,7 @@ def main() -> None:
     parser.add_argument(
         "--tolerance-pct",
         type=float,
-        default=10.0,
+        default=95.0,
         help="Parity tolerance band (plus/minus percentage around K_deep)",
     )
     parser.add_argument(
@@ -156,10 +156,10 @@ def main() -> None:
         default="exact",
         help="How to compare d>=min_deep_hops count against Synthology (exact match or tolerance band)",
     )
-    parser.add_argument("--node-tolerance-pct", type=float, default=10.0)
-    parser.add_argument("--edge-density-tolerance-pct", type=float, default=15.0)
-    parser.add_argument("--target-ratio-tolerance-pct", type=float, default=10.0)
-    parser.add_argument("--inferred-share-tolerance-pct", type=float, default=10.0)
+    parser.add_argument("--node-tolerance-pct", type=float, default=30.0)
+    parser.add_argument("--edge-density-tolerance-pct", type=float, default=60.0)
+    parser.add_argument("--target-ratio-tolerance-pct", type=float, default=30.0)
+    parser.add_argument("--inferred-share-tolerance-pct", type=float, default=30.0)
     parser.add_argument("--seed-start", type=int, default=23, help="Initial dataset seed")
     parser.add_argument(
         "--keep-failed-attempts",

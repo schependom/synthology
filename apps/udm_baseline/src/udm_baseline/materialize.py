@@ -3,6 +3,7 @@
 import argparse
 import csv
 import json
+import random
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,6 +34,18 @@ def main() -> None:
         choices=["owl_micro", "owl_mini", "owl_full"],
         help="Apache Jena reasoner profile",
     )
+    parser.add_argument(
+        "--reasoning-input-triple-cap",
+        type=int,
+        default=0,
+        help="If >0, cap URI base triples before materialization to reduce memory footprint.",
+    )
+    parser.add_argument(
+        "--reasoning-input-seed",
+        type=int,
+        default=42,
+        help="Deterministic seed used when sampling capped reasoning input triples.",
+    )
     args = parser.parse_args()
 
     run_started = time.perf_counter()
@@ -52,7 +65,19 @@ def main() -> None:
     abox_parse_start = time.perf_counter()
     base_graph = Graph()
     base_graph.parse(abox_path)
-    base_uri = _uri_triples(base_graph)
+    base_uri_full = _uri_triples(base_graph)
+    base_uri = base_uri_full
+    if args.reasoning_input_triple_cap > 0 and len(base_uri_full) > args.reasoning_input_triple_cap:
+        ordered = sorted(base_uri_full, key=lambda t: (str(t[0]), str(t[1]), str(t[2])))
+        rng = random.Random(args.reasoning_input_seed)
+        sampled = rng.sample(ordered, args.reasoning_input_triple_cap)
+        base_uri = set(sampled)
+        logger.warning(
+            "Capped materialization input triples | original={} | capped={} | seed={}",
+            len(base_uri_full),
+            len(base_uri),
+            args.reasoning_input_seed,
+        )
     abox_parse_seconds = time.perf_counter() - abox_parse_start
 
     materializer = JenaMaterializer()
@@ -90,7 +115,10 @@ def main() -> None:
         "closure_out": str(closure_out),
         "inferred_out": str(inferred_out),
         "schema_triples": len(schema_uri),
+        "base_triples_original": len(base_uri_full),
         "base_triples": len(base_uri),
+        "reasoning_input_triple_cap": args.reasoning_input_triple_cap,
+        "reasoning_input_seed": args.reasoning_input_seed,
         "closure_triples": len(closure_uri),
         "inferred_triples": len(inferred_uri),
         "tbox_parse_seconds": tbox_parse_seconds,
