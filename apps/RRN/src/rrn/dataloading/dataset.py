@@ -7,7 +7,7 @@ from pathlib import Path
 import csv
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 from loguru import logger
 from torch.utils.data import Dataset
@@ -132,6 +132,7 @@ class RRNDataset(Dataset):
         
         memberships_map = {} # (ind_name, cls_name) -> Membership
         triples_map = {} # (s_name, p_name, o_name) -> Triple
+        unknown_counts = {"class": 0, "relation": 0}
         
         def get_individual(name: str) -> Individual:
             if name not in individual_map:
@@ -139,29 +140,23 @@ class RRNDataset(Dataset):
                 individual_map[name] = Individual(index=idx, name=name)
             return individual_map[name]
 
-        def get_class(name: str) -> Class:
+        def get_class(name: str) -> Optional[Class]:
             if name not in class_map:
-                # Use schema index if available, else local mapping fallback?
-                # Schema assumes it knows all classes.
                 try:
                     idx = self.schema.get_class_index(name)
                 except KeyError:
-                    # Fallback or warning? 
-                    # For stability, we can add it to schema or just use a local index (might break global consistency)
-                    # But RRN model depends on fixed schema indices.
-                    # Let's hope schema scan covered it.
-                    # Logger warning?
-                    # For now, let's just assume schema is complete or use a hash/len fallback
-                    idx = -1 
+                    unknown_counts["class"] += 1
+                    return None
                 class_map[name] = Class(index=idx, name=name)
             return class_map[name]
 
-        def get_relation(name: str) -> Relation:
+        def get_relation(name: str) -> Optional[Relation]:
             if name not in relation_map:
                 try:
                     idx = self.schema.get_relation_index(name)
                 except KeyError:
-                    idx = -1
+                    unknown_counts["relation"] += 1
+                    return None
                 relation_map[name] = Relation(index=idx, name=name)
             return relation_map[name]
         
@@ -182,6 +177,8 @@ class RRNDataset(Dataset):
                     if key not in memberships_map:
                          ind = get_individual(s_name)
                          cls_obj = get_class(o_name)
+                         if cls_obj is None:
+                             continue
                          is_member = (int(row.get("label", 1)) == 1)
                          
                          m = Membership(
@@ -210,6 +207,8 @@ class RRNDataset(Dataset):
                     if key not in triples_map:
                         s_ind = get_individual(s_name)
                         p_rel = get_relation(p_name)
+                        if p_rel is None:
+                            continue
                         o_ind = get_individual(o_name)
                         
                         positive = (int(row.get("label", 1)) == 1)
@@ -235,6 +234,14 @@ class RRNDataset(Dataset):
 
         process_rows(facts, is_fact=True)
         process_rows(targets, is_fact=False)
+
+        if unknown_counts["class"] > 0 or unknown_counts["relation"] > 0:
+            logger.warning(
+                "Sample {} skipped out-of-schema symbols: unknown_classes={} unknown_relations={}",
+                sample_id,
+                unknown_counts["class"],
+                unknown_counts["relation"],
+            )
         
         kg.individuals = list(individual_map.values())
         kg.classes = list(class_map.values())

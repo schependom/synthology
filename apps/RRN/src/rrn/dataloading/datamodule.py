@@ -30,9 +30,30 @@ class RRNDataModule(pl.LightningDataModule):
     def populate_schema(self):
         """Helper to scan schema and populate config."""
 
-        # Use train path for scanning schema
-        train_path = self.cfg.data.dataset.train_path
-        self.schema = scan_schema(train_path)
+        # Build schema from all available splits to avoid val/test symbols getting
+        # an invalid fallback index at runtime.
+        dataset_cfg = self.cfg.data.dataset
+        paths_to_scan = []
+        for key in ("train_path", "val_path", "test_path"):
+            p = dataset_cfg.get(key)
+            if p:
+                paths_to_scan.append(p)
+
+        merged = Schema()
+        for path in paths_to_scan:
+            scanned = scan_schema(path)
+            for cls in scanned.class_names:
+                merged.add_class(cls)
+            for rel in scanned.relation_names:
+                merged.add_relation(rel)
+
+        self.schema = merged
+        logger.info(
+            "Merged schema from {} split(s): {} classes, {} relations.",
+            len(paths_to_scan),
+            len(self.schema.classes),
+            len(self.schema.relations),
+        )
 
         # If classes and relations are found, populate the config accordingly
         if "model" in self.cfg:

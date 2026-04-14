@@ -470,6 +470,19 @@ class RRNSystem(pl.LightningModule):
 
         probs = probs.float()
         targets = targets.float()
+
+        # Binary metrics are only meaningful if both classes are present.
+        pos_count = (targets == 1.0).sum().item()
+        neg_count = (targets == 0.0).sum().item()
+        if pos_count == 0 or neg_count == 0:
+            return {
+                "precision": float("nan"),
+                "recall": float("nan"),
+                "f1": float("nan"),
+                "fpr": float("nan"),
+                "auc_roc": float("nan"),
+            }
+
         preds = (probs >= 0.5).float()
 
         tp = ((preds == 1.0) & (targets == 1.0)).sum().float()
