@@ -17,9 +17,12 @@ RUN_REPORT="${RUN_REPORT:-1}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-cd "${REPO_ROOT}"
+. "${REPO_ROOT}/jobscripts/common.sh"
 
-source .venv/bin/activate
+synthology_enter_repo
+synthology_setup_runtime_storage
+
+synthology_activate_python_env 0
 
 run_cmd() {
   echo

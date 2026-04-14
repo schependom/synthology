@@ -10,8 +10,11 @@
 
 set -uo pipefail  # no -e: parity loop non-zero exit must not kill the job
 
-REPO_ROOT="/dtu/blackhole/16/221590/synthology"
-cd "${REPO_ROOT}"
+REPO_ROOT="${REPO_ROOT:-/dtu/blackhole/16/221590/synthology}"
+. "${REPO_ROOT}/jobscripts/common.sh"
+
+synthology_enter_repo
+synthology_setup_runtime_storage
 
 MAX_ATTEMPTS="${MAX_ATTEMPTS:-250}"
 MIN_DEEP_HOPS="${MIN_DEEP_HOPS:-3}"
@@ -22,16 +25,13 @@ EDGE_DENSITY_TOLERANCE_PCT="${EDGE_DENSITY_TOLERANCE_PCT:-60}"
 TARGET_RATIO_TOLERANCE_PCT="${TARGET_RATIO_TOLERANCE_PCT:-30}"
 INFERRED_SHARE_TOLERANCE_PCT="${INFERRED_SHARE_TOLERANCE_PCT:-30}"
 
-if command -v module >/dev/null 2>&1; then
-  module load python3/3.9.19 || true
-  module load openjdk/21 || true
-fi
+synthology_load_modules python3/3.9.19 openjdk/21
 
 export MAVEN_HOME="apache-maven-3.9.13"
 export PATH="${MAVEN_HOME}/bin:${PATH}"
 
-source .venv/bin/activate
-uv sync
+synthology_activate_python_env 0
+synthology_sync_deps
 
 echo "Starting Exp2 parity loop - $(date)"
 echo "Parity settings: deep=${TOLERANCE_PCT}% node=${NODE_TOLERANCE_PCT}% edge_density=${EDGE_DENSITY_TOLERANCE_PCT}% target_ratio=${TARGET_RATIO_TOLERANCE_PCT}% inferred_share=${INFERRED_SHARE_TOLERANCE_PCT}%"

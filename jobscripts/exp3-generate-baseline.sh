@@ -12,6 +12,11 @@ export MAVEN_HOME="apache-maven-3.9.13"
 export PATH="${MAVEN_HOME}/bin:${PATH}"
 
 set -euo pipefail
+REPO_ROOT="${REPO_ROOT:-${LSB_SUBCWD:-$PWD}}"
+. "${REPO_ROOT}/jobscripts/common.sh"
+
+synthology_enter_repo
+synthology_setup_runtime_storage
 mkdir -p logs
 
 # Override these at submit time if needed, e.g.:
@@ -25,10 +30,7 @@ SYNTHOLOGY_EXP3_ABOX_JENA_XMX_MB="${SYNTHOLOGY_EXP3_ABOX_JENA_XMX_MB:-8192}"
 SYNTHOLOGY_EXP3_FINAL_REASONING_INPUT_TRIPLE_CAP="${SYNTHOLOGY_EXP3_FINAL_REASONING_INPUT_TRIPLE_CAP:-15000}"
 SYNTHOLOGY_EXP3_FINAL_JENA_PROFILE="${SYNTHOLOGY_EXP3_FINAL_JENA_PROFILE:-owl_mini}"
 
-if command -v module >/dev/null 2>&1; then
-  module load python3/3.9.19 || true
-  module load openjdk/21 || true
-fi
+synthology_load_modules python3/3.9.19 openjdk/21
 
 export MAVEN_HOME="${MAVEN_HOME:-apache-maven-3.9.13}"
 export PATH="${MAVEN_HOME}/bin:${PATH}"
@@ -45,8 +47,8 @@ export SYNTHOLOGY_EXP3_ABOX_JENA_XMX_MB
 export SYNTHOLOGY_EXP3_FINAL_REASONING_INPUT_TRIPLE_CAP
 export SYNTHOLOGY_EXP3_FINAL_JENA_PROFILE
 
-source .venv/bin/activate
-uv sync
+synthology_activate_python_env 0
+synthology_sync_deps
 
 echo "Starting Exp3 baseline generation"
 echo "  universities=${UNIVERSITIES}"

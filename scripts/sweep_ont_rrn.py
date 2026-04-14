@@ -24,6 +24,25 @@ def run_command(command, env=None):
     return process.returncode
 
 
+def apply_runtime_storage_overrides(env, base_dir):
+    runtime_root = os.path.join(os.path.abspath(base_dir), ".cache", "runtime")
+    path_map = {
+        "TMPDIR": os.path.join(runtime_root, "tmp"),
+        "XDG_CACHE_HOME": os.path.join(runtime_root, "xdg-cache"),
+        "XDG_CONFIG_HOME": os.path.join(runtime_root, "xdg-config"),
+        "XDG_DATA_HOME": os.path.join(runtime_root, "xdg-data"),
+        "XDG_STATE_HOME": os.path.join(runtime_root, "xdg-state"),
+        "WANDB_DIR": os.path.join(runtime_root, "wandb"),
+        "WANDB_CACHE_DIR": os.path.join(runtime_root, "wandb-cache"),
+        "WANDB_ARTIFACT_DIR": os.path.join(runtime_root, "wandb-artifacts"),
+    }
+
+    for path in path_map.values():
+        os.makedirs(path, exist_ok=True)
+    for key, value in path_map.items():
+        env.setdefault(key, value)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run WandB sweep with ont_generator and RRN")
 
@@ -90,6 +109,7 @@ def main():
     # Pass current env (important for wandb if it sets vars)
     env = os.environ.copy()
     env["SYNTHOLOGY_ROOT"] = os.getcwd()
+    apply_runtime_storage_overrides(env, os.getcwd())
 
     ret_code = run_command(gen_cmd, env=env)
 

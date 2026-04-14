@@ -1589,6 +1589,7 @@ def _run_experiment_spec(spec: ExperimentRunSpec) -> Path:
 def _run_logged_command(command: str, log_path: Path, cwd: Optional[Path] = None) -> None:
     log_path.parent.mkdir(parents=True, exist_ok=True)
     environment = os.environ.copy()
+    _apply_runtime_storage_overrides(environment, cwd or REPO_ROOT)
     _apply_global_hpc_heap_overrides(environment)
     environment.setdefault("PYTHONUNBUFFERED", "1")
     environment.setdefault("LOGURU_COLORIZE", "1")
@@ -1619,6 +1620,25 @@ def _run_logged_command(command: str, log_path: Path, cwd: Optional[Path] = None
 
     if return_code != 0:
         raise subprocess.CalledProcessError(return_code, command)
+
+
+def _apply_runtime_storage_overrides(environment: Dict[str, str], base_dir: Path) -> None:
+    runtime_root = Path(base_dir).resolve() / ".cache" / "runtime"
+    path_map = {
+        "TMPDIR": runtime_root / "tmp",
+        "XDG_CACHE_HOME": runtime_root / "xdg-cache",
+        "XDG_CONFIG_HOME": runtime_root / "xdg-config",
+        "XDG_DATA_HOME": runtime_root / "xdg-data",
+        "XDG_STATE_HOME": runtime_root / "xdg-state",
+        "WANDB_DIR": runtime_root / "wandb",
+        "WANDB_CACHE_DIR": runtime_root / "wandb-cache",
+        "WANDB_ARTIFACT_DIR": runtime_root / "wandb-artifacts",
+    }
+
+    for path in path_map.values():
+        Path(path).mkdir(parents=True, exist_ok=True)
+    for key, value in path_map.items():
+        environment.setdefault(key, str(value))
 
 
 def _apply_global_hpc_heap_overrides(environment: Dict[str, str]) -> None:

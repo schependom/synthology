@@ -17,18 +17,19 @@
 
 set -e
 
-cd "${LSB_SUBCWD:-$PWD}"
+REPO_ROOT="${LSB_SUBCWD:-$PWD}"
+. "${REPO_ROOT}/jobscripts/common.sh"
 
+synthology_enter_repo
 mkdir -p logs checkpoints/exp1/random
+synthology_setup_runtime_storage
 
 echo "Activating environment"
-module load python3/3.9.19
-module load cuda/11.7
-source .env
-source .venv/bin/activate
+synthology_load_modules python3/3.9.19 cuda/11.7
+synthology_activate_python_env 1
 
 echo "Syncing dependencies"
-uv sync
+synthology_sync_deps
 
 echo "Starting Exp1 training: random"
 uv run --package rrn python -m rrn.train --config-name=exp1_random_hpc

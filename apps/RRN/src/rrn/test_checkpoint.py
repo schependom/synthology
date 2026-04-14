@@ -20,6 +20,25 @@ load_dotenv()
 REPO_ROOT = os.environ.get("SYNTHOLOGY_ROOT", "../../../..")
 
 
+def _configure_runtime_storage(log_dir: str) -> None:
+    runtime_root = os.path.join(os.path.abspath(log_dir), ".runtime")
+    path_map = {
+        "TMPDIR": os.path.join(runtime_root, "tmp"),
+        "XDG_CACHE_HOME": os.path.join(runtime_root, "xdg-cache"),
+        "XDG_CONFIG_HOME": os.path.join(runtime_root, "xdg-config"),
+        "XDG_DATA_HOME": os.path.join(runtime_root, "xdg-data"),
+        "XDG_STATE_HOME": os.path.join(runtime_root, "xdg-state"),
+        "WANDB_DIR": os.path.join(runtime_root, "wandb"),
+        "WANDB_CACHE_DIR": os.path.join(runtime_root, "wandb-cache"),
+        "WANDB_ARTIFACT_DIR": os.path.join(runtime_root, "wandb-artifacts"),
+    }
+
+    for path in set(path_map.values()):
+        os.makedirs(path, exist_ok=True)
+    for key, value in path_map.items():
+        os.environ.setdefault(key, value)
+
+
 def _resolve_checkpoint_path(cfg: DictConfig) -> str:
     explicit_path = cfg.get("test", {}).get("checkpoint_path", None)
     if explicit_path:
@@ -44,6 +63,8 @@ def _resolve_checkpoint_path(cfg: DictConfig) -> str:
 
 @hydra.main(version_base=None, config_path=f"{REPO_ROOT}/configs/rrn", config_name="config")
 def test_checkpoint(cfg: DictConfig) -> None:
+    _configure_runtime_storage(cfg.log_dir)
+
     logger.info(f"Starting RRN checkpoint evaluation with configuration:\n{OmegaConf.to_yaml(cfg)}")
 
     pl.seed_everything(42, workers=True)
