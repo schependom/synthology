@@ -568,7 +568,7 @@ class RRNSystem(pl.LightningModule):
         # Create weights mask dynamically to counteract class imbalance
         num_pos = ((cls_targets == 1.0) & (mask == 1.0)).sum()
         num_neg = ((cls_targets == 0.0) & (mask == 1.0)).sum()
-        
+
         all_weights = torch.ones_like(cls_targets, device=device)
 
         if num_pos > 0 and num_neg > 0:
