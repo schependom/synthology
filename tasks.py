@@ -1464,10 +1464,14 @@ def exp3_generate_synthology(ctx: Context, universities=5, args=""):
     )
 
     owl2bench_env = _resolve_owl2bench_env(run_dir)
+    synth_output_root = f"data/exp3/synthology"
     cmd = _build_uv_command(
         "owl2bench",
         "owl2bench.pipeline",
-        overrides=(f"dataset.universities=[{universities}]",),
+        overrides=(
+            f"dataset.universities=[{universities}]",
+            f"dataset.output_dir={synth_output_root}",
+        ),
         args=args,
         env=owl2bench_env,
     )
@@ -1482,14 +1486,220 @@ def exp3_generate_synthology(ctx: Context, universities=5, args=""):
                 "universities": universities,
                 "args": args,
                 "config_files": ["configs/owl2bench/config.yaml", "configs/owl2bench/config_toy.yaml"],
-                "output_dir": f"data/owl2bench/output/owl2bench_{universities}",
-                "raw_output_dir": f"data/owl2bench/output/raw/owl2bench_{universities}",
+                "output_dir": f"{synth_output_root}/owl2bench_{universities}",
+                "raw_output_dir": f"{synth_output_root}/raw/owl2bench_{universities}",
             },
             cwd=REPO_ROOT,
             artifact_paths=(
-                str(REPO_ROOT / "data" / "owl2bench" / "output" / f"owl2bench_{universities}"),
-                str(REPO_ROOT / "data" / "owl2bench" / "output" / "raw" / f"owl2bench_{universities}"),
+                str(REPO_ROOT / "data" / "exp3" / "synthology" / f"owl2bench_{universities}"),
+                str(REPO_ROOT / "data" / "exp3" / "synthology" / "raw" / f"owl2bench_{universities}"),
             ),
+        )
+    )
+
+
+@task
+def exp3_balance_data(
+    ctx: Context,
+    universities=5,
+    baseline_dir="",
+    synthology_dir="",
+    output_dir="",
+    seed=23,
+):
+    """Downsamples Synthology targets to match baseline per-split label counts for Exp 3."""
+    print(f"\nBalancing Exp 3 Synthology targets to baseline counts (universities={universities}).")
+    run_dir = _make_run_archive("exp3", "balance_data", label=str(universities))
+
+    baseline_root = Path(baseline_dir) if baseline_dir else REPO_ROOT / "data" / "owl2bench" / "output" / f"owl2bench_{universities}"
+    synthology_root = Path(synthology_dir) if synthology_dir else REPO_ROOT / "data" / "exp3" / "synthology" / f"owl2bench_{universities}"
+    output_root = Path(output_dir) if output_dir else REPO_ROOT / "data" / "exp3" / "balanced" / f"owl2bench_{universities}"
+
+    if not baseline_root.exists():
+        raise FileNotFoundError(f"Baseline dataset directory not found: {baseline_root}")
+    if not synthology_root.exists():
+        raise FileNotFoundError(f"Synthology dataset directory not found: {synthology_root}")
+
+    import random
+
+    rng = random.Random(int(seed))
+    summary: Dict[str, Any] = {
+        "baseline_dir": str(baseline_root),
+        "synthology_dir": str(synthology_root),
+        "output_dir": str(output_root),
+        "seed": int(seed),
+        "splits": {},
+    }
+
+    for split in ("train", "val", "test"):
+        baseline_split = baseline_root / split
+        synthology_split = synthology_root / split
+        out_split = output_root / split
+
+        baseline_targets = baseline_split / "targets.csv"
+        synthology_targets = synthology_split / "targets.csv"
+        synthology_facts = synthology_split / "facts.csv"
+
+        if not baseline_targets.exists() or not synthology_targets.exists():
+            continue
+
+        baseline_rows = _read_csv_rows(baseline_targets)
+        synth_rows = _read_csv_rows(synthology_targets)
+
+        baseline_pos = [row for row in baseline_rows if not _is_negative_row(row)]
+        baseline_neg = [row for row in baseline_rows if _is_negative_row(row)]
+        synth_pos = [row for row in synth_rows if not _is_negative_row(row)]
+        synth_neg = [row for row in synth_rows if _is_negative_row(row)]
+
+        target_pos = min(len(baseline_pos), len(synth_pos))
+        target_neg = min(len(baseline_neg), len(synth_neg))
+
+        selected_pos = rng.sample(synth_pos, target_pos) if target_pos < len(synth_pos) else list(synth_pos)
+        selected_neg = rng.sample(synth_neg, target_neg) if target_neg < len(synth_neg) else list(synth_neg)
+        selected_rows = selected_pos + selected_neg
+        rng.shuffle(selected_rows)
+
+        out_split.mkdir(parents=True, exist_ok=True)
+        if synthology_facts.exists():
+            shutil.copy2(synthology_facts, out_split / "facts.csv")
+        csv_fieldnames = list(synth_rows[0].keys()) if synth_rows else None
+        _write_csv_rows(out_split / "targets.csv", selected_rows, fieldnames=csv_fieldnames)
+
+        summary["splits"][split] = {
+            "baseline_positive": len(baseline_pos),
+            "baseline_negative": len(baseline_neg),
+            "synthology_positive": len(synth_pos),
+            "synthology_negative": len(synth_neg),
+            "selected_positive": len(selected_pos),
+            "selected_negative": len(selected_neg),
+            "selected_total": len(selected_rows),
+        }
+
+    _write_json(
+        run_dir / "manifest.json",
+        {
+            "experiment": "exp3",
+            "task": "balance_data",
+            "universities": universities,
+            "summary": summary,
+        },
+    )
+    _write_text(run_dir / "run.log", json.dumps(summary, indent=2) + "\n")
+    _archive_path(output_root, run_dir / "artifacts")
+
+
+@task
+def exp3_generate_gold_test(
+    ctx: Context,
+    universities=5,
+    source_test_dir="",
+    output_test_dir="",
+):
+    """Freezes an Exp 3 test split for paper evaluation reproducibility."""
+    print(f"\nFreezing Exp 3 gold test split (universities={universities}).")
+    run_dir = _make_run_archive("exp3", "generate_gold_test", label=str(universities))
+
+    source_dir = Path(source_test_dir) if source_test_dir else REPO_ROOT / "data" / "exp3" / "balanced" / f"owl2bench_{universities}" / "test"
+    if not source_dir.exists():
+        source_dir = REPO_ROOT / "data" / "exp3" / "synthology" / f"owl2bench_{universities}" / "test"
+    if not source_dir.exists():
+        source_dir = REPO_ROOT / "data" / "owl2bench" / "output" / f"owl2bench_{universities}" / "test"
+
+    output_dir_path = Path(output_test_dir) if output_test_dir else REPO_ROOT / "data" / "exp3" / "frozen_test" / f"owl2bench_{universities}" / "test"
+    output_dir_path.mkdir(parents=True, exist_ok=True)
+
+    facts_src = source_dir / "facts.csv"
+    targets_src = source_dir / "targets.csv"
+    if not facts_src.exists() or not targets_src.exists():
+        raise FileNotFoundError(
+            f"Expected facts.csv and targets.csv in source test dir: {source_dir}"
+        )
+
+    shutil.copy2(facts_src, output_dir_path / "facts.csv")
+    shutil.copy2(targets_src, output_dir_path / "targets.csv")
+
+    summary = {
+        "source_test_dir": str(source_dir),
+        "output_test_dir": str(output_dir_path),
+        "facts_rows": _count_csv_rows(output_dir_path / "facts.csv"),
+        "targets_rows": _count_csv_rows(output_dir_path / "targets.csv"),
+    }
+
+    _write_json(
+        run_dir / "manifest.json",
+        {
+            "experiment": "exp3",
+            "task": "generate_gold_test",
+            "universities": universities,
+            "summary": summary,
+        },
+    )
+    _write_text(run_dir / "run.log", json.dumps(summary, indent=2) + "\n")
+    _archive_path(output_dir_path.parent, run_dir / "artifacts")
+
+
+@task
+def exp3_train_rrn(ctx: Context, dataset="baseline", universities=5, args=""):
+    """Trains RRN for Exp 3 on baseline or synthology-aligned OWL2Bench splits."""
+    dataset_key = dataset.strip().lower()
+    if dataset_key not in {"baseline", "synthology"}:
+        raise ValueError("dataset must be either 'baseline' or 'synthology'")
+
+    if dataset_key == "baseline":
+        dataset_root = REPO_ROOT / "data" / "owl2bench" / "output" / f"owl2bench_{universities}"
+    else:
+        balanced_root = REPO_ROOT / "data" / "exp3" / "balanced" / f"owl2bench_{universities}"
+        synth_root = REPO_ROOT / "data" / "exp3" / "synthology" / f"owl2bench_{universities}"
+        if balanced_root.exists():
+            dataset_root = balanced_root
+        elif synth_root.exists():
+            dataset_root = synth_root
+        else:
+            raise FileNotFoundError(
+                "Synthology dataset not found. Run exp3-generate-synthology first or provide balanced data via exp3-balance-data."
+            )
+
+    for split in ("train", "val", "test"):
+        split_path = dataset_root / split
+        if not split_path.exists():
+            raise FileNotFoundError(f"Missing split directory for Exp3 RRN training: {split_path}")
+
+    print(f"\nTraining Exp 3 RRN on: {dataset_key} (universities={universities})")
+    run_dir = _make_run_archive("exp3", "train_rrn", label=dataset_key)
+
+    override_args = " ".join(
+        [
+            f"data.train_path={dataset_root / 'train'}",
+            f"data.val_path={dataset_root / 'val'}",
+            f"data.test_path={dataset_root / 'test'}",
+            f"logger.name=exp3_{dataset_key}_owl2bench_u{universities}",
+            "logger.group=exp3_scaling",
+        ]
+    )
+    combined_args = " ".join(part for part in (override_args, args) if part).strip()
+
+    cmd = _build_uv_command(
+        "rrn",
+        "rrn.train",
+        config_name="exp3_owl2bench_hpc",
+        args=combined_args,
+        env={"PYTHONUNBUFFERED": "1", "LOGURU_COLORIZE": "1"},
+    )
+    _run_experiment_spec(
+        ExperimentRunSpec(
+            experiment="exp3",
+            task_name="train_rrn",
+            label=dataset_key,
+            command=cmd,
+            config_paths=("configs/rrn/config.yaml", "configs/rrn/exp3_owl2bench_hpc.yaml"),
+            manifest={
+                "dataset": dataset_key,
+                "universities": universities,
+                "dataset_root": str(dataset_root),
+                "args": args,
+                "effective_args": combined_args,
+                "config_files": ["configs/rrn/config.yaml", "configs/rrn/exp3_owl2bench_hpc.yaml"],
+            },
         )
     )
 
@@ -1877,6 +2087,33 @@ def _write_json(path: Path, payload: dict) -> None:
 def _write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+
+
+def _read_csv_rows(path: Path) -> List[Dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        return [dict(row) for row in csv.DictReader(handle)]
+
+
+def _write_csv_rows(path: Path, rows: List[Dict[str, str]], fieldnames: Optional[List[str]] = None) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    resolved_fieldnames = list(fieldnames or (list(rows[0].keys()) if rows else []))
+    if not resolved_fieldnames:
+        path.write_text("", encoding="utf-8")
+        return
+
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=resolved_fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _count_csv_rows(path: Path) -> int:
+    if not path.exists():
+        return 0
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        return sum(1 for _ in csv.DictReader(handle))
 
 
 def _compose_shell_command(parts: Iterable[str]) -> str:
