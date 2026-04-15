@@ -34,48 +34,48 @@ This repository implements this generator and evaluates the quality of the gener
 ## Table of Contents <!-- omit in toc -->
 
 - [Introduction](#introduction)
-  - [Context \& Problem Statement](#context--problem-statement)
-  - [Hypothesis and Approach](#hypothesis-and-approach)
+    - [Context \& Problem Statement](#context--problem-statement)
+    - [Hypothesis and Approach](#hypothesis-and-approach)
 - [Features](#features)
 - [Installation](#installation)
-  - [macOS/Linux](#macoslinux)
-    - [UV installation](#uv-installation)
-    - [DLV](#dlv)
-    - [Vendor folders (OWL2Bench and Apache Jena)](#vendor-folders-owl2bench-and-apache-jena)
-  - [Windows](#windows)
-    - [Activation of virtual environment](#activation-of-virtual-environment)
-    - [DLV](#dlv-1)
-    - [Development tools](#development-tools)
-  - [High Performance Cluster (HPC)](#high-performance-cluster-hpc)
-    - [Dependencies](#dependencies)
+    - [macOS/Linux](#macoslinux)
+        - [UV installation](#uv-installation)
+        - [DLV](#dlv)
+        - [Vendor folders (OWL2Bench and Apache Jena)](#vendor-folders-owl2bench-and-apache-jena)
+    - [Windows](#windows)
+        - [Activation of virtual environment](#activation-of-virtual-environment)
+        - [DLV](#dlv-1)
+        - [Development tools](#development-tools)
+    - [High Performance Cluster (HPC)](#high-performance-cluster-hpc)
+        - [Dependencies](#dependencies)
 - [Reproducability](#reproducability)
 - [Training RRN model](#training-rrn-model)
 - [Data generation](#data-generation)
-  - [Ontologies](#ontologies)
-  - [Standard Data Format](#standard-data-format)
-  - [ASP solver (Family Tree)](#asp-solver-family-tree)
-  - [Ontology-based generator (Synthology)](#ontology-based-generator-synthology)
+    - [Ontologies](#ontologies)
+    - [Standard Data Format](#standard-data-format)
+    - [ASP solver (Family Tree)](#asp-solver-family-tree)
+    - [Ontology-based generator (Synthology)](#ontology-based-generator-synthology)
 - [Visual verification](#visual-verification)
-  - [Category A: OWL2Bench generator checks](#category-a-owl2bench-generator-checks)
-  - [Category B: UDM baseline checks](#category-b-udm-baseline-checks)
-  - [Category C: Synthology ont\_generator checks](#category-c-synthology-ont_generator-checks)
-  - [Category D: Cross-generator paper plots](#category-d-cross-generator-paper-plots)
+    - [Category A: OWL2Bench generator checks](#category-a-owl2bench-generator-checks)
+    - [Category B: UDM baseline checks](#category-b-udm-baseline-checks)
+    - [Category C: Synthology ont_generator checks](#category-c-synthology-ont_generator-checks)
+    - [Category D: Cross-generator paper plots](#category-d-cross-generator-paper-plots)
 - [Hyperparameter Optimization (WandB Sweeps)](#hyperparameter-optimization-wandb-sweeps)
 - [Custom configurations](#custom-configurations)
-  - [1. Edit configuration files](#1-edit-configuration-files)
-  - [2. Override configurations from command line](#2-override-configurations-from-command-line)
+    - [1. Edit configuration files](#1-edit-configuration-files)
+    - [2. Override configurations from command line](#2-override-configurations-from-command-line)
 - [Experiment Protocols](#experiment-protocols)
 - [OWL2 RL Profile Coverage and Appendix Tables](#owl2-rl-profile-coverage-and-appendix-tables)
-  - [Implemented OWL2 RL Subset](#implemented-owl2-rl-subset)
-  - [Currently Missing or Partial Constructs](#currently-missing-or-partial-constructs)
+    - [Implemented OWL2 RL Subset](#implemented-owl2-rl-subset)
+    - [Currently Missing or Partial Constructs](#currently-missing-or-partial-constructs)
 - [Appendix](#appendix)
-  - [Appendix Table A: Configuration Parameters (1/2)](#appendix-table-a-configuration-parameters-12)
-  - [Appendix Table B: Configuration Parameters (2/2)](#appendix-table-b-configuration-parameters-22)
-  - [Appendix Table C: Algorithm Terminology](#appendix-table-c-algorithm-terminology)
+    - [Appendix Table A: Configuration Parameters (1/2)](#appendix-table-a-configuration-parameters-12)
+    - [Appendix Table B: Configuration Parameters (2/2)](#appendix-table-b-configuration-parameters-22)
+    - [Appendix Table C: Algorithm Terminology](#appendix-table-c-algorithm-terminology)
 - [Development](#development)
-  - [`uv`](#uv)
+    - [`uv`](#uv)
 - [Known issues](#known-issues)
-  - [1. Python output buffering](#1-python-output-buffering)
+    - [1. Python output buffering](#1-python-output-buffering)
 
 ## Features
 
@@ -370,7 +370,8 @@ Use these commands to verify Apache Jena-backed UDM materialization and inspect 
 
     This generates a tiny baseline dataset with Jena reasoning and writes a rendered sample graph to `visual-verification/exp2_smoke`, which is useful for quickly checking inferred-fact presence and graph structure.
 
-  2. **Paper-ready UDM visual verification (Synthology-comparable PDFs)**
+2. **Paper-ready UDM visual verification (Synthology-comparable PDFs)**
+
 
     ```bash
     uv run invoke udm-visual-verification
@@ -383,7 +384,8 @@ Use these commands to verify Apache Jena-backed UDM materialization and inspect 
     uv run invoke udm-visual-verification --n-samples=1 --args="filters.include_negatives=true filters.max_edges=120 render.show_edge_labels=true"
     ```
 
-  3. **Family-tree UDM baseline generation (task wrapper)**
+3. **Family-tree UDM baseline generation (task wrapper)**
+
 
     ```bash
     uv run invoke gen-ft-fc
@@ -460,6 +462,144 @@ Use this report command when you want a side-by-side visual summary of baseline 
     ```
 
     This generates consolidated inspection plots (base vs inferred, hop distributions, parity-attempt trend) so you can validate dataset behavior before or alongside model training.
+
+2. **Generate compact reviewer-facing PDFs (family tree + OWL2Bench)**
+
+    Use this sequence to create small side-by-side Synthology vs UDM baseline graphs in PDF format.
+
+    ```bash
+    # 1) Ensure Exp2 comparison inputs exist (family tree)
+    uv run invoke exp2-generate-synthology
+    uv run invoke exp2-generate-baseline
+
+    # 2) Ensure Exp3 comparison inputs exist (OWL2Bench)
+    #    (Synthology output is written to a dedicated path so it won't be overwritten.)
+    uv run invoke exp3-generate-synthology --universities=1 \
+      --args="dataset.output_dir=data/exp3/smoke/synth_ref dataset.inferred_target_limit=80000 dataset.bfs.sample_count=1200 dataset.bfs.max_individuals_per_sample=100"
+    uv run invoke exp3-generate-baseline --universities=1
+
+    # 3) Render compact paper graphs
+    uv run invoke paper-visual-report \
+      --exp2-synth-targets=data/exp2/synthology/family_tree/train/targets.csv \
+      --exp2-baseline-targets=data/exp2/baseline/family_tree/train/targets.csv \
+      --exp2-parity-summary=reports/experiment_runs/2026-04-01/exp2/parity_report/210943_parity/parity_report.json \
+      --exp3-synth-targets=data/exp3/smoke/synth_ref/owl2bench_1/train/targets.csv \
+      --exp3-baseline-targets=data/owl2bench/output/owl2bench_1/train/targets.csv \
+      --out-dir=reports/paper_small_graphs
+    ```
+
+    Expected compact outputs (both `.png` and `.pdf`) in `reports/paper_small_graphs/`:
+    - `family_tree_density_small.*`
+    - `family_tree_multihop_small.*`
+    - `owl2bench_density_small.*`
+    - `owl2bench_multihop_small.*`
+    - `summary.json`
+
+3. **HPC commands for full-sized chart generation (no re-generation of data)**
+
+    If your HPC workspace already contains generated Exp2/Exp3 datasets, run only the plotting/reporting commands below.
+
+    ```bash
+    # Exp2 distribution report (bar plots, hops, predicate/type distributions)
+    uv run invoke exp2-report-data
+
+    # Exp3 distribution report (same analyzer, Exp3 compare config)
+    uv run invoke exp3-report-data --universities=50 \
+      --baseline-path=data/owl2bench/output_baseline/owl2bench_50 \
+      --synthology-path=data/owl2bench/output/owl2bench_50
+
+    # Combined paper-style charts from existing full datasets
+    uv run invoke paper-visual-report \
+      --exp2-synth-targets=data/exp2/synthology/family_tree/train/targets.csv \
+      --exp2-baseline-targets=data/exp2/baseline/family_tree/train/targets.csv \
+      --exp2-parity-summary=data/exp2/baseline/parity_runs/parity_report.json \
+      --exp3-synth-targets=data/owl2bench/output/owl2bench_50/train/targets.csv \
+      --exp3-baseline-targets=data/owl2bench/output_baseline/owl2bench_50/train/targets.csv \
+      --exp3-abox=data/owl2bench/output/raw/owl2bench_50/OWL2RL-50.owl \
+      --exp3-inferred=data/exp3/baseline/owl2bench_50/inferred.nt \
+      --out-dir=reports/paper_hpc
+    ```
+
+    Notes:
+    - If your baseline split CSVs are stored under a different path than `data/owl2bench/output_baseline/...`, replace `--exp3-baseline-targets` with the correct existing location.
+    - If parity summary is archived under `reports/experiment_runs/...`, pass that file instead of `data/exp2/baseline/parity_runs/parity_report.json`.
+
+4. **Export LaTeX table rows directly from run artifacts**
+
+    ```bash
+    uv run invoke paper-export-tables \
+      --out-dir=paper/generated \
+      --model-metrics=paper/metrics/model_results.json
+    ```
+
+    This writes reusable row snippets for the paper tables:
+    - `paper/generated/exp1_results_rows.tex`
+    - `paper/generated/overall_performance_rows.tex`
+    - `paper/generated/generation_metrics_rows.tex`
+    - `paper/generated/timing_breakdown_rows.tex`
+
+    Use these snippets to populate the corresponding result tables in the manuscript reproducibly.
+
+5. **Generate publication-quality hop charts with MATLAB (KUL colors + LaTeX labels)**
+
+    ```bash
+    # Make sure compare summaries exist first
+    uv run invoke exp2-report-data
+    uv run invoke exp3-report-data --universities=50 \
+      --baseline-path=data/owl2bench/output_baseline/owl2bench_50 \
+      --synthology-path=data/owl2bench/output/owl2bench_50
+
+    # Then run from MATLAB/Octave
+    cd matlab
+    exp23_hop_distribution
+    ```
+
+    The script reads method dataset paths from the latest compare run summaries and exports:
+    - `paper/figures/exp2_hop_distr.pdf`
+    - `paper/figures/exp3_hop_distr.pdf` (when Exp3 summary exists)
+
+    To pin a specific run instead of using latest, set `exp2SummaryOverride` / `exp3SummaryOverride` at the top of `matlab/exp23_hop_distribution.m`.
+
+6. **Generate small local KG PDFs (actual graph visuals)**
+
+    These commands generate visual graph samples (not aggregate charts), so reviewers can inspect how the KGs look.
+
+    ```bash
+    # Family Tree: Synthology + UDM baseline small graph sets
+    uv run invoke synthology-visual-verification
+    uv run invoke udm-visual-verification --n-samples=3
+
+    # OWL2Bench: one baseline sample and one synthology sample
+    uv run --package kgvisualiser python -m kgvisualiser.visualize \
+      io.input_csv=data/owl2bench/output/owl2bench_1/train/facts.csv \
+      io.targets_csv=data/owl2bench/output/owl2bench_1/train/targets.csv \
+      io.sample_id=710367 \
+      output.dir=visual-verification/graphs \
+      output.name_template=owl2bench_baseline_sample_710367 \
+      output.format=pdf \
+      filters.include_negatives=false \
+      filters.max_edges=90 \
+      render.class_nodes=false \
+      render.show_edge_labels=true
+
+    uv run --package kgvisualiser python -m kgvisualiser.visualize \
+      io.input_csv=data/exp3/smoke/synth_ref/owl2bench_1/train/facts.csv \
+      io.targets_csv=data/exp3/smoke/synth_ref/owl2bench_1/train/targets.csv \
+      io.sample_id=710000 \
+      output.dir=visual-verification/graphs \
+      output.name_template=owl2bench_synthology_sample_710000 \
+      output.format=pdf \
+      filters.include_negatives=false \
+      filters.max_edges=90 \
+      render.class_nodes=false \
+      render.show_edge_labels=true
+    ```
+
+    Expected local KG PDFs in `visual-verification/graphs/` include:
+    - `train_sample_0.pdf`, `train_sample_1.pdf`, `train_sample_2.pdf` (Synthology family tree)
+    - `udm_baseline_sample_*.pdf` (UDM family tree)
+    - `owl2bench_baseline_sample_710367.pdf`
+    - `owl2bench_synthology_sample_710000.pdf`
 
 ## Hyperparameter Optimization (WandB Sweeps)
 

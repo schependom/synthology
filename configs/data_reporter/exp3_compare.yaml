@@ -1,0 +1,24 @@
+defaults:
+  - config
+  - _self_
+
+# Default paths follow the convention used in the paper runbook.
+# Override with Hydra if your run directories differ.
+methods:
+  - name: baseline
+    path: data/owl2bench/output_baseline/owl2bench_20
+  - name: synthology
+    path: data/owl2bench/output/owl2bench_20
+
+splits:
+  - train
+  - val
+  - test
+
+output:
+  dir: reports/exp3/compare
+  save_plots: true
+  top_k_predicates: 15
+
+logging:
+  level: INFO

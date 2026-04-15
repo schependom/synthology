@@ -466,6 +466,7 @@ class RRNSystem(pl.LightningModule):
                 "f1": float("nan"),
                 "fpr": float("nan"),
                 "auc_roc": float("nan"),
+                "pr_auc": float("nan"),
             }
 
         probs = probs.float()
@@ -481,6 +482,7 @@ class RRNSystem(pl.LightningModule):
                 "f1": float("nan"),
                 "fpr": float("nan"),
                 "auc_roc": float("nan"),
+                "pr_auc": float("nan"),
             }
 
         preds = (probs >= 0.5).float()
@@ -500,6 +502,7 @@ class RRNSystem(pl.LightningModule):
             f1 = torch.tensor(float("nan"), device=probs.device)
 
         auc_roc = self._compute_auc_roc(probs, targets)
+        pr_auc = self._compute_pr_auc(probs, targets)
 
         return {
             "precision": precision.item() if not torch.isnan(precision) else float("nan"),
@@ -507,6 +510,7 @@ class RRNSystem(pl.LightningModule):
             "f1": f1.item() if not torch.isnan(f1) else float("nan"),
             "fpr": fpr.item() if not torch.isnan(fpr) else float("nan"),
             "auc_roc": auc_roc,
+            "pr_auc": pr_auc,
         }
 
     def _compute_auc_roc(self, probs: torch.Tensor, targets: torch.Tensor) -> float:
@@ -534,6 +538,32 @@ class RRNSystem(pl.LightningModule):
         fpr = torch.cat([torch.zeros(1, device=fpr.device), fpr])
 
         return torch.trapz(tpr, fpr).item()
+
+    def _compute_pr_auc(self, probs: torch.Tensor, targets: torch.Tensor) -> float:
+        """
+        Compute PR-AUC from probabilities without external dependencies.
+        Returns NaN when only one class is present.
+        """
+        pos_count = (targets == 1.0).sum()
+        neg_count = (targets == 0.0).sum()
+
+        if pos_count.item() == 0 or neg_count.item() == 0:
+            return float("nan")
+
+        order = torch.argsort(probs, descending=True)
+        sorted_targets = targets[order]
+
+        tps = torch.cumsum((sorted_targets == 1.0).float(), dim=0)
+        fps = torch.cumsum((sorted_targets == 0.0).float(), dim=0)
+
+        precision = tps / (tps + fps + 1e-12)
+        recall = tps / pos_count.float()
+
+        # Anchor curve at (recall=0, precision=1) for stable integration.
+        precision = torch.cat([torch.ones(1, device=precision.device), precision])
+        recall = torch.cat([torch.zeros(1, device=recall.device), recall])
+
+        return torch.trapz(precision, recall).item()
 
     def _compute_loss(
         self,

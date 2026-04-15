@@ -171,10 +171,92 @@ def _plot_exp3_hops(exp3_stats: dict[str, Any], out_path: Path) -> None:
 
     fig, ax = plt.subplots(figsize=(8, 5))
     ax.bar(labels, values)
-    ax.set_title("Exp3 Hop Distribution (Train Positives)\nNote: Baseline depths are obscured (1-hop) by single-pass Jena. Synthology natively provides deep-hop metadata.", fontsize=10)
+    ax.set_title(
+        "Exp3 Hop Distribution (Train Positives)\nNote: Baseline depths are obscured (1-hop) by single-pass Jena. Synthology natively provides deep-hop metadata.",
+        fontsize=10,
+    )
     ax.set_xlabel("hops")
     ax.set_ylabel("count")
     ax.grid(axis="y", linestyle="--", alpha=0.4)
+    fig.tight_layout()
+    _save_figure(fig, out_path)
+    plt.close(fig)
+
+
+def _hop_bucket_counts(stats: dict[str, Any]) -> list[int]:
+    """Return hop buckets [0, 1, 2, 3+] for compact comparison charts."""
+
+    buckets = [0, 0, 0, 0]
+    for hop_str, count in stats.get("hops", {}).items():
+        hop = int(hop_str)
+        if hop <= 0:
+            buckets[0] += int(count)
+        elif hop == 1:
+            buckets[1] += int(count)
+        elif hop == 2:
+            buckets[2] += int(count)
+        else:
+            buckets[3] += int(count)
+    return buckets
+
+
+def _plot_small_density(
+    domain: str, synth_stats: dict[str, Any], baseline_stats: dict[str, Any], out_path: Path
+) -> None:
+    """Compact chart to visualize KG density between methods."""
+
+    labels = ["synthology", "udm_baseline"]
+    total_pos = [
+        int(synth_stats["base_positive"]) + int(synth_stats["inferred_positive"]),
+        int(baseline_stats["base_positive"]) + int(baseline_stats["inferred_positive"]),
+    ]
+    inferred_ratio = [
+        float(synth_stats["inferred_positive"]) / max(1, int(synth_stats["base_positive"])),
+        float(baseline_stats["inferred_positive"]) / max(1, int(baseline_stats["base_positive"])),
+    ]
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(8.0, 3.2))
+
+    ax1.bar(labels, total_pos, color=["#1f77b4", "#7f7f7f"])
+    ax1.set_title("positive targets")
+    ax1.set_ylabel("count")
+    ax1.grid(axis="y", linestyle="--", alpha=0.35)
+
+    ax2.bar(labels, inferred_ratio, color=["#1f77b4", "#7f7f7f"])
+    ax2.set_title("inferred/base ratio")
+    ax2.set_ylabel("ratio")
+    ax2.grid(axis="y", linestyle="--", alpha=0.35)
+
+    fig.suptitle(f"{domain}: KG Density (Compact)", fontsize=11)
+    fig.tight_layout()
+    _save_figure(fig, out_path)
+    plt.close(fig)
+
+
+def _plot_small_multihop(
+    domain: str, synth_stats: dict[str, Any], baseline_stats: dict[str, Any], out_path: Path
+) -> None:
+    """Compact stacked bars to compare hop-depth richness."""
+
+    synth_buckets = _hop_bucket_counts(synth_stats)
+    baseline_buckets = _hop_bucket_counts(baseline_stats)
+    bucket_labels = ["0", "1", "2", "3+"]
+    colors = ["#c7c7c7", "#9ecae1", "#6baed6", "#2171b5"]
+
+    fig, ax = plt.subplots(figsize=(5.4, 3.2))
+    x_labels = ["synthology", "udm_baseline"]
+
+    bottom = [0, 0]
+    for idx, bucket_label in enumerate(bucket_labels):
+        values = [synth_buckets[idx], baseline_buckets[idx]]
+        ax.bar(x_labels, values, bottom=bottom, label=f"hop={bucket_label}", color=colors[idx])
+        bottom = [bottom[0] + values[0], bottom[1] + values[1]]
+
+    ax.set_title(f"{domain}: Multi-hop Richness (Compact)")
+    ax.set_ylabel("positive target count")
+    ax.legend(ncol=4, loc="upper center", bbox_to_anchor=(0.5, 1.22), frameon=False)
+    ax.grid(axis="y", linestyle="--", alpha=0.35)
+
     fig.tight_layout()
     _save_figure(fig, out_path)
     plt.close(fig)
@@ -186,6 +268,8 @@ def main() -> None:
     parser.add_argument("--exp2-baseline-targets", default="")
     parser.add_argument("--exp2-parity-summary", default="data/exp2/baseline/parity_runs/parity_loop_summary.json")
     parser.add_argument("--exp3-targets", default="")
+    parser.add_argument("--exp3-synth-targets", default="")
+    parser.add_argument("--exp3-baseline-targets", default="")
     parser.add_argument("--exp3-abox", default="")
     parser.add_argument("--exp3-inferred", default="")
     parser.add_argument("--out-dir", default="reports/paper")
@@ -223,6 +307,41 @@ def main() -> None:
     _plot_base_vs_inferred(synth_stats, baseline_stats, out_dir / "exp2_base_vs_inferred.png")
     _plot_hops(synth_stats, baseline_stats, out_dir / "exp2_hops_distribution.png")
     _plot_parity_attempts(parity_summary, out_dir / "exp2_parity_attempts.png")
+
+    # Compact paper graphs for family-tree baseline vs synthology.
+    _plot_small_density("Family Tree", synth_stats, baseline_stats, out_dir / "family_tree_density_small.png")
+    _plot_small_multihop(
+        "Family Tree",
+        synth_stats,
+        baseline_stats,
+        out_dir / "family_tree_multihop_small.png",
+    )
+
+    exp3_pair_summary = None
+    if args.exp3_synth_targets and args.exp3_baseline_targets:
+        exp3_synth_targets = Path(args.exp3_synth_targets)
+        exp3_baseline_targets = Path(args.exp3_baseline_targets)
+        if exp3_synth_targets.exists() and exp3_baseline_targets.exists():
+            exp3_synth_stats = _read_targets_stats(exp3_synth_targets)
+            exp3_baseline_stats = _read_targets_stats(exp3_baseline_targets)
+            _plot_small_density(
+                "OWL2Bench",
+                exp3_synth_stats,
+                exp3_baseline_stats,
+                out_dir / "owl2bench_density_small.png",
+            )
+            _plot_small_multihop(
+                "OWL2Bench",
+                exp3_synth_stats,
+                exp3_baseline_stats,
+                out_dir / "owl2bench_multihop_small.png",
+            )
+            exp3_pair_summary = {
+                "synth_targets": str(exp3_synth_targets),
+                "baseline_targets": str(exp3_baseline_targets),
+                "synth_stats": exp3_synth_stats,
+                "baseline_stats": exp3_baseline_stats,
+            }
 
     exp3_summary = None
     if args.exp3_abox and args.exp3_inferred:
@@ -272,6 +391,7 @@ def main() -> None:
             },
         },
         "exp3": exp3_summary,
+        "exp3_pair": exp3_pair_summary,
     }
 
     with open(out_dir / "summary.json", "w", encoding="utf-8") as handle:

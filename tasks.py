@@ -626,6 +626,8 @@ def paper_visual_report(
     exp2_parity_summary="data/exp2/baseline/parity_runs/parity_loop_summary.json",
     exp2_baseline_targets="",
     exp3_targets="",
+    exp3_synth_targets="",
+    exp3_baseline_targets="",
     exp3_abox="",
     exp3_inferred="",
     out_dir="reports/paper",
@@ -648,6 +650,10 @@ def paper_visual_report(
         cmd += f" --exp2-baseline-targets {exp2_baseline_targets}"
     if exp3_targets:
         cmd += f" --exp3-targets {exp3_targets}"
+    if exp3_synth_targets:
+        cmd += f" --exp3-synth-targets {exp3_synth_targets}"
+    if exp3_baseline_targets:
+        cmd += f" --exp3-baseline-targets {exp3_baseline_targets}"
     if exp3_abox and exp3_inferred:
         cmd += f" --exp3-abox {exp3_abox} --exp3-inferred {exp3_inferred}"
     if args:
@@ -661,9 +667,65 @@ def paper_visual_report(
             "exp2_parity_summary": exp2_parity_summary,
             "exp2_baseline_targets": exp2_baseline_targets,
             "exp3_targets": exp3_targets,
+            "exp3_synth_targets": exp3_synth_targets,
+            "exp3_baseline_targets": exp3_baseline_targets,
             "exp3_abox": exp3_abox,
             "exp3_inferred": exp3_inferred,
             "out_dir": out_dir,
+            "args": args,
+            "command": cmd,
+        },
+    )
+    _run_logged_command(cmd, run_dir / "run.log")
+    _archive_path(Path(out_dir), run_dir / "artifacts")
+
+
+@task
+def paper_export_tables(
+    ctx: Context,
+    out_dir="paper/generated",
+    exp2_summary="",
+    exp3_summary="",
+    exp2_timing_summary="",
+    exp3_timing_summary="",
+    model_metrics="paper/metrics/model_results.json",
+    args="",
+):
+    """Exports LaTeX table row snippets for the paper from latest run artifacts."""
+    print("\nExporting paper table rows.")
+    run_dir = _make_run_archive("paper", "export_tables", label="tables")
+    cmd = _build_uv_command(
+        "data_reporter",
+        "data_reporter.paper_tables",
+        overrides=(
+            f"--repo-root {shlex.quote(str(REPO_ROOT))}",
+            f"--out-dir {out_dir}",
+            f"--model-metrics {model_metrics}",
+        ),
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    if exp2_summary:
+        cmd += f" --exp2-summary {exp2_summary}"
+    if exp3_summary:
+        cmd += f" --exp3-summary {exp3_summary}"
+    if exp2_timing_summary:
+        cmd += f" --exp2-timing-summary {exp2_timing_summary}"
+    if exp3_timing_summary:
+        cmd += f" --exp3-timing-summary {exp3_timing_summary}"
+    if args:
+        cmd += f" {args}"
+
+    _write_json(
+        run_dir / "manifest.json",
+        {
+            "experiment": "paper",
+            "task": "export_tables",
+            "out_dir": out_dir,
+            "exp2_summary": exp2_summary,
+            "exp3_summary": exp3_summary,
+            "exp2_timing_summary": exp2_timing_summary,
+            "exp3_timing_summary": exp3_timing_summary,
+            "model_metrics": model_metrics,
             "args": args,
             "command": cmd,
         },
@@ -929,6 +991,47 @@ def exp2_report_data(ctx: Context, args=""):
             manifest={
                 "args": args,
                 "config_files": ["configs/data_reporter/exp2_compare.yaml", "configs/data_reporter/config.yaml"],
+                "output_dir": str(report_dir),
+            },
+        )
+    )
+
+
+@task
+def exp3_report_data(ctx: Context, universities=20, baseline_path="", synthology_path="", args=""):
+    """Generates parity/distribution reports for Exp 3 baseline vs synthology datasets."""
+    print("\nGenerating Exp 3 comparison report.")
+    run_dir = _make_run_archive("exp3", "report_data", label="compare")
+    report_dir = run_dir / "report"
+
+    resolved_baseline_path = baseline_path or f"data/owl2bench/output_baseline/owl2bench_{universities}"
+    resolved_synthology_path = synthology_path or f"data/owl2bench/output/owl2bench_{universities}"
+
+    cmd = _build_uv_command(
+        "data_reporter",
+        "data_reporter.analyze",
+        config_name="exp3_compare",
+        overrides=(
+            f"methods[0].path={shlex.quote(str(resolved_baseline_path))}",
+            f"methods[1].path={shlex.quote(str(resolved_synthology_path))}",
+            f"output.dir={shlex.quote(str(report_dir))}",
+        ),
+        args=args,
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    _run_experiment_spec(
+        ExperimentRunSpec(
+            experiment="exp3",
+            task_name="report_data",
+            label="compare",
+            command=cmd,
+            config_paths=("configs/data_reporter/exp3_compare.yaml", "configs/data_reporter/config.yaml"),
+            manifest={
+                "universities": universities,
+                "baseline_path": resolved_baseline_path,
+                "synthology_path": resolved_synthology_path,
+                "args": args,
+                "config_files": ["configs/data_reporter/exp3_compare.yaml", "configs/data_reporter/config.yaml"],
                 "output_dir": str(report_dir),
             },
         )

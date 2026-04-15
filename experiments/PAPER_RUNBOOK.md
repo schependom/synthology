@@ -229,6 +229,129 @@ Expected outputs in `reports/paper/` (each plot is saved as both `.png` and `.pd
 - optional `exp3_hops_distribution.{png,pdf}`
 - `summary.json`
 
+### Compact Reviewer Figures (Small PDFs)
+
+Generate compact side-by-side Synthology vs UDM baseline graphs for both Family Tree and OWL2Bench:
+
+```bash
+# Family Tree inputs
+uv run invoke exp2-generate-synthology
+uv run invoke exp2-generate-baseline
+
+# OWL2Bench inputs (store synthology output separately)
+uv run invoke exp3-generate-synthology --universities=1 \
+  --args="dataset.output_dir=data/exp3/smoke/synth_ref dataset.inferred_target_limit=80000 dataset.bfs.sample_count=1200 dataset.bfs.max_individuals_per_sample=100"
+uv run invoke exp3-generate-baseline --universities=1
+
+# Render compact figures
+uv run invoke paper-visual-report \
+  --exp2-synth-targets=data/exp2/synthology/family_tree/train/targets.csv \
+  --exp2-baseline-targets=data/exp2/baseline/family_tree/train/targets.csv \
+  --exp2-parity-summary=reports/experiment_runs/2026-04-01/exp2/parity_report/210943_parity/parity_report.json \
+  --exp3-synth-targets=data/exp3/smoke/synth_ref/owl2bench_1/train/targets.csv \
+  --exp3-baseline-targets=data/owl2bench/output/owl2bench_1/train/targets.csv \
+  --out-dir=reports/paper_small_graphs
+```
+
+Expected compact outputs in `reports/paper_small_graphs/`:
+
+- `family_tree_density_small.{png,pdf}`
+- `family_tree_multihop_small.{png,pdf}`
+- `owl2bench_density_small.{png,pdf}`
+- `owl2bench_multihop_small.{png,pdf}`
+- `summary.json`
+
+### HPC Full-Size Plots (Existing Data)
+
+When full Exp2/Exp3 datasets are already present on HPC, run only analysis/plotting commands:
+
+```bash
+uv run invoke exp2-report-data
+uv run invoke exp3-report-data --universities=50 \
+  --baseline-path=data/owl2bench/output_baseline/owl2bench_50 \
+  --synthology-path=data/owl2bench/output/owl2bench_50
+
+uv run invoke paper-visual-report \
+  --exp2-synth-targets=data/exp2/synthology/family_tree/train/targets.csv \
+  --exp2-baseline-targets=data/exp2/baseline/family_tree/train/targets.csv \
+  --exp2-parity-summary=data/exp2/baseline/parity_runs/parity_report.json \
+  --exp3-synth-targets=data/owl2bench/output/owl2bench_50/train/targets.csv \
+  --exp3-baseline-targets=data/owl2bench/output_baseline/owl2bench_50/train/targets.csv \
+  --exp3-abox=data/owl2bench/output/raw/owl2bench_50/OWL2RL-50.owl \
+  --exp3-inferred=data/exp3/baseline/owl2bench_50/inferred.nt \
+  --out-dir=reports/paper_hpc
+```
+
+Adjust `--exp3-baseline-targets` and `--exp2-parity-summary` paths if your HPC run stores them in a different existing location.
+
+### Auto-fill Paper Tables
+
+Export LaTeX row snippets for all paper result tables directly from run artifacts:
+
+```bash
+uv run invoke paper-export-tables \
+  --out-dir=paper/generated \
+  --model-metrics=paper/metrics/model_results.json
+```
+
+Generated files:
+
+- `paper/generated/exp1_results_rows.tex`
+- `paper/generated/overall_performance_rows.tex`
+- `paper/generated/generation_metrics_rows.tex`
+- `paper/generated/timing_breakdown_rows.tex`
+
+Use these snippets to populate the corresponding tables in `paper/paper.tex` reproducibly.
+
+### MATLAB Hop Distributions (Final Figure Styling)
+
+To produce color-consistent, LaTeX-labeled hop charts from the compare reports:
+
+```bash
+cd matlab
+exp23_hop_distribution
+```
+
+Outputs:
+
+- `paper/figures/exp2_hop_distr.pdf`
+- `paper/figures/exp3_hop_distr.pdf` (if Exp3 compare summary is available)
+
+By default the script uses the latest Exp2/Exp3 compare run summaries; for strict reproducibility you can pin exact summary files via `exp2SummaryOverride` and `exp3SummaryOverride` at the top of the MATLAB script.
+
+### Local Small KG Visuals (Actual Graph Renderings)
+
+```bash
+# Family tree graph samples
+uv run invoke synthology-visual-verification
+uv run invoke udm-visual-verification --n-samples=3
+
+# OWL2Bench graph samples
+uv run --package kgvisualiser python -m kgvisualiser.visualize \
+  io.input_csv=data/owl2bench/output/owl2bench_1/train/facts.csv \
+  io.targets_csv=data/owl2bench/output/owl2bench_1/train/targets.csv \
+  io.sample_id=710367 \
+  output.dir=visual-verification/graphs \
+  output.name_template=owl2bench_baseline_sample_710367 \
+  output.format=pdf \
+  filters.include_negatives=false \
+  filters.max_edges=90 \
+  render.class_nodes=false \
+  render.show_edge_labels=true
+
+uv run --package kgvisualiser python -m kgvisualiser.visualize \
+  io.input_csv=data/exp3/smoke/synth_ref/owl2bench_1/train/facts.csv \
+  io.targets_csv=data/exp3/smoke/synth_ref/owl2bench_1/train/targets.csv \
+  io.sample_id=710000 \
+  output.dir=visual-verification/graphs \
+  output.name_template=owl2bench_synthology_sample_710000 \
+  output.format=pdf \
+  filters.include_negatives=false \
+  filters.max_edges=90 \
+  render.class_nodes=false \
+  render.show_edge_labels=true
+```
+
 ## 5. Visual Inspection Artifacts
 
 1. Exp2 smoke graph:
