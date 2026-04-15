@@ -58,7 +58,17 @@ which java && java -version
 which mvn && mvn -v
 ```
 
+If Maven is only available in the repo-local install, export it explicitly:
+
+```bash
+export MAVEN_EXECUTABLE="$PWD/apache-maven-3.9.13/bin/mvn"
+export PATH="$PWD/apache-maven-3.9.13/bin:$PATH"
+"$MAVEN_EXECUTABLE" -v
+```
+
 ## Execution Commands (Canonical Order)
+
+For HPC runs, prefer the jobscripts below. Each script accepts environment-variable overrides.
 
 ### 1. Fast smoke run (recommended before full Exp3)
 
@@ -74,9 +84,22 @@ SYNTHOLOGY_JENA_XMX_MB=3072 uv run invoke gen-owl2bench-toy --args='dataset.reas
 
 ### 2. Exp3 Synthology-side generation
 
+HPC jobscript:
+
+```bash
+UNIVERSITIES=20 SYNTHOLOGY_JENA_XMX_MB=16384 bsub < jobscripts/exp3-generate-synthology.sh
+```
+
+Direct task equivalent:
+
 ```bash
 uv run invoke exp3-generate-synthology --universities=20
 ```
+
+Default Synthology-side outputs are written to:
+
+- `data/exp3/synthology/owl2bench_20/`
+- `data/exp3/synthology/raw/owl2bench_20/`
 
 ### 3. Exp3 ABox generation wrapper (explicit university count)
 
@@ -86,11 +109,73 @@ uv run invoke exp3-generate-owl2bench-abox --universities=20
 
 ### 4. Exp3 baseline chain (ABox + Jena materialization)
 
+HPC jobscript:
+
+```bash
+UNIVERSITIES=20 SYNTHOLOGY_UDM_BASELINE_XMX_MB=16384 bsub < jobscripts/exp3-generate-baseline.sh
+```
+
+Direct task equivalent:
+
 ```bash
 uv run invoke exp3-generate-baseline --universities=20
 ```
 
-### 5. Optional direct materialization for any existing ABox
+Paper-canonical UDM baseline defaults are used unless overridden:
+
+- `dataset.mask_base_facts=false`
+- `dataset.target_ratio=0.0`
+- `dataset.negatives_per_positive=1`
+
+Optional explicit canonical override (equivalent):
+
+```bash
+uv run invoke exp3-generate-baseline --universities=20 \
+  --args='dataset.mask_base_facts=false dataset.target_ratio=0.0 dataset.negatives_per_positive=1 dataset.inferred_target_limit=250000'
+```
+
+### 5. Balance Synthology labels to baseline yield (paper comparison prep)
+
+HPC jobscript:
+
+```bash
+UNIVERSITIES=20 bsub < jobscripts/exp3-balance-data.sh
+```
+
+Direct task equivalent:
+
+```bash
+uv run invoke exp3-balance-data --universities=20
+```
+
+What this balancing step does exactly:
+
+- Per split (`train`, `val`, `test`), it matches Synthology target counts to baseline target counts separately for positive and negative labels.
+- It samples Synthology positives and negatives with a fixed seed and writes balanced targets to `data/exp3/balanced/owl2bench_<U>/...`.
+- It keeps Synthology `facts.csv` unchanged and only resamples `targets.csv`.
+
+What this balancing step does not do:
+
+- It does not match hop-depth distribution.
+- It does not match predicate distribution.
+- It does not match graph topology or entity-degree statistics.
+- It does not rebalance baseline; it only down-samples Synthology targets.
+
+### 6. Freeze Exp3 test split for reproducible evaluation
+
+HPC jobscript:
+
+```bash
+UNIVERSITIES=20 bsub < jobscripts/exp3-generate-gold-test.sh
+```
+
+Direct task equivalent:
+
+```bash
+uv run invoke exp3-generate-gold-test --universities=20
+```
+
+### 7. Optional direct materialization for any existing ABox
 
 ```bash
 uv run invoke exp3-materialize-abox \
@@ -101,7 +186,15 @@ uv run invoke exp3-materialize-abox \
   --jena-profile=owl_mini
 ```
 
-### 6. Paper visuals including Exp3 artifacts
+### 8. Paper visuals including Exp3 artifacts
+
+HPC jobscript:
+
+```bash
+UNIVERSITIES=20 bsub < jobscripts/exp3-paper-visual-report.sh
+```
+
+Direct task equivalent:
 
 ```bash
 uv run invoke paper-visual-report \
@@ -113,24 +206,65 @@ uv run invoke paper-visual-report \
   --out-dir=reports/paper
 ```
 
-## RRN Training For Exp3 (Current Task Wrapper)
+## RRN Training For Exp3 (Paper Wrapper)
 
-Current wrapper task:
+Use the Exp3 wrapper that pins dataset roots and run labels per arm:
 
-```bash
-uv run invoke train-rrn-owl2bench
-```
-
-Important path caveat:
-
-- `configs/rrn/data/dataset/owl2bench.yaml` currently points to `data/OWL2Bench/output/...` (capitalized path).
-- If your generated data is under `data/owl2bench/output/...` (lowercase, default in current generation tasks), run with explicit path overrides:
+HPC jobscripts:
 
 ```bash
-uv run invoke train-rrn-owl2bench --args='data.train_path=data/owl2bench/output/owl2bench_20/train data.val_path=data/owl2bench/output/owl2bench_20/val data.test_path=data/owl2bench/output/owl2bench_20/test logger.name=exp3_owl2bench_current_paths'
+UNIVERSITIES=20 bsub < jobscripts/exp3-train-baseline.sh
+UNIVERSITIES=20 bsub < jobscripts/exp3-train-synthology.sh
 ```
 
-For baseline-vs-Synthology comparative training, execute this training task separately per dataset by overriding the `data.*_path` triplet and run name/group tags.
+Direct task equivalents:
+
+```bash
+uv run invoke exp3-train-rrn --dataset=baseline --universities=20
+uv run invoke exp3-train-rrn --dataset=synthology --universities=20
+```
+
+The synthology arm automatically prefers balanced data at
+`data/exp3/balanced/owl2bench_20/` when present.
+
+## Fair Comparison Protocol (Exp3)
+
+Use the following protocol for paper-grade fairness and traceability:
+
+1. Keep canonical UDM baseline semantics fixed:
+  - single-pass Jena (`iterative: false`, `max_iterations: 1`)
+  - `dataset.mask_base_facts=false`
+  - `dataset.target_ratio=0.0`
+  - `dataset.negatives_per_positive=1`
+2. Generate baseline and Synthology arms independently (do not overwrite paths).
+3. Run `exp3-balance-data` to match per-split positive/negative target counts.
+4. Freeze one gold test split and reuse it for both models.
+5. Train with identical model/training config for both arms; only dataset paths differ.
+6. Run multiple seeds per arm and report mean plus confidence intervals.
+7. Report both model metrics and data diagnostics:
+  - metrics: `PR-AUC`, `AUC-ROC`, `F1`, `FPR`
+  - diagnostics: label counts, hop distributions, predicate skew, runtime costs
+
+Interpretation note:
+
+- The balancing step provides fairness on label volume, not full structural parity.
+- Exp3 claims should therefore be supported by both metric improvements and structural diagnostics, not by label matching alone.
+
+## Analysis and Monitoring
+
+Latest baseline diagnostics:
+
+```bash
+bsub < jobscripts/exp3-analyze-latest-baseline.sh
+```
+
+Queue and log monitoring:
+
+```bash
+bjobs -u "$USER"
+tail -n 120 logs/exp3_generate_baseline_*.out
+find reports/experiment_runs -type f -name run.log | tail -n 20
+```
 
 ## Expected Results (What Must Be Reported)
 
@@ -145,7 +279,9 @@ Primary evidence locations:
 
 - Run archives: `reports/experiment_runs/...`
 - Exp3 baseline artifacts: `data/exp3/baseline/...`
-- OWL2Bench datasets: `data/owl2bench/output/...`
+- OWL2Bench baseline datasets: `data/owl2bench/output/...`
+- Exp3 synthology datasets: `data/exp3/synthology/...`
+- Exp3 balanced synthology datasets: `data/exp3/balanced/...`
 - Paper figures: `reports/paper/...`
 - Training logs: W&B + run archive logs.
 

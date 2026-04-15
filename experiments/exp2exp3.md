@@ -2,6 +2,13 @@
 
 Date: 2026-04-13
 
+Export mvn path for OWL2Bench Jena materialization tasks:
+
+```bash
+export MAVEN_EXECUTABLE="$PWD/apache-maven-3.9.13/bin/mvn"
+export PATH="$MAVEN_EXECUTABLE:$PATH"
+```
+
 ## 1) Task Argument Audit (Exp2 and Exp3)
 
 Goal checked:

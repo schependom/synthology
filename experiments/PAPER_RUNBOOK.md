@@ -145,6 +145,11 @@ SYNTHOLOGY_JENA_XMX_MB=3072 uv run invoke gen-owl2bench-toy
 SYNTHOLOGY_JENA_XMX_MB=16384 uv run invoke exp3-generate-synthology --universities=5
 ```
 
+Default Synthology-side outputs:
+
+- `data/exp3/synthology/owl2bench_5/`
+- `data/exp3/synthology/raw/owl2bench_5/`
+
 If this still OOMs on your node, re-run with explicit caps:
 
 ```bash
@@ -167,6 +172,12 @@ uv run invoke exp3-generate-owl2bench-abox --universities=5
 ```bash
 SYNTHOLOGY_UDM_BASELINE_XMX_MB=16384 uv run invoke exp3-generate-baseline --universities=5
 ```
+
+Canonical UDM baseline defaults are active by default for this command:
+
+- `dataset.mask_base_facts=false`
+- `dataset.target_ratio=0.0`
+- `dataset.negatives_per_positive=1`
 
 Or use the global heap knob once in your shell/session and omit per-command heap flags:
 
@@ -200,11 +211,32 @@ uv run invoke exp3-materialize-abox \
   --jena-profile=owl_mini
 ```
 
+6. Match Synthology train/val/test target counts to baseline:
+
+```bash
+uv run invoke exp3-balance-data --universities=5
+```
+
+7. Freeze Exp3 test split used for evaluation:
+
+```bash
+uv run invoke exp3-generate-gold-test --universities=5
+```
+
+8. Train RRN on both Exp3 arms:
+
+```bash
+uv run invoke exp3-train-rrn --dataset=baseline --universities=5
+uv run invoke exp3-train-rrn --dataset=synthology --universities=5
+```
+
 Expected outputs:
 
 - raw OWL2Bench ABox in `data/owl2bench/output/raw/...`
 - closure/inferred triples in `data/exp3/baseline/...`
 - split CSVs in `data/owl2bench/output/...`
+- synthology split CSVs in `data/exp3/synthology/...`
+- balanced synthology split CSVs in `data/exp3/balanced/...`
 
 ## 4. Paper Plots and Graphs
 
