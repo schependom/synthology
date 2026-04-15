@@ -20,6 +20,7 @@ def _run_baseline_attempt(
     attempt_dir: Path,
     seed: int,
     extra_overrides: list[str],
+    attempt_timeout_seconds: int | None,
 ) -> None:
     cmd = [
         "uv",
@@ -34,7 +35,7 @@ def _run_baseline_attempt(
         f"dataset.seed={seed}",
     ] + extra_overrides
 
-    subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True, timeout=attempt_timeout_seconds)
 
 
 def _within_tolerance(k_deep: int, observed: int, tolerance_pct: float) -> bool:
@@ -172,6 +173,12 @@ def main() -> None:
         default=[],
         help="Extra Hydra override passed to udm_baseline.create_data (repeatable)",
     )
+    parser.add_argument(
+        "--attempt-timeout-seconds",
+        type=int,
+        default=1800,
+        help="Timeout per baseline generation attempt in seconds (<=0 disables timeout)",
+    )
     args = parser.parse_args()
 
     synth_targets = Path(args.synth_targets)
@@ -193,6 +200,7 @@ def main() -> None:
     attempt_summaries: list[dict[str, Any]] = []
     matched_attempt = None
     cumulative_attempt_seconds = 0.0
+    attempt_timeout_seconds = args.attempt_timeout_seconds if args.attempt_timeout_seconds > 0 else None
 
     for attempt_idx in range(1, args.max_attempts + 1):
         attempt_name = f"attempt_{attempt_idx:04d}"
@@ -205,9 +213,45 @@ def main() -> None:
 
         logger.info("Running {} with seed={}", attempt_name, seed)
         attempt_start = time.perf_counter()
-        _run_baseline_attempt(attempt_dir=attempt_dir, seed=seed, extra_overrides=args.override)
+        run_error: str | None = None
+        timed_out = False
+
+        try:
+            _run_baseline_attempt(
+                attempt_dir=attempt_dir,
+                seed=seed,
+                extra_overrides=args.override,
+                attempt_timeout_seconds=attempt_timeout_seconds,
+            )
+        except subprocess.TimeoutExpired as exc:
+            timed_out = True
+            run_error = f"timeout after {attempt_timeout_seconds}s"
+            logger.warning("{} timed out after {}s (seed={})", attempt_name, attempt_timeout_seconds, seed)
+            logger.debug("Timeout details: {}", exc)
+        except subprocess.CalledProcessError as exc:
+            run_error = f"baseline generation failed with exit code {exc.returncode}"
+            logger.warning("{} failed with exit code {} (seed={})", attempt_name, exc.returncode, seed)
+
         attempt_wall_seconds = time.perf_counter() - attempt_start
         cumulative_attempt_seconds += attempt_wall_seconds
+
+        if run_error is not None:
+            summary = {
+                "attempt": attempt_name,
+                "seed": seed,
+                "targets_csv": str(attempt_dir / "train" / "targets.csv"),
+                "facts_csv": str(attempt_dir / "train" / "facts.csv"),
+                "attempt_wall_seconds": attempt_wall_seconds,
+                "cumulative_attempt_seconds": cumulative_attempt_seconds,
+                "success": False,
+                "timed_out": timed_out,
+                "error": run_error,
+            }
+            attempt_summaries.append(summary)
+
+            if not args.keep_failed_attempts:
+                shutil.rmtree(attempt_dir, ignore_errors=True)
+            continue
 
         targets_csv = attempt_dir / "train" / "targets.csv"
         facts_csv = attempt_dir / "train" / "facts.csv"
@@ -239,6 +283,7 @@ def main() -> None:
             "cumulative_attempt_seconds": cumulative_attempt_seconds,
             "parity": structural,
             "success": success,
+            "timed_out": False,
         }
         attempt_summaries.append(summary)
 
@@ -287,6 +332,7 @@ def main() -> None:
         "edge_density_tolerance_pct": args.edge_density_tolerance_pct,
         "target_ratio_tolerance_pct": args.target_ratio_tolerance_pct,
         "inferred_share_tolerance_pct": args.inferred_share_tolerance_pct,
+        "attempt_timeout_seconds": args.attempt_timeout_seconds,
         "synth_runtime_seconds": synth_runtime_seconds,
         "baseline_time_to_parity_seconds": baseline_time_to_parity_seconds,
         "baseline_vs_synth_time_ratio": baseline_vs_synth_time_ratio,

@@ -1,12 +1,9 @@
 #!/bin/sh
 
 synthology_enter_repo() {
-  if [ -n "${REPO_ROOT:-}" ]; then
-    :
-  elif [ -n "${LSB_SUBCWD:-}" ]; then
-    REPO_ROOT="${LSB_SUBCWD}"
-  else
-    REPO_ROOT="$PWD"
+  if [ "${REPO_ROOT+x}" != "x" ] || [ -z "${REPO_ROOT}" ]; then
+    echo "ERROR: REPO_ROOT must be set by the calling script" >&2
+    return 1
   fi
 
   export REPO_ROOT
@@ -64,4 +61,14 @@ synthology_activate_python_env() {
 
 synthology_sync_deps() {
   uv sync
+}
+
+
+synthology_require_file() {
+  required_path="$1"
+  label="${2:-file}"
+  if [ ! -f "${required_path}" ]; then
+    echo "ERROR: missing ${label}: ${required_path}" >&2
+    return 1
+  fi
 }

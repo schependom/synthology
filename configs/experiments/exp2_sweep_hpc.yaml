@@ -1,0 +1,11 @@
+fact_cap: 50000
+target_caps:
+  - 80000
+  - 120000
+  - 160000
+seeds:
+  - 23
+  - 42
+baseline_base_facts: 20
+synthology_proof_roots: 10
+run_report: true

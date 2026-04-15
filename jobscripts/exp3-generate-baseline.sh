@@ -8,72 +8,29 @@
 #BSUB -o logs/exp3_generate_baseline_%J.out
 #BSUB -e logs/exp3_generate_baseline_%J.err
 
-export MAVEN_HOME="apache-maven-3.9.13"
-export PATH="${MAVEN_HOME}/bin:${PATH}"
-
 set -euo pipefail
-REPO_ROOT="${REPO_ROOT:-${LSB_SUBCWD:-$PWD}}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
 . "${REPO_ROOT}/jobscripts/common.sh"
 
 synthology_enter_repo
 synthology_setup_runtime_storage
 mkdir -p logs
 
-# Override these at submit time if needed, e.g.:
-# UNIVERSITIES=1 SYNTHOLOGY_UDM_BASELINE_XMX_MB=57344 bsub < jobscripts/exp3-generate-baseline.sh
-UNIVERSITIES="${UNIVERSITIES:-1}"
-SYNTHOLOGY_UDM_BASELINE_XMX_MB="${SYNTHOLOGY_UDM_BASELINE_XMX_MB:-57344}"
-SYNTHOLOGY_JENA_XMX_MB="${SYNTHOLOGY_JENA_XMX_MB:-${SYNTHOLOGY_UDM_BASELINE_XMX_MB}}"
-SYNTHOLOGY_HEAP_MB="${SYNTHOLOGY_HEAP_MB:-${SYNTHOLOGY_UDM_BASELINE_XMX_MB}}"
-SYNTHOLOGY_EXP3_REASONING_INPUT_TRIPLE_CAP="${SYNTHOLOGY_EXP3_REASONING_INPUT_TRIPLE_CAP:-1200}"
-SYNTHOLOGY_EXP3_ABOX_JENA_XMX_MB="${SYNTHOLOGY_EXP3_ABOX_JENA_XMX_MB:-8192}"
-SYNTHOLOGY_EXP3_FINAL_REASONING_INPUT_TRIPLE_CAP="${SYNTHOLOGY_EXP3_FINAL_REASONING_INPUT_TRIPLE_CAP:-15000}"
-SYNTHOLOGY_EXP3_FINAL_JENA_PROFILE="${SYNTHOLOGY_EXP3_FINAL_JENA_PROFILE:-owl_mini}"
-
-# Paper-canonical UDM baseline controls for OWL2Bench CSV export.
-# Keep these defaults aligned with manuscript assumptions unless explicitly overridden.
-EXP3_MASK_BASE_FACTS="${EXP3_MASK_BASE_FACTS:-false}"
-EXP3_TARGET_RATIO="${EXP3_TARGET_RATIO:-0.0}"
-EXP3_NEGATIVES_PER_POSITIVE="${EXP3_NEGATIVES_PER_POSITIVE:-1}"
-EXP3_INFERRED_TARGET_LIMIT="${EXP3_INFERRED_TARGET_LIMIT:-250000}"
-EXP3_BASELINE_ARGS="${EXP3_BASELINE_ARGS:-dataset.mask_base_facts=${EXP3_MASK_BASE_FACTS} dataset.target_ratio=${EXP3_TARGET_RATIO} dataset.negatives_per_positive=${EXP3_NEGATIVES_PER_POSITIVE} dataset.inferred_target_limit=${EXP3_INFERRED_TARGET_LIMIT}}"
-
 synthology_load_modules python3/3.9.19 openjdk/21
 
-export MAVEN_HOME="${MAVEN_HOME:-apache-maven-3.9.13}"
+export MAVEN_HOME="apache-maven-3.9.13"
 export PATH="${MAVEN_HOME}/bin:${PATH}"
-export MAVEN_EXECUTABLE="${MAVEN_EXECUTABLE:-${MAVEN_HOME}/bin/mvn}"
-export MAVEN_REPO_LOCAL="${MAVEN_REPO_LOCAL:-/dtu/blackhole/16/221590/.m2/repository}"
+export MAVEN_EXECUTABLE="${MAVEN_HOME}/bin/mvn"
+export MAVEN_REPO_LOCAL="/dtu/blackhole/16/221590/.m2/repository"
 mkdir -p "${MAVEN_REPO_LOCAL}"
-
-# Keep baseline heap sizing explicit and aligned across wrappers.
-export SYNTHOLOGY_UDM_BASELINE_XMX_MB
-export SYNTHOLOGY_JENA_XMX_MB
-export SYNTHOLOGY_HEAP_MB
-export SYNTHOLOGY_EXP3_REASONING_INPUT_TRIPLE_CAP
-export SYNTHOLOGY_EXP3_ABOX_JENA_XMX_MB
-export SYNTHOLOGY_EXP3_FINAL_REASONING_INPUT_TRIPLE_CAP
-export SYNTHOLOGY_EXP3_FINAL_JENA_PROFILE
 
 synthology_activate_python_env 0
 synthology_sync_deps
 
 echo "Starting Exp3 baseline generation"
-echo "  universities=${UNIVERSITIES}"
-echo "  SYNTHOLOGY_UDM_BASELINE_XMX_MB=${SYNTHOLOGY_UDM_BASELINE_XMX_MB}"
-echo "  SYNTHOLOGY_EXP3_REASONING_INPUT_TRIPLE_CAP=${SYNTHOLOGY_EXP3_REASONING_INPUT_TRIPLE_CAP}"
-echo "  SYNTHOLOGY_EXP3_ABOX_JENA_XMX_MB=${SYNTHOLOGY_EXP3_ABOX_JENA_XMX_MB}"
-echo "  SYNTHOLOGY_EXP3_FINAL_REASONING_INPUT_TRIPLE_CAP=${SYNTHOLOGY_EXP3_FINAL_REASONING_INPUT_TRIPLE_CAP}"
-echo "  SYNTHOLOGY_EXP3_FINAL_JENA_PROFILE=${SYNTHOLOGY_EXP3_FINAL_JENA_PROFILE}"
-echo "  EXP3_MASK_BASE_FACTS=${EXP3_MASK_BASE_FACTS}"
-echo "  EXP3_TARGET_RATIO=${EXP3_TARGET_RATIO}"
-echo "  EXP3_NEGATIVES_PER_POSITIVE=${EXP3_NEGATIVES_PER_POSITIVE}"
-echo "  EXP3_INFERRED_TARGET_LIMIT=${EXP3_INFERRED_TARGET_LIMIT}"
-echo "  EXP3_BASELINE_ARGS=${EXP3_BASELINE_ARGS}"
-echo "  MAVEN_EXECUTABLE=${MAVEN_EXECUTABLE}"
-echo "  MAVEN_REPO_LOCAL=${MAVEN_REPO_LOCAL}"
-
-uv run invoke exp3-generate-baseline --universities="${UNIVERSITIES}" --args="${EXP3_BASELINE_ARGS}"
+uv run invoke exp3-generate-baseline-hpc
 
 echo "Finished Exp3 baseline generation at:"
 date

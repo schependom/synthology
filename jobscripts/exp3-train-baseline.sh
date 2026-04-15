@@ -11,29 +11,21 @@
 
 set -euo pipefail
 
-REPO_ROOT="${REPO_ROOT:-${LSB_SUBCWD:-$PWD}}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
 . "${REPO_ROOT}/jobscripts/common.sh"
 
 synthology_enter_repo
 synthology_setup_runtime_storage
 mkdir -p logs checkpoints/exp3/baseline
 
-UNIVERSITIES="${UNIVERSITIES:-5}"
-EXP3_TRAIN_ARGS="${EXP3_TRAIN_ARGS:-}"
-
 synthology_load_modules python3/3.9.19 cuda/11.7
 synthology_activate_python_env 0
 synthology_sync_deps
 
 echo "Starting Exp3 RRN training (baseline)"
-echo "  universities=${UNIVERSITIES}"
-echo "  EXP3_TRAIN_ARGS=${EXP3_TRAIN_ARGS}"
-
-if [[ -n "${EXP3_TRAIN_ARGS}" ]]; then
-  uv run invoke exp3-train-rrn --dataset=baseline --universities="${UNIVERSITIES}" --args="${EXP3_TRAIN_ARGS}"
-else
-  uv run invoke exp3-train-rrn --dataset=baseline --universities="${UNIVERSITIES}"
-fi
+uv run --package rrn python -m rrn.train --config-name=exp3_baseline_u5_hpc
 
 echo "Finished Exp3 baseline training at:"
 date

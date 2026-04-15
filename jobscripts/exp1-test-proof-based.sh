@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 ### General options
 #BSUB -q gpua100
@@ -17,7 +17,9 @@
 
 set -e
 
-REPO_ROOT="${LSB_SUBCWD:-$PWD}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
 . "${REPO_ROOT}/jobscripts/common.sh"
 
 synthology_enter_repo

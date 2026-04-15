@@ -12,6 +12,7 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from invoke import Context, task
 from loguru import logger
+from omegaconf import OmegaConf
 
 WINDOWS = os.name == "nt"
 PROJECT_NAME = "synthology"
@@ -1208,6 +1209,55 @@ def exp2_balance_datasets(
             "args": args,
         },
     )
+
+
+@task
+def exp2_sweep_targetcaps_seeds(ctx: Context, config_path="configs/experiments/exp2_sweep_hpc.yaml"):
+    """Runs the Exp2 target-cap/seed sweep from centralized YAML config."""
+    cfg = _load_yaml_config(config_path)
+
+    fact_cap = int(cfg["fact_cap"])
+    target_caps = [int(value) for value in cfg.get("target_caps", [])]
+    seeds = [int(value) for value in cfg.get("seeds", [])]
+    baseline_base_facts = int(cfg["baseline_base_facts"])
+    synthology_proof_roots = int(cfg["synthology_proof_roots"])
+    run_report = bool(cfg.get("run_report", True))
+
+    if not target_caps or not seeds:
+        raise ValueError("exp2 sweep config must define non-empty target_caps and seeds")
+
+    for target_cap in target_caps:
+        exp2_balance_datasets(
+            ctx,
+            fact_cap=fact_cap,
+            target_cap=target_cap,
+            baseline_base_facts=baseline_base_facts,
+            synthology_proof_roots=synthology_proof_roots,
+        )
+
+        if run_report:
+            exp2_report_data(ctx)
+
+        for seed in seeds:
+            run_name_baseline = f"exp2_baseline_tc{target_cap}_seed{seed}"
+            run_name_synthology = f"exp2_synthology_tc{target_cap}_seed{seed}"
+
+            exp2_train_rrn(
+                ctx,
+                dataset="baseline",
+                args=(
+                    f"+seed={seed} +logger.name={run_name_baseline} "
+                    f"+logger.group=exp2_multihop +logger.tags=[exp2,baseline,target_cap_{target_cap},seed{seed}]"
+                ),
+            )
+            exp2_train_rrn(
+                ctx,
+                dataset="synthology",
+                args=(
+                    f"+seed={seed} +logger.name={run_name_synthology} "
+                    f"+logger.group=exp2_multihop +logger.tags=[exp2,synthology,target_cap_{target_cap},seed{seed}]"
+                ),
+            )
     exp2_generate_both(
         ctx,
         fact_cap=fact_cap,
@@ -1275,23 +1325,68 @@ def exp2_smoke_jena_visual(ctx: Context, args=""):
 @task
 def exp2_parity_loop(
     ctx: Context,
-    max_attempts=250,
-    min_deep_hops=3,
-    tolerance_pct=95.0,
-    synth_targets="data/exp2/synthology/family_tree/train/targets.csv",
-    synth_facts="data/exp2/synthology/family_tree/train/facts.csv",
-    synth_generation_metrics="data/exp2/synthology/family_tree/generation_metrics.json",
-    attempts_root="data/exp2/baseline/parity_runs",
-    deep_count_mode="tolerance",
-    node_tolerance_pct=30.0,
-    edge_density_tolerance_pct=60.0,
-    target_ratio_tolerance_pct=30.0,
-    inferred_share_tolerance_pct=30.0,
-    ensure_synth_reference=True,
+    config_path="configs/udm_baseline/exp2_parity_loop.json",
+    max_attempts=None,
+    min_deep_hops=None,
+    tolerance_pct=None,
+    synth_targets=None,
+    synth_facts=None,
+    synth_generation_metrics=None,
+    attempts_root=None,
+    deep_count_mode=None,
+    node_tolerance_pct=None,
+    edge_density_tolerance_pct=None,
+    target_ratio_tolerance_pct=None,
+    inferred_share_tolerance_pct=None,
+    attempt_timeout_seconds=None,
+    ensure_synth_reference=None,
     args="",
 ):
     """Retries UDM baseline generation until Exp 2 deep and structural parity targets are reached."""
     print("\nRunning Exp 2 UDM parity loop.")
+
+    parity_defaults = _load_json_defaults(config_path)
+    max_attempts = int(_resolve_default(max_attempts, parity_defaults, "max_attempts", 250))
+    min_deep_hops = int(_resolve_default(min_deep_hops, parity_defaults, "min_deep_hops", 3))
+    tolerance_pct = float(_resolve_default(tolerance_pct, parity_defaults, "tolerance_pct", 95.0))
+    synth_targets = str(
+        _resolve_default(
+            synth_targets, parity_defaults, "synth_targets", "data/exp2/synthology/family_tree/train/targets.csv"
+        )
+    )
+    synth_facts = str(
+        _resolve_default(
+            synth_facts, parity_defaults, "synth_facts", "data/exp2/synthology/family_tree/train/facts.csv"
+        )
+    )
+    synth_generation_metrics = str(
+        _resolve_default(
+            synth_generation_metrics,
+            parity_defaults,
+            "synth_generation_metrics",
+            "data/exp2/synthology/family_tree/generation_metrics.json",
+        )
+    )
+    attempts_root = str(
+        _resolve_default(attempts_root, parity_defaults, "attempts_root", "data/exp2/baseline/parity_runs")
+    )
+    deep_count_mode = str(_resolve_default(deep_count_mode, parity_defaults, "deep_count_mode", "tolerance"))
+    node_tolerance_pct = float(_resolve_default(node_tolerance_pct, parity_defaults, "node_tolerance_pct", 30.0))
+    edge_density_tolerance_pct = float(
+        _resolve_default(edge_density_tolerance_pct, parity_defaults, "edge_density_tolerance_pct", 60.0)
+    )
+    target_ratio_tolerance_pct = float(
+        _resolve_default(target_ratio_tolerance_pct, parity_defaults, "target_ratio_tolerance_pct", 30.0)
+    )
+    inferred_share_tolerance_pct = float(
+        _resolve_default(inferred_share_tolerance_pct, parity_defaults, "inferred_share_tolerance_pct", 30.0)
+    )
+    attempt_timeout_seconds = int(
+        _resolve_default(attempt_timeout_seconds, parity_defaults, "attempt_timeout_seconds", 1800)
+    )
+    ensure_synth_reference = _to_bool(
+        _resolve_default(ensure_synth_reference, parity_defaults, "ensure_synth_reference", True)
+    )
 
     synth_targets_path = Path(synth_targets)
     synth_facts_path = Path(synth_facts)
@@ -1317,6 +1412,7 @@ def exp2_parity_loop(
             f"--edge-density-tolerance-pct {edge_density_tolerance_pct}",
             f"--target-ratio-tolerance-pct {target_ratio_tolerance_pct}",
             f"--inferred-share-tolerance-pct {inferred_share_tolerance_pct}",
+            f"--attempt-timeout-seconds {attempt_timeout_seconds}",
             f"--attempts-root {shlex.quote(str(attempts_dir))}",
         ),
         args=args,
@@ -1341,7 +1437,9 @@ def exp2_parity_loop(
                 "edge_density_tolerance_pct": edge_density_tolerance_pct,
                 "target_ratio_tolerance_pct": target_ratio_tolerance_pct,
                 "inferred_share_tolerance_pct": inferred_share_tolerance_pct,
+                "attempt_timeout_seconds": attempt_timeout_seconds,
                 "ensure_synth_reference": ensure_synth_reference,
+                "config_path": config_path,
                 "args": args,
                 "config_files": ["configs/udm_baseline/exp2_baseline.yaml", "configs/udm_baseline/config.yaml"],
                 "attempts_root": str(attempts_dir),
@@ -1422,6 +1520,7 @@ def exp3_generate_owl2bench_abox(
     args="",
     archive_dir: Optional[str] = None,
     reasoning_input_triple_cap=0,
+    abox_jena_heap_mb=8192,
 ):
     """Runs the existing OWL2Bench pipeline and stores raw generated OWL (ABox source)."""
     print(f"\nGenerating OWL2Bench data for Exp 3 (universities={universities}).")
@@ -1442,7 +1541,7 @@ def exp3_generate_owl2bench_abox(
         # Exp3 baseline only needs a stable generated ABox artifact; capping reasoning input avoids Jena OOM.
         overrides.append(f"+dataset.reasoning_input_triple_cap={cap}")
 
-    abox_jena_heap_mb = str(os.environ.get("SYNTHOLOGY_EXP3_ABOX_JENA_XMX_MB", "8192"))
+    abox_jena_heap_mb = str(abox_jena_heap_mb)
 
     cmd = _build_uv_command(
         "owl2bench",
@@ -1478,7 +1577,15 @@ def exp3_generate_owl2bench_abox(
 
 
 @task
-def exp3_generate_baseline(ctx: Context, universities=5, args=""):
+def exp3_generate_baseline(
+    ctx: Context,
+    universities=5,
+    args="",
+    reasoning_input_triple_cap=1200,
+    abox_jena_heap_mb=8192,
+    final_reasoning_input_triple_cap=15000,
+    final_jena_profile="owl_mini",
+):
     """Generates Exp 3 baseline by chaining OWL2Bench generation with UDM/Jena materialization."""
     run_dir = _make_run_archive("exp3", "generate_baseline", label=str(universities))
     _snapshot_configs(
@@ -1490,15 +1597,16 @@ def exp3_generate_baseline(ctx: Context, universities=5, args=""):
         ],
     )
 
-    reasoning_cap = int(os.environ.get("SYNTHOLOGY_EXP3_REASONING_INPUT_TRIPLE_CAP", "1200"))
-    final_reasoning_cap = int(os.environ.get("SYNTHOLOGY_EXP3_FINAL_REASONING_INPUT_TRIPLE_CAP", "15000"))
-    final_jena_profile = str(os.environ.get("SYNTHOLOGY_EXP3_FINAL_JENA_PROFILE", "owl_mini"))
+    reasoning_cap = int(reasoning_input_triple_cap)
+    final_reasoning_cap = int(final_reasoning_input_triple_cap)
+    final_jena_profile = str(final_jena_profile)
     exp3_generate_owl2bench_abox(
         ctx,
         universities=universities,
         args=args,
         archive_dir=str(run_dir / "abox_generation"),
         reasoning_input_triple_cap=reasoning_cap,
+        abox_jena_heap_mb=int(abox_jena_heap_mb),
     )
 
     abox_path = f"data/owl2bench/output/raw/owl2bench_{universities}/OWL2RL-{universities}.owl"
@@ -1530,6 +1638,7 @@ def exp3_generate_baseline(ctx: Context, universities=5, args=""):
                 "materialization": "materialization",
             },
             "reasoning_input_triple_cap": reasoning_cap,
+            "abox_jena_heap_mb": int(abox_jena_heap_mb),
             "final_reasoning_input_triple_cap": final_reasoning_cap,
             "final_jena_profile": final_jena_profile,
         },
@@ -1567,7 +1676,7 @@ def exp3_generate_synthology(ctx: Context, universities=5, args=""):
     )
 
     owl2bench_env = _resolve_owl2bench_env(run_dir)
-    synth_output_root = f"data/exp3/synthology"
+    synth_output_root = "data/exp3/synthology"
     cmd = _build_uv_command(
         "owl2bench",
         "owl2bench.pipeline",
@@ -1614,9 +1723,19 @@ def exp3_balance_data(
     print(f"\nBalancing Exp 3 Synthology targets to baseline counts (universities={universities}).")
     run_dir = _make_run_archive("exp3", "balance_data", label=str(universities))
 
-    baseline_root = Path(baseline_dir) if baseline_dir else REPO_ROOT / "data" / "owl2bench" / "output" / f"owl2bench_{universities}"
-    synthology_root = Path(synthology_dir) if synthology_dir else REPO_ROOT / "data" / "exp3" / "synthology" / f"owl2bench_{universities}"
-    output_root = Path(output_dir) if output_dir else REPO_ROOT / "data" / "exp3" / "balanced" / f"owl2bench_{universities}"
+    baseline_root = (
+        Path(baseline_dir)
+        if baseline_dir
+        else REPO_ROOT / "data" / "owl2bench" / "output" / f"owl2bench_{universities}"
+    )
+    synthology_root = (
+        Path(synthology_dir)
+        if synthology_dir
+        else REPO_ROOT / "data" / "exp3" / "synthology" / f"owl2bench_{universities}"
+    )
+    output_root = (
+        Path(output_dir) if output_dir else REPO_ROOT / "data" / "exp3" / "balanced" / f"owl2bench_{universities}"
+    )
 
     if not baseline_root.exists():
         raise FileNotFoundError(f"Baseline dataset directory not found: {baseline_root}")
@@ -1702,21 +1821,27 @@ def exp3_generate_gold_test(
     print(f"\nFreezing Exp 3 gold test split (universities={universities}).")
     run_dir = _make_run_archive("exp3", "generate_gold_test", label=str(universities))
 
-    source_dir = Path(source_test_dir) if source_test_dir else REPO_ROOT / "data" / "exp3" / "balanced" / f"owl2bench_{universities}" / "test"
+    source_dir = (
+        Path(source_test_dir)
+        if source_test_dir
+        else REPO_ROOT / "data" / "exp3" / "balanced" / f"owl2bench_{universities}" / "test"
+    )
     if not source_dir.exists():
         source_dir = REPO_ROOT / "data" / "exp3" / "synthology" / f"owl2bench_{universities}" / "test"
     if not source_dir.exists():
         source_dir = REPO_ROOT / "data" / "owl2bench" / "output" / f"owl2bench_{universities}" / "test"
 
-    output_dir_path = Path(output_test_dir) if output_test_dir else REPO_ROOT / "data" / "exp3" / "frozen_test" / f"owl2bench_{universities}" / "test"
+    output_dir_path = (
+        Path(output_test_dir)
+        if output_test_dir
+        else REPO_ROOT / "data" / "exp3" / "frozen_test" / f"owl2bench_{universities}" / "test"
+    )
     output_dir_path.mkdir(parents=True, exist_ok=True)
 
     facts_src = source_dir / "facts.csv"
     targets_src = source_dir / "targets.csv"
     if not facts_src.exists() or not targets_src.exists():
-        raise FileNotFoundError(
-            f"Expected facts.csv and targets.csv in source test dir: {source_dir}"
-        )
+        raise FileNotFoundError(f"Expected facts.csv and targets.csv in source test dir: {source_dir}")
 
     shutil.copy2(facts_src, output_dir_path / "facts.csv")
     shutil.copy2(targets_src, output_dir_path / "targets.csv")
@@ -1804,6 +1929,79 @@ def exp3_train_rrn(ctx: Context, dataset="baseline", universities=5, args=""):
                 "config_files": ["configs/rrn/config.yaml", "configs/rrn/exp3_owl2bench_hpc.yaml"],
             },
         )
+    )
+
+
+@task
+def exp3_generate_baseline_hpc(ctx: Context, config_path="configs/experiments/exp3_hpc.yaml"):
+    """Runs Exp3 baseline generation using centralized YAML preset."""
+    cfg = _load_yaml_config(config_path)
+    baseline = dict(cfg.get("baseline", {}))
+    exp3_generate_baseline(
+        ctx,
+        universities=int(cfg["universities"]),
+        args=str(baseline.get("args", "")),
+        reasoning_input_triple_cap=int(baseline.get("reasoning_input_triple_cap", 1200)),
+        abox_jena_heap_mb=int(baseline.get("abox_jena_heap_mb", 8192)),
+        final_reasoning_input_triple_cap=int(baseline.get("final_reasoning_input_triple_cap", 15000)),
+        final_jena_profile=str(baseline.get("final_jena_profile", "owl_mini")),
+    )
+
+
+@task
+def exp3_generate_synthology_hpc(ctx: Context, config_path="configs/experiments/exp3_hpc.yaml"):
+    """Runs Exp3 synthology generation using centralized YAML preset."""
+    cfg = _load_yaml_config(config_path)
+    synthology = dict(cfg.get("synthology", {}))
+    exp3_generate_synthology(
+        ctx,
+        universities=int(cfg["universities"]),
+        args=str(synthology.get("args", "")),
+    )
+
+
+@task
+def exp3_balance_data_hpc(ctx: Context, config_path="configs/experiments/exp3_hpc.yaml"):
+    """Runs Exp3 balance-data step using centralized YAML preset."""
+    cfg = _load_yaml_config(config_path)
+    balance = dict(cfg.get("balance", {}))
+    exp3_balance_data(
+        ctx,
+        universities=int(cfg["universities"]),
+        baseline_dir=str(balance.get("baseline_dir", "")),
+        synthology_dir=str(balance.get("synthology_dir", "")),
+        output_dir=str(balance.get("output_dir", "")),
+        seed=int(balance.get("seed", 23)),
+    )
+
+
+@task
+def exp3_generate_gold_test_hpc(ctx: Context, config_path="configs/experiments/exp3_hpc.yaml"):
+    """Runs Exp3 gold-test freeze step using centralized YAML preset."""
+    cfg = _load_yaml_config(config_path)
+    gold_test = dict(cfg.get("gold_test", {}))
+    exp3_generate_gold_test(
+        ctx,
+        universities=int(cfg["universities"]),
+        source_test_dir=str(gold_test.get("source_test_dir", "")),
+        output_test_dir=str(gold_test.get("output_test_dir", "")),
+    )
+
+
+@task
+def exp3_paper_visual_report_hpc(ctx: Context, config_path="configs/experiments/exp3_hpc.yaml"):
+    """Runs paper visual report with centralized Exp3 YAML preset."""
+    cfg = _load_yaml_config(config_path)
+    report = dict(cfg.get("paper_visual_report", {}))
+    paper_visual_report(
+        ctx,
+        exp2_synth_targets=str(report["exp2_synth_targets"]),
+        exp2_parity_summary=str(report["exp2_parity_summary"]),
+        exp3_targets=str(report["exp3_targets"]),
+        exp3_abox=str(report["exp3_abox"]),
+        exp3_inferred=str(report["exp3_inferred"]),
+        out_dir=str(report["out_dir"]),
+        args=str(report.get("args", "")),
     )
 
 
@@ -2185,6 +2383,46 @@ def _write_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as handle:
         json.dump(payload, handle, indent=2, sort_keys=True)
+
+
+def _load_yaml_config(path: str) -> Dict[str, Any]:
+    config_path = (REPO_ROOT / path).resolve() if not Path(path).is_absolute() else Path(path)
+    if not config_path.exists():
+        raise FileNotFoundError(f"Missing config file: {config_path}")
+    loaded = OmegaConf.load(str(config_path))
+    data = OmegaConf.to_container(loaded, resolve=True)
+    if not isinstance(data, dict):
+        raise ValueError(f"Expected mapping at config root: {config_path}")
+    return data
+
+
+def _load_json_defaults(path: str) -> Dict[str, Any]:
+    resolved = (REPO_ROOT / path).resolve() if not Path(path).is_absolute() else Path(path)
+    if not resolved.exists():
+        return {}
+    with resolved.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    return payload if isinstance(payload, dict) else {}
+
+
+def _resolve_default(value: Any, defaults: Dict[str, Any], key: str, fallback: Any) -> Any:
+    if value is not None:
+        return value
+    if key in defaults:
+        return defaults[key]
+    return fallback
+
+
+def _to_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"1", "true", "yes", "y", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "n", "off"}:
+            return False
+    return bool(value)
 
 
 def _write_text(path: Path, content: str) -> None:
