@@ -1,0 +1,21 @@
+# Exp2 FULL-SCALE matched-budget generation preset for fair non-parity comparison.
+# Use this with:
+#   uv run invoke exp2-balance-datasets-hpc --config-path=configs/experiments/exp2_balance_hpc.yaml
+# Goal: equal split sizes, explicit train caps for matching fact budgets,
+# and reproducible timing traces for paper tables.
+
+
+# Shared train caps applied to both generators (used for reporting/validation only).
+fact_cap: 400000
+target_cap: 1200000
+
+# Split sizes (identical for both methods).
+args: "dataset.n_train=1200 dataset.n_val=150 dataset.n_test=150"
+
+# All detailed generator/materialization config should be set in
+#   configs/ont_generator/exp2_synthology.yaml and configs/udm_baseline/exp2_baseline.yaml
+# Only minimal CLI overrides should be used here if absolutely necessary.
+
+# Method-specific args (optional, keep minimal):
+baseline_args: "materialization.timing.run_tag=exp2_balance"
+synthology_args: ""

@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
 
 #BSUB -q hpc
-#BSUB -J exp3-generate-gold-test
+#BSUB -J exp3-analyze-latest-baseline
 #BSUB -n 2
-#BSUB -W 02:00
+#BSUB -W 01:00
 #BSUB -R "rusage[mem=4GB]"
-#BSUB -o logs/exp3_generate_gold_test_%J.out
-#BSUB -e logs/exp3_generate_gold_test_%J.err
+#BSUB -o logs/exp3_analyze_latest_baseline_%J.out
+#BSUB -e logs/exp3_analyze_latest_baseline_%J.err
 
 set -euo pipefail
 
-# When submitted via `bsub < jobscripts/...`, BASH_SOURCE can point to an LSF temp script.
 if [ -f "${PWD}/jobscripts/common.sh" ]; then
 	REPO_ROOT="${PWD}"
 elif [ -n "${LS_SUBCWD:-}" ] && [ -f "${LS_SUBCWD}/jobscripts/common.sh" ]; then
@@ -30,11 +29,8 @@ synthology_load_modules python3/3.9.19
 synthology_activate_python_env 0
 synthology_sync_deps
 
-CONFIG_PATH="${1:-configs/experiments/exp3_hpc.yaml}"
-synthology_require_file "${CONFIG_PATH}" "Exp3 HPC config"
+echo "Starting Exp3 latest-baseline analysis"
+uv run invoke exp3-analyze-latest-baseline
 
-echo "Starting Exp3 gold-test freeze with config: ${CONFIG_PATH}"
-uv run invoke exp3-generate-gold-test-hpc --config-path="${CONFIG_PATH}"
-
-echo "Finished Exp3 gold-test freeze at:"
+echo "Finished Exp3 latest-baseline analysis at:"
 date

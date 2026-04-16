@@ -1,6 +1,7 @@
 import csv
 import json
 import os
+import random
 import shlex
 import shutil
 import subprocess
@@ -969,9 +970,39 @@ def exp2_generate_synthology(ctx: Context, fact_cap=None, target_cap=None, proof
 
 
 @task
-def exp2_report_data(ctx: Context, args=""):
+def exp2_report_data(ctx: Context, args="", strict="true"):
     """Generates parity/distribution reports for Exp 2 methods."""
     print("\nGenerating Exp 2 comparison report.")
+    strict_mode = _to_bool(strict)
+
+    baseline_root = REPO_ROOT / "data" / "exp2" / "baseline" / "family_tree"
+    synthology_root = REPO_ROOT / "data" / "exp2" / "synthology" / "family_tree"
+    mismatches = _get_split_sample_count_mismatches(baseline_root, synthology_root, splits=("train", "val", "test"))
+    label_mismatches = _get_split_target_label_mismatches(baseline_root, synthology_root, splits=("train", "val", "test"))
+    if mismatches:
+        mismatch_text = "; ".join(
+            f"{split}: baseline={base_count}, synthology={syn_count}" for split, base_count, syn_count in mismatches
+        )
+        hint = (
+            "Dataset splits are not aligned for fair Exp2 comparison. "
+            f"{mismatch_text}. Run 'bsub < jobscripts/exp2-balance-datasets.sh' and retry."
+        )
+        if strict_mode:
+            raise ValueError(hint)
+        logger.warning(hint)
+    if label_mismatches:
+        mismatch_text = "; ".join(
+            f"{split}: baseline(pos={base_pos},neg={base_neg}) vs synthology(pos={syn_pos},neg={syn_neg})"
+            for split, base_pos, base_neg, syn_pos, syn_neg in label_mismatches
+        )
+        hint = (
+            "Target label balance is not aligned for fair Exp2 comparison. "
+            f"{mismatch_text}. Run 'bsub < jobscripts/exp2-balance-datasets.sh' and retry."
+        )
+        if strict_mode:
+            raise ValueError(hint)
+        logger.warning(hint)
+
     run_dir = _make_run_archive("exp2", "report_data", label="compare")
     report_dir = run_dir / "report"
     cmd = _build_uv_command(
@@ -991,6 +1022,7 @@ def exp2_report_data(ctx: Context, args=""):
             config_paths=("configs/data_reporter/exp2_compare.yaml", "configs/data_reporter/config.yaml"),
             manifest={
                 "args": args,
+                "strict": strict_mode,
                 "config_files": ["configs/data_reporter/exp2_compare.yaml", "configs/data_reporter/config.yaml"],
                 "output_dir": str(report_dir),
             },
@@ -1144,9 +1176,15 @@ def exp2_generate_both(
     baseline_base_facts=None,
     synthology_proof_roots=None,
     args="",
+    baseline_args="",
+    synthology_args="",
 ):
     """Convenience command to generate both Exp 2 methods with a shared cap."""
     run_dir = _make_run_archive("exp2", "generate_both", label="matched")
+
+    baseline_args_combined = " ".join(token for token in [str(args).strip(), str(baseline_args).strip()] if token)
+    synthology_args_combined = " ".join(token for token in [str(args).strip(), str(synthology_args).strip()] if token)
+
     _write_json(
         run_dir / "manifest.json",
         {
@@ -1157,6 +1195,8 @@ def exp2_generate_both(
             "baseline_base_facts": baseline_base_facts,
             "synthology_proof_roots": synthology_proof_roots,
             "args": args,
+            "baseline_args": baseline_args,
+            "synthology_args": synthology_args,
         },
     )
     exp2_generate_baseline(
@@ -1164,14 +1204,14 @@ def exp2_generate_both(
         fact_cap=fact_cap,
         target_cap=target_cap,
         base_facts_per_sample=baseline_base_facts,
-        args=args,
+        args=baseline_args_combined,
     )
     exp2_generate_synthology(
         ctx,
         fact_cap=fact_cap,
         target_cap=target_cap,
         proof_roots_per_rule=synthology_proof_roots,
-        args=args,
+        args=synthology_args_combined,
     )
     _write_text(
         run_dir / "run.log",
@@ -1180,6 +1220,8 @@ def exp2_generate_both(
                 "Exp2 matched-budget generation summary",
                 f"baseline fact_cap={fact_cap}, target_cap={target_cap}, base_facts_per_sample={baseline_base_facts}",
                 f"synthology fact_cap={fact_cap}, target_cap={target_cap}, proof_roots_per_rule={synthology_proof_roots}",
+                f"baseline args={baseline_args_combined}",
+                f"synthology args={synthology_args_combined}",
             ]
         )
         + "\n",
@@ -1187,28 +1229,52 @@ def exp2_generate_both(
 
 
 @task
-def exp2_balance_datasets(
-    ctx: Context,
-    fact_cap,
-    target_cap=None,
-    baseline_base_facts=None,
-    synthology_proof_roots=None,
-    args="",
-):
-    """Generates both Exp 2 datasets using shared train fact/target caps for budget matching."""
+
+def exp2_balance_datasets(ctx: Context, config_path="configs/experiments/exp2_balance_hpc.yaml"):
+    """Generates both Exp 2 datasets using only YAML config files (no CLI overrides)."""
+    cfg = _load_yaml_config(config_path)
     run_dir = _make_run_archive("exp2", "balance_datasets", label="matched")
-    _write_json(
-        run_dir / "manifest.json",
-        {
-            "experiment": "exp2",
-            "task": "balance_datasets",
-            "fact_cap": fact_cap,
-            "target_cap": target_cap,
-            "baseline_base_facts": baseline_base_facts,
-            "synthology_proof_roots": synthology_proof_roots,
-            "args": args,
-        },
+    _write_json(run_dir / "manifest.json", cfg)
+    exp2_generate_both(ctx)
+
+
+
+@task
+def exp2_balance_datasets_hpc(ctx: Context, config_path="configs/experiments/exp2_balance_hpc.yaml"):
+    """Runs Exp2 matched-budget dataset generation from centralized YAML config only."""
+    exp2_balance_datasets(ctx, config_path=config_path)
+
+
+@task
+def exp2_balance_smoke(
+    ctx: Context,
+    config_path="configs/experiments/exp2_balance_smoke.yaml",
+    run_report="true",
+):
+    """Runs a short Exp2 matched-budget smoke generation for rapid debugging."""
+    cfg = _load_yaml_config(config_path)
+
+    fact_cap = int(cfg["fact_cap"])
+    target_cap = cfg.get("target_cap")
+    baseline_base_facts = cfg.get("baseline_base_facts")
+    synthology_proof_roots = cfg.get("synthology_proof_roots")
+    args = str(cfg.get("args", ""))
+    baseline_args = str(cfg.get("baseline_args", ""))
+    synthology_args = str(cfg.get("synthology_args", ""))
+
+    exp2_balance_datasets(
+        ctx,
+        fact_cap=fact_cap,
+        target_cap=int(target_cap) if target_cap is not None else None,
+        baseline_base_facts=int(baseline_base_facts) if baseline_base_facts is not None else None,
+        synthology_proof_roots=int(synthology_proof_roots) if synthology_proof_roots is not None else None,
+        args=args,
+        baseline_args=baseline_args,
+        synthology_args=synthology_args,
     )
+
+    if _to_bool(run_report):
+        exp2_report_data(ctx)
 
 
 @task
@@ -1258,27 +1324,6 @@ def exp2_sweep_targetcaps_seeds(ctx: Context, config_path="configs/experiments/e
                     f"+logger.group=exp2_multihop +logger.tags=[exp2,synthology,target_cap_{target_cap},seed{seed}]"
                 ),
             )
-    exp2_generate_both(
-        ctx,
-        fact_cap=fact_cap,
-        target_cap=target_cap,
-        baseline_base_facts=baseline_base_facts,
-        synthology_proof_roots=synthology_proof_roots,
-        args=args,
-    )
-    _write_text(
-        run_dir / "run.log",
-        "\n".join(
-            [
-                "Exp2 balance datasets summary",
-                f"fact_cap={fact_cap}",
-                f"target_cap={target_cap}",
-                f"baseline_base_facts={baseline_base_facts}",
-                f"synthology_proof_roots={synthology_proof_roots}",
-            ]
-        )
-        + "\n",
-    )
 
 
 @task
@@ -2006,6 +2051,37 @@ def exp3_paper_visual_report_hpc(ctx: Context, config_path="configs/experiments/
 
 
 @task
+def exp3_report_and_analyze_hpc(ctx: Context, config_path="configs/experiments/exp3_hpc.yaml"):
+    """Runs Exp3 comparison report and baseline analysis using centralized YAML preset."""
+    cfg = _load_yaml_config(config_path)
+    universities = int(cfg["universities"])
+    report_cfg = dict(cfg.get("report", {}))
+
+    baseline_path = str(report_cfg.get("baseline_path", "")).strip()
+    if not baseline_path:
+        baseline_path = f"data/owl2bench/output/owl2bench_{universities}"
+
+    synthology_path = str(report_cfg.get("synthology_path", "")).strip()
+    if not synthology_path:
+        use_balanced_synthology = bool(report_cfg.get("use_balanced_synthology", True))
+        if use_balanced_synthology:
+            synthology_path = f"data/exp3/balanced/owl2bench_{universities}"
+        else:
+            synthology_path = f"data/exp3/synthology/owl2bench_{universities}"
+
+    exp3_report_data(
+        ctx,
+        universities=universities,
+        baseline_path=baseline_path,
+        synthology_path=synthology_path,
+        args=str(report_cfg.get("args", "")),
+    )
+
+    if bool(report_cfg.get("run_baseline_analysis", True)):
+        exp3_analyze_latest_baseline(ctx)
+
+
+@task
 def exp3_materialize_abox(
     ctx: Context,
     abox,
@@ -2428,6 +2504,242 @@ def _to_bool(value: Any) -> bool:
 def _write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+
+
+def _count_unique_sample_ids(path: Path) -> int:
+    if not path.exists():
+        return -1
+    sample_ids: set[str] = set()
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            sample_id = row.get("sample_id", "")
+            if sample_id:
+                sample_ids.add(sample_id)
+    return len(sample_ids)
+
+
+def _ordered_sample_ids(path: Path) -> List[str]:
+    if not path.exists():
+        return []
+    sample_ids: List[str] = []
+    seen: set[str] = set()
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            sample_id = row.get("sample_id", "")
+            if sample_id and sample_id not in seen:
+                seen.add(sample_id)
+                sample_ids.append(sample_id)
+    return sample_ids
+
+
+def _trim_split_to_sample_ids(split_root: Path, keep_sample_ids: set[str]) -> None:
+    for filename in ("facts.csv", "targets.csv"):
+        path = split_root / filename
+        if not path.exists():
+            continue
+        rows = _read_csv_rows(path)
+        fieldnames = list(rows[0].keys()) if rows else None
+        filtered_rows = [row for row in rows if row.get("sample_id", "") in keep_sample_ids]
+        _write_csv_rows(path, filtered_rows, fieldnames=fieldnames)
+
+
+def _align_exp2_split_sample_counts(
+    baseline_root: Path, synthology_root: Path, splits: Tuple[str, ...]
+) -> Dict[str, Dict[str, int]]:
+    summary: Dict[str, Dict[str, int]] = {}
+    for split in splits:
+        baseline_targets = baseline_root / split / "targets.csv"
+        synthology_targets = synthology_root / split / "targets.csv"
+
+        baseline_ids = _ordered_sample_ids(baseline_targets)
+        synthology_ids = _ordered_sample_ids(synthology_targets)
+        baseline_count = len(baseline_ids)
+        synthology_count = len(synthology_ids)
+
+        if baseline_count == 0 or synthology_count == 0:
+            summary[split] = {
+                "baseline_before": baseline_count,
+                "synthology_before": synthology_count,
+                "baseline_after": baseline_count,
+                "synthology_after": synthology_count,
+                "aligned_to": 0,
+            }
+            continue
+
+        aligned_to = min(baseline_count, synthology_count)
+        baseline_keep_ids = set(baseline_ids[:aligned_to])
+        synthology_keep_ids = set(synthology_ids[:aligned_to])
+
+        if baseline_count != aligned_to:
+            _trim_split_to_sample_ids(baseline_root / split, baseline_keep_ids)
+        if synthology_count != aligned_to:
+            _trim_split_to_sample_ids(synthology_root / split, synthology_keep_ids)
+
+        summary[split] = {
+            "baseline_before": baseline_count,
+            "synthology_before": synthology_count,
+            "baseline_after": aligned_to,
+            "synthology_after": aligned_to,
+            "aligned_to": aligned_to,
+        }
+
+    return summary
+
+
+def _get_split_sample_count_mismatches(
+    baseline_root: Path, synthology_root: Path, splits: Tuple[str, ...]
+) -> List[Tuple[str, int, int]]:
+    mismatches: List[Tuple[str, int, int]] = []
+    for split in splits:
+        baseline_targets = baseline_root / split / "targets.csv"
+        synthology_targets = synthology_root / split / "targets.csv"
+        baseline_count = _count_unique_sample_ids(baseline_targets)
+        synthology_count = _count_unique_sample_ids(synthology_targets)
+        if baseline_count != synthology_count:
+            mismatches.append((split, baseline_count, synthology_count))
+    return mismatches
+
+
+def _count_targets_by_label(path: Path) -> Tuple[int, int]:
+    rows = _read_csv_rows(path)
+    positives = sum(1 for row in rows if not _is_negative_row(row))
+    negatives = sum(1 for row in rows if _is_negative_row(row))
+    return positives, negatives
+
+
+def _get_split_target_label_mismatches(
+    baseline_root: Path, synthology_root: Path, splits: Tuple[str, ...]
+) -> List[Tuple[str, int, int, int, int]]:
+    mismatches: List[Tuple[str, int, int, int, int]] = []
+    for split in splits:
+        baseline_targets = baseline_root / split / "targets.csv"
+        synthology_targets = synthology_root / split / "targets.csv"
+        if not baseline_targets.exists() or not synthology_targets.exists():
+            continue
+        baseline_pos, baseline_neg = _count_targets_by_label(baseline_targets)
+        synthology_pos, synthology_neg = _count_targets_by_label(synthology_targets)
+        if baseline_pos != synthology_pos or baseline_neg != synthology_neg:
+            mismatches.append((split, baseline_pos, baseline_neg, synthology_pos, synthology_neg))
+    return mismatches
+
+
+def _trim_targets_to_label_budget(path: Path, target_pos: int, target_neg: int) -> Dict[str, int]:
+    rows = _read_csv_rows(path)
+    fieldnames = list(rows[0].keys()) if rows else None
+
+    def _select_with_coverage(source_rows: List[Dict[str, str]], target_count: int, seed: int) -> List[Dict[str, str]]:
+        if target_count <= 0 or not source_rows:
+            return []
+        if target_count >= len(source_rows):
+            return list(source_rows)
+
+        rng = random.Random(seed)
+
+        # 1) Preserve target-type diversity first (e.g., inf_root vs inf_intermediate).
+        rows_by_type: Dict[str, List[Dict[str, str]]] = {}
+        for row in source_rows:
+            type_key = str(row.get("type", ""))
+            rows_by_type.setdefault(type_key, []).append(row)
+
+        type_keys = list(rows_by_type.keys())
+        rng.shuffle(type_keys)
+
+        selected: List[Dict[str, str]] = []
+        selected_ids: set[int] = set()
+
+        for type_key in type_keys:
+            if len(selected) >= target_count:
+                break
+            group = rows_by_type[type_key]
+            pick = rng.choice(group)
+            selected.append(pick)
+            selected_ids.add(id(pick))
+
+        if len(selected) >= target_count:
+            return selected[:target_count]
+
+        # 2) Preserve predicate coverage as much as possible.
+        rows_by_predicate: Dict[str, List[Dict[str, str]]] = {}
+        for row in source_rows:
+            predicate = str(row.get("predicate", ""))
+            rows_by_predicate.setdefault(predicate, []).append(row)
+
+        predicate_keys = list(rows_by_predicate.keys())
+        rng.shuffle(predicate_keys)
+
+        for predicate in predicate_keys:
+            if len(selected) >= target_count:
+                break
+            candidates = [row for row in rows_by_predicate[predicate] if id(row) not in selected_ids]
+            if not candidates:
+                continue
+            pick = rng.choice(candidates)
+            selected.append(pick)
+            selected_ids.add(id(pick))
+
+        if len(selected) >= target_count:
+            return selected[:target_count]
+
+        # 3) Fill remaining quota uniformly from leftovers.
+        leftovers = [row for row in source_rows if id(row) not in selected_ids]
+        need = target_count - len(selected)
+        if need > 0 and leftovers:
+            if need >= len(leftovers):
+                selected.extend(leftovers)
+            else:
+                selected.extend(rng.sample(leftovers, need))
+
+        return selected[:target_count]
+
+    positive_rows = [row for row in rows if not _is_negative_row(row)]
+    negative_rows = [row for row in rows if _is_negative_row(row)]
+
+    kept_positive = _select_with_coverage(positive_rows, target_pos, seed=23)
+    kept_negative = _select_with_coverage(negative_rows, target_neg, seed=31)
+    kept_rows = kept_positive + kept_negative
+
+    _write_csv_rows(path, kept_rows, fieldnames=fieldnames)
+    return {
+        "kept_pos": len(kept_positive),
+        "kept_neg": len(kept_negative),
+        "kept_samples": len({row.get("sample_id", "") for row in kept_rows if row.get("sample_id", "")}),
+    }
+
+
+def _align_exp2_split_target_labels(
+    baseline_root: Path, synthology_root: Path, splits: Tuple[str, ...]
+) -> Dict[str, Dict[str, int]]:
+    summary: Dict[str, Dict[str, int]] = {}
+    for split in splits:
+        baseline_targets = baseline_root / split / "targets.csv"
+        synthology_targets = synthology_root / split / "targets.csv"
+
+        if not baseline_targets.exists() or not synthology_targets.exists():
+            continue
+
+        baseline_pos_before, baseline_neg_before = _count_targets_by_label(baseline_targets)
+        synthology_pos_before, synthology_neg_before = _count_targets_by_label(synthology_targets)
+
+        target_pos = min(baseline_pos_before, synthology_pos_before)
+        target_neg = min(baseline_neg_before, synthology_neg_before)
+
+        baseline_trim = _trim_targets_to_label_budget(baseline_targets, target_pos=target_pos, target_neg=target_neg)
+        synthology_trim = _trim_targets_to_label_budget(synthology_targets, target_pos=target_pos, target_neg=target_neg)
+
+        summary[split] = {
+            "baseline_pos_before": baseline_pos_before,
+            "baseline_neg_before": baseline_neg_before,
+            "synthology_pos_before": synthology_pos_before,
+            "synthology_neg_before": synthology_neg_before,
+            "target_pos": target_pos,
+            "target_neg": target_neg,
+            "baseline_samples_after": baseline_trim["kept_samples"],
+            "synthology_samples_after": synthology_trim["kept_samples"],
+        }
+
+    return summary
 
 
 def _read_csv_rows(path: Path) -> List[Dict[str, str]]:

@@ -16,7 +16,10 @@ splits:
 output:
   dir: reports/exp2/compare
   save_plots: true
-  top_k_predicates: 15
+  merge_intermediate_into_inferred_for_plots: true
+  top_k_predicates: 25
+  ignore_predicates:
+    - rdf:type
 
 logging:
   level: INFO

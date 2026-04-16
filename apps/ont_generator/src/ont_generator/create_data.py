@@ -43,6 +43,8 @@ class KGEDatasetGenerator:
         cfg: DictConfig,
         verbose: bool,
     ):
+        self._timing = {}
+        parsing_start = time.perf_counter()
         """
         Initialize dataset generator.
 
@@ -58,6 +60,8 @@ class KGEDatasetGenerator:
         self.max_recursion_cap = cfg.generator.max_recursion
         self.individual_pool_size = cfg.generator.individual_pool_size
         self.individual_reuse_prob = cfg.generator.individual_reuse_prob
+        self.rule_sampling_mode = str(cfg.generator.get("rule_sampling_mode", "random")).lower()
+        self.enforce_goal_predicate_coverage = bool(cfg.generator.get("enforce_goal_predicate_coverage", False))
         self.proof_selection_strategy = str(cfg.generator.get("proof_selection_strategy", "random")).lower()
         weights_cfg = cfg.generator.get("proof_selection_weights", {})
         self.proof_selection_weights = {
@@ -81,11 +85,18 @@ class KGEDatasetGenerator:
             self.min_proof_roots = int(fixed_proof_roots)
             self.max_proof_roots = int(fixed_proof_roots)
 
+        # --- Ontology Parsing Phase ---
+        parsing_end = time.perf_counter()
+        self._timing["parsing_seconds"] = parsing_end - parsing_start
+
         # Initialize KGenerator
+        gen_start = time.perf_counter()
         self.generator = KGenerator(
             cfg=cfg,
             verbose=False,  # Keep generator quiet during batch generation
         )
+        gen_end = time.perf_counter()
+        self._timing["generator_init_seconds"] = gen_end - gen_start
 
         # Store schema references
         # schemas map names to Class/Relation/Attribute objects
@@ -171,18 +182,16 @@ class KGEDatasetGenerator:
         Returns:
             Tuple of (train_samples, val_samples, test_samples)
         """
-        generation_start = time.perf_counter()
+        phase_start = time.perf_counter()
 
         logger.info("GENERATING KGE DATASET")
-        # logger.info(f"\t{'=' * 80}")
         logger.info(f"\tTarget: {n_train} train, {n_val} val, {n_test} test samples")
         logger.info(f"\tIndividual range: {min_individuals}-{max_individuals}")
         logger.info(f"\tRules per sample: {min_rules}-{max_rules}")
         logger.info(f"\tMin proofs per rule: {target_min_proofs_rule}")
-        # logger.info(f"\t{'=' * 80}")
 
-        # Generate training samples
-        # logger.info("Generating training samples...")
+        # --- Generation Phase ---
+        gen_samples_start = time.perf_counter()
         split_start = time.perf_counter()
         train_samples = self._generate_samples(
             n_samples=n_train,
@@ -195,8 +204,6 @@ class KGEDatasetGenerator:
         )
         train_runtime = time.perf_counter() - split_start
 
-        # Generate validation samples
-        # logger.info("Generating validation samples...")
         split_start = time.perf_counter()
         val_samples = self._generate_samples(
             n_samples=n_val,
@@ -209,8 +216,6 @@ class KGEDatasetGenerator:
         )
         val_runtime = time.perf_counter() - split_start
 
-        # Generate test samples (independent)
-        # logger.info("Generating test samples...")
         split_start = time.perf_counter()
         test_samples = self._generate_samples(
             n_samples=n_test,
@@ -222,18 +227,30 @@ class KGEDatasetGenerator:
             sample_type="TEST",
         )
         test_runtime = time.perf_counter() - split_start
+        gen_samples_end = time.perf_counter()
+        self._timing["generation_seconds"] = gen_samples_end - gen_samples_start
+        self._timing["train_split_seconds"] = train_runtime
+        self._timing["val_split_seconds"] = val_runtime
+        self._timing["test_split_seconds"] = test_runtime
 
-        # Print summary
+        # --- Validation/Negative Sampling Phase ---
+        # (Already included in sample generation, but can be split if needed)
+
+        # --- Balancing Phase (if any) ---
+        # Placeholder: add balancing timing if balancing is performed
+        # self._timing["balancing_seconds"] = ...
+
+        # --- Reporting Phase ---
+        reporting_start = time.perf_counter()
         summary_metrics = self._print_dataset_summary(train_samples, val_samples, test_samples)
+        reporting_end = time.perf_counter()
+        self._timing["reporting_seconds"] = reporting_end - reporting_start
 
-        total_runtime = time.perf_counter() - generation_start
+        total_runtime = time.perf_counter() - phase_start
+        self._timing["total_seconds"] = total_runtime
+
         metrics_report = {
-            "runtime_seconds": {
-                "total": total_runtime,
-                "train_split": train_runtime,
-                "val_split": val_runtime,
-                "test_split": test_runtime,
-            },
+            "timing": dict(self._timing),
             **summary_metrics,
         }
 
@@ -459,6 +476,19 @@ class KGEDatasetGenerator:
         if not self.rules:
             return None
 
+        def pick_low_usage(candidates: List):
+            if not candidates:
+                return None
+            if sample_type == "TRAIN":
+                usage_dict = self.train_rule_usage
+            elif sample_type == "TEST":
+                usage_dict = self.test_rule_usage
+            else:
+                usage_dict = self.rule_selection_count
+            min_usage = min(usage_dict.get(r.name, 0) for r in candidates)
+            pool = [r for r in candidates if usage_dict.get(r.name, 0) == min_usage]
+            return random.choice(pool)
+
         # We use different variance strategies between each KG (sample)
         # to ensure diversity across the dataset.
 
@@ -471,22 +501,62 @@ class KGEDatasetGenerator:
 
         selected_rules = []
 
+        remaining_pool = list(self.rules)
+
+        # Optional coverage-first rule seeding (train split only).
+        if self.enforce_goal_predicate_coverage and sample_type == "TRAIN" and self.all_goal_predicates:
+            uncovered_goal_predicates = self.all_goal_predicates - self.train_goal_predicates_seen
+            coverage_candidates = [
+                r
+                for r in remaining_pool
+                if hasattr(r.conclusion.predicate, "name")
+                and str(r.conclusion.predicate.name) in uncovered_goal_predicates
+            ]
+            if coverage_candidates:
+                pick = pick_low_usage(coverage_candidates) if self.rule_sampling_mode == "balanced" else random.choice(
+                    coverage_candidates
+                )
+                if pick is not None:
+                    selected_rules.append(pick)
+                    remaining_pool.remove(pick)
+
         # If possible, force at least one complex rule (for depth > 1)
         # but only if recursion depth allows it and we have complex rules
         if current_recursion > 1 and self.complex_rules:
             # Force 1 complex rule
-            selected_rules.append(random.choice(self.complex_rules))
+            if not any(r in self.complex_rules for r in selected_rules):
+                complex_candidates = [r for r in remaining_pool if r in self.complex_rules]
+                if complex_candidates:
+                    pick = pick_low_usage(complex_candidates) if self.rule_sampling_mode == "balanced" else random.choice(
+                        complex_candidates
+                    )
+                    selected_rules.append(pick)
+                    remaining_pool.remove(pick)
             # Fill rest with random mix
-            remaining_count = n_rules - 1
+            remaining_count = n_rules - len(selected_rules)
             if remaining_count > 0:
-                remaining_pool = [r for r in self.rules if r not in selected_rules]
-                if remaining_count <= len(remaining_pool):
+                if self.rule_sampling_mode == "balanced":
+                    while remaining_count > 0 and remaining_pool:
+                        pick = pick_low_usage(remaining_pool)
+                        selected_rules.append(pick)
+                        remaining_pool.remove(pick)
+                        remaining_count -= 1
+                elif remaining_count <= len(remaining_pool):
                     selected_rules.extend(random.sample(remaining_pool, remaining_count))
                 else:
                     selected_rules.extend(remaining_pool)
         else:
             # Pure random selection
-            selected_rules = random.sample(self.rules, n_rules)
+            remaining_count = n_rules - len(selected_rules)
+            if remaining_count > 0:
+                if self.rule_sampling_mode == "balanced":
+                    while remaining_count > 0 and remaining_pool:
+                        pick = pick_low_usage(remaining_pool)
+                        selected_rules.append(pick)
+                        remaining_pool.remove(pick)
+                        remaining_count -= 1
+                else:
+                    selected_rules.extend(random.sample(remaining_pool, min(remaining_count, len(remaining_pool))))
 
         # Track rule usage
         if sample_type == "TRAIN":
@@ -507,6 +577,7 @@ class KGEDatasetGenerator:
         # Generate proofs and build proof map
         sample_proof_map = defaultdict(list)  # 'sample' = one KG
         atoms_found = False
+        sample_goal_predicates_generated: set[str] = set()
 
         for rule in selected_rules:
             # Generate proofs with Instance Looping for volume
@@ -529,6 +600,10 @@ class KGEDatasetGenerator:
             MAX_PROOFS_CAP = 10000
             n_select = random.randint(min(len(proofs), target_min_proofs_rule), min(len(proofs), MAX_PROOFS_CAP))
             selected = self._select_proofs(proofs, n_select)
+            if selected:
+                predicate = rule.conclusion.predicate
+                predicate_name = getattr(predicate, "name", predicate)
+                sample_goal_predicates_generated.add(str(predicate_name))
 
             for proof in selected:
                 extracted_map = extract_proof_map(proof)
@@ -624,6 +699,11 @@ class KGEDatasetGenerator:
             export_proofs=self.export_proofs,
             output_dir=self.proof_output_dir,
         )
+
+        if sample_type == "TRAIN":
+            self.train_goal_predicates_seen.update(sample_goal_predicates_generated)
+        elif sample_type == "TEST":
+            self.test_goal_predicates_seen.update(sample_goal_predicates_generated)
 
         return kg
 
@@ -839,6 +919,25 @@ class KGEDatasetGenerator:
         logger.info("RULE COVERAGES")
         logger.info("=" * 80)
 
+        if self.all_goal_predicates:
+            train_goal_cov = (len(self.train_goal_predicates_seen) / len(self.all_goal_predicates)) * 100
+            test_goal_cov = (len(self.test_goal_predicates_seen) / len(self.all_goal_predicates)) * 100
+            logger.info(
+                "Goal predicate coverage (train): {:.2f}% ({}/{})",
+                train_goal_cov,
+                len(self.train_goal_predicates_seen),
+                len(self.all_goal_predicates),
+            )
+            logger.info(
+                "Goal predicate coverage (test): {:.2f}% ({}/{})",
+                test_goal_cov,
+                len(self.test_goal_predicates_seen),
+                len(self.all_goal_predicates),
+            )
+            uncovered_train_goals = sorted(self.all_goal_predicates - self.train_goal_predicates_seen)
+            if uncovered_train_goals:
+                logger.warning("Uncovered train goal predicates ({}): {}", len(uncovered_train_goals), uncovered_train_goals)
+
         def log_rule_usage(title, usage_dict, total_selections):
             logger.info(f"{title}:")
             logger.info(f"{'Rule Name':<60} | {'Count':<10} | {'Percentage':<10}")
@@ -988,6 +1087,14 @@ class KGEDatasetGenerator:
                 "train": train_coverage_pct,
                 "test": test_coverage_pct,
                 "overall": overall_coverage_pct,
+            },
+            "goal_predicate_coverage_pct": {
+                "train": (len(self.train_goal_predicates_seen) / len(self.all_goal_predicates) * 100)
+                if self.all_goal_predicates
+                else 0.0,
+                "test": (len(self.test_goal_predicates_seen) / len(self.all_goal_predicates) * 100)
+                if self.all_goal_predicates
+                else 0.0,
             },
             "yield_rate_base_to_inferred": {
                 "train": safe_div(train_stats.get("n_base_facts", 0), train_stats.get("n_inferred_facts", 0)),

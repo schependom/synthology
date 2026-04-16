@@ -914,16 +914,13 @@ class BackwardChainer:
 
         yielded_count = 0
 
-        # ------------------------- BASE CASE ------------------------- #
-        # Allow this atom to be proven as a base fact
-        # If always_generate_base is False, we only yield base proof if no rules apply
-        # (checked below) or if we want to allow hybrid (checked here).
-
-        # We need to know if rules apply to decide if this is a "leaf" by necessity.
+        # ------------------------- BASE CASE (unconditional) ------------------------- #
+        # When always_generate_base is True, every atom is also a valid base fact.
+        # Yield it up-front so callers always have at least one proof available.
         key = self._get_atom_key(goal_atom)
         matching_rules = self.rules_by_head.get(key, []) if key is not None else []
 
-        if self.always_generate_base or not matching_rules:
+        if self.always_generate_base:
             yield Proof.create_base_proof(goal_atom)
             yielded_count += 1
             if self.max_proofs_per_atom and yielded_count >= self.max_proofs_per_atom:
@@ -935,11 +932,6 @@ class BackwardChainer:
         # Add current atom to path BEFORE trying to derive it
         new_atoms_in_path = atoms_in_path | frozenset([goal_atom])
 
-        # Find rules that could prove this atom
-        key = self._get_atom_key(goal_atom)
-        matching_rules = self.rules_by_head.get(key, []) if key is not None else []
-
-        # Try each matching rule
         # Shuffle rules to ensure diverse exploration (avoid getting stuck in first-defined rule)
         if matching_rules:
             # Create a copy to avoid in-place shuffle affecting other calls if list was shared
@@ -1165,6 +1157,20 @@ class BackwardChainer:
                                 f"Max proofs per atom reached ({self.max_proofs_per_atom}) for goal: {goal_atom}"
                             )
                         return
+
+        # ------------------------- DEFERRED BASE CASE ------------------------- #
+        # When always_generate_base is False (the default), we only fall back to a
+        # base proof when the rule loop produced nothing.  This happens when every
+        # matching rule was pruned away by inverse-loop detection, recursion limits,
+        # unification failures, or constraint violations — even though matching_rules
+        # was non-empty.  Without this fallback those atoms would silently yield zero
+        # proofs and their goal predicates would remain uncovered.
+        if not self.always_generate_base and yielded_count == 0:
+            if self.verbose:
+                logger.debug(
+                    f"  All rules exhausted for {goal_atom} — falling back to base proof"
+                )
+            yield Proof.create_base_proof(goal_atom)
 
     def _is_substitution_valid(self, subst: Dict[Var, Term], rule: ExecutableRule) -> bool:
         """

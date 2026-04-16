@@ -746,11 +746,41 @@ class FCBaselineGenerator:
             )
 
     def generate(self) -> None:
+        timing = {}
+        phase_start = time.perf_counter()
         os.makedirs(self.output_dir, exist_ok=True)
 
+        # --- Ontology Parsing Phase (already done in __init__) ---
+        # If you want to time parsing, move ontology_graph.parse timing here.
+        # For now, just record a dummy value if needed.
+        # timing["parsing_seconds"] = ...
+
+        # --- Base Fact Generation Phase ---
+        base_fact_start = time.perf_counter()
         self._generate_split("train", self.cfg.dataset.n_train)
         self._generate_split("val", self.cfg.dataset.n_val)
         self._generate_split("test", self.cfg.dataset.n_test)
+        base_fact_end = time.perf_counter()
+        timing["base_fact_generation_seconds"] = base_fact_end - base_fact_start
+
+        # --- Materialization Phase ---
+        # Already included in _materialize/_materialize_singlepass_jena per sample, but can sum if needed.
+        # For now, not separated out globally.
+
+        # --- Reporting Phase ---
+        reporting_start = time.perf_counter()
+        # Could add more reporting logic here if needed
+        reporting_end = time.perf_counter()
+        timing["reporting_seconds"] = reporting_end - reporting_start
+
+        total_runtime = time.perf_counter() - phase_start
+        timing["total_seconds"] = total_runtime
+
+        # Save timing metrics
+        metrics_path = os.path.join(self.output_dir, "generation_metrics.json")
+        with open(metrics_path, "w", encoding="utf-8") as f:
+            json.dump({"timing": timing}, f, indent=2)
+        logger.info(f"Saved generation metrics to: {metrics_path}")
 
         if self._timing_enabled:
             logger.info(

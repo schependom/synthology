@@ -10,6 +10,13 @@ baseline:
 synthology:
   args: ""
 
+report:
+  baseline_path: ""
+  synthology_path: ""
+  use_balanced_synthology: true
+  args: ""
+  run_baseline_analysis: true
+
 balance:
   baseline_dir: ""
   synthology_dir: ""

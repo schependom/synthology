@@ -31,27 +31,29 @@ export_proofs: false
 export_graphs: false
 
 generator:
-  min_individuals: 4
-  max_individuals: 150
-  min_rules: 1
-  max_rules: 5
+  min_individuals: 30
+  max_individuals: 300
+  min_rules: 3
+  max_rules: 8
+  rule_sampling_mode: "balanced"
+  enforce_goal_predicate_coverage: true
   target_min_proofs_rule: 5
   save_individual_samples: false
-  max_recursion: 3
-  global_max_depth: 10
+  max_recursion: 5
+  global_max_depth: 12
   max_proofs_per_atom: 5
   min_lcc_ratio: 0.6
   proof_selection_strategy: "random"
   proof_selection_weights:
-    easy: 20
-    medium: 40
-    hard: 40
-  individual_pool_size: 60
-  individual_reuse_prob: 0.7
+    easy: 5
+    medium: 30
+    hard: 65
+  individual_pool_size: 5000
+  individual_reuse_prob: 0.2
   use_signature_sampling: true
-  min_proof_roots: 5
-  max_proof_roots: 20
-  proof_roots_per_rule: 8
+  min_proof_roots: 10
+  max_proof_roots: 30
+  proof_roots_per_rule: 12
   always_generate_base: false
 
 neg_sampling:

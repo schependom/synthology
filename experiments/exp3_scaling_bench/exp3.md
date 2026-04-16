@@ -206,6 +206,27 @@ uv run invoke paper-visual-report \
   --out-dir=reports/paper
 ```
 
+### 9. Exp3 comparison report + baseline diagnostics
+
+HPC jobscript:
+
+```bash
+bsub < jobscripts/exp3-report-and-analyze.sh
+```
+
+Direct task equivalent:
+
+```bash
+uv run invoke exp3-report-and-analyze-hpc --config-path=configs/experiments/exp3_hpc.yaml
+```
+
+This run produces:
+
+- Exp3 compare report artifacts (including missing inferred predicates per method):
+  - `reports/experiment_runs/.../exp3/report_data/.../report/`
+- Latest baseline diagnostics archive:
+  - `reports/experiment_runs/.../exp3/analyze_latest_baseline/.../analysis/`
+
 ## RRN Training For Exp3 (Paper Wrapper)
 
 Use the Exp3 wrapper that pins dataset roots and run labels per arm:

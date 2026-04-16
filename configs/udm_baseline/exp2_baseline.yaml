@@ -31,13 +31,10 @@ generator:
   namespace_base: "http://synthology.org/exp2/fc/"
 
 materialization:
-  # Exp 2 uses Apache Jena for parity/depth analysis.
+  # Exp 2 uses Apache Jena closure materialization.
   reasoner: jena
   jena_profile: owl_micro
-
-  # Jena operates via Iterative Diffing over the inference closure.
-  iterative: true
-  max_iterations: 10
+  iterative: false # single-pass closure
   
   timing:
     enabled: true

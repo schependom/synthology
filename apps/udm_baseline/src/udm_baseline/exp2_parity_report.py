@@ -152,6 +152,10 @@ def load_synth_runtime_seconds(metrics_path: Path) -> float | None:
         return None
     with open(metrics_path, encoding="utf-8") as handle:
         payload = json.load(handle)
+    # Support both old and new timing structures
+    timing = payload.get("timing")
+    if timing and "total_seconds" in timing:
+        return float(timing["total_seconds"])
     runtime = payload.get("runtime_seconds", {})
     total = runtime.get("total")
     try:
@@ -197,8 +201,12 @@ def build_parity_report(
                 }
 
     synth_runtime_seconds = None
-    if synth_generation_metrics is not None:
-        synth_runtime_seconds = load_synth_runtime_seconds(synth_generation_metrics)
+    synth_timing = None
+    if synth_generation_metrics is not None and synth_generation_metrics.exists():
+        with open(synth_generation_metrics, encoding="utf-8") as handle:
+            synth_metrics = json.load(handle)
+            synth_timing = synth_metrics.get("timing")
+        synth_runtime_seconds = synth_timing.get("total_seconds") if synth_timing else None
     if synth_runtime_seconds is None and loop_summary is not None:
         synth_runtime_seconds = loop_summary.get("synth_runtime_seconds")
 
@@ -239,6 +247,10 @@ def build_parity_report(
         "attempt_count": len(attempts),
         "matched_attempt": matched_attempt,
     }
+    # Add detailed phase timings if available
+    if synth_timing:
+        for k, v in synth_timing.items():
+            timing_summary[f"synth_{k}"] = v
 
     return {
         "synthology": {
@@ -336,11 +348,11 @@ def _write_markdown_summary(report: dict[str, Any], out_path: Path) -> None:
         "",
         "## Timing",
         "",
-        f"- synth_runtime_seconds: {timing.get('synth_runtime_seconds')}",
-        f"- baseline_time_to_parity_seconds: {timing.get('baseline_time_to_parity_seconds')}",
-        f"- baseline_vs_synth_time_ratio: {timing.get('baseline_vs_synth_time_ratio')}",
-        f"- attempts_evaluated: {timing.get('attempt_count')}",
-        f"- matched_attempt: {matched.get('attempt')}",
+    ]
+    # Print all timing fields
+    for k, v in timing.items():
+        lines.append(f"- {k}: {v}")
+    lines.extend([
         "",
         "## Synthology Reference",
         "",
@@ -352,7 +364,7 @@ def _write_markdown_summary(report: dict[str, Any], out_path: Path) -> None:
         "",
         "| bucket | count | share |",
         "| --- | ---: | ---: |",
-    ]
+    ])
 
     synth_bucket_counts = synth.get("hop_buckets", {})
     synth_bucket_shares = synth.get("hop_bucket_shares", {})

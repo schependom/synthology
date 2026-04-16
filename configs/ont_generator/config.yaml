@@ -21,6 +21,13 @@ generator:
   # Number of rules selected per sample is random.randint(min_rules, min(max_rules, len(all_rules))).
   min_rules: 1
   max_rules: 5
+  # Rule sampling mode:
+  # - random: original stochastic sampling
+  # - balanced: prioritize rules with lower historical usage counts
+  rule_sampling_mode: "random"
+  # If true, training samples prioritize rules whose conclusion predicates
+  # have not yet been generated in accepted samples.
+  enforce_goal_predicate_coverage: false
   # For each selected rule, proof count is sampled as:
   # random.randint(min(len(proofs), target_min_proofs_rule), min(len(proofs), 10000)).
   # This controls how many proofs are kept in the proof map before building the KG.

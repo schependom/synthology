@@ -67,7 +67,8 @@ Expected outputs:
 
 0. Scientific guardrail (do not skip):
 
-- Exp2's core claim depends on parity enforcement. If parity is skipped, any Synthology gain can be attributed to deep-fact volume alone, which invalidates the main Exp2 argument.
+- Exp2 is run as a matched-budget comparison: shared fact cap, shared target cap, matched split sample counts, and matched split positive/negative target counts.
+- Deep-hop distributions are not forced to parity; they are reported as diagnostics alongside model results.
 
 1. Generate and freeze deep test set:
 
@@ -75,50 +76,39 @@ Expected outputs:
 uv run invoke exp2-generate-gold-test
 ```
 
-2. Generate Synthology data first (sets parity target):
-
-```bash
-uv run invoke exp2-generate-synthology
-```
-
-3. Inspect deep-hop target volume before baseline parity:
-
-- Check the d>=3 count in the generated Synthology train targets.
-- If parity appears unreachable in reasonable attempts, reduce Synthology generation pressure (for example lower proof roots per rule and/or fact cap), then regenerate.
-
-4. Generate baseline data:
-
-```bash
-uv run invoke exp2-generate-baseline
-```
-
-5. Optional budget-matched generation helper:
+2. Generate matched-budget train/val data for both arms:
 
 ```bash
 uv run invoke exp2-balance-datasets --fact-cap=<Nf> --target-cap=<Nt>
 ```
 
-6. Run parity loop and summarize parity attempts (recommended tolerance mode):
+Default behavior and source of values:
+
+- `fact_cap` is required by the task.
+- `target_cap` is optional; when omitted, each generator falls back to its own config defaults.
+- Baseline optional override: `baseline_base_facts` maps to `generator.base_relations_per_sample`.
+- Synthology optional override: `synthology_proof_roots` maps to `generator.proof_roots_per_rule`.
+- Current config defaults: baseline caps are null in `configs/udm_baseline/exp2_baseline.yaml`; synthology defaults are `train_fact_cap=180000`, `train_target_cap=140000`, `proof_roots_per_rule=8` in `configs/ont_generator/exp2_synthology.yaml`.
+
+HPC preset (recommended for reproducible matched-budget runs):
 
 ```bash
-uv run invoke exp2-parity-loop \
-  --deep-count-mode=tolerance \
-  --tolerance-pct=10.0
-uv run invoke exp2-parity-report
+bsub < jobscripts/exp2-balance-datasets.sh
 ```
 
-Tip:
+The preset reads `configs/experiments/exp2_balance_hpc.yaml` and runs:
 
-- Exp2 default now uses a wider 10% tolerance band to improve practical parity convergence under compute constraints.
-- Prefer tolerance mode (5-10%) over exact deep-count matching for practical convergence while preserving scientific defensibility.
+```bash
+uv run invoke exp2-balance-datasets-hpc --config-path=configs/experiments/exp2_balance_hpc.yaml
+```
 
-7. Generate data comparison report:
+3. Generate data comparison report (includes budget + hop diagnostics):
 
 ```bash
 uv run invoke exp2-report-data
 ```
 
-8. Train models:
+4. Train models:
 
 ```bash
 uv run invoke exp2-train-rrn --dataset=baseline
@@ -127,7 +117,6 @@ uv run invoke exp2-train-rrn --dataset=synthology
 
 Expected outputs:
 
-- parity artifacts in `data/exp2/baseline/parity_runs/`
 - train data in `data/exp2/baseline/...` and `data/exp2/synthology/...`
 - model metrics in W&B/logs
 

@@ -1,0 +1,14 @@
+# Fast local smoke preset for Exp2 matched-budget balancing.
+# Designed for debugging alignment/report logic with tiny datasets.
+
+fact_cap: 2000
+target_cap: 4000
+
+baseline_base_facts: 18
+synthology_proof_roots: 4
+
+# Keep split sizes small to make iteration quick.
+args: "dataset.n_train=8 dataset.n_val=2 dataset.n_test=2"
+
+baseline_args: "materialization.iterative=false materialization.timing.enabled=false"
+synthology_args: "generator.rule_sampling_mode=balanced generator.enforce_goal_predicate_coverage=true generator.min_rules=2 generator.max_rules=5 generator.target_min_proofs_rule=2"

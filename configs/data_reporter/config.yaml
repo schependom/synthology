@@ -17,7 +17,9 @@ splits:
 output:
   dir: reports/data_report
   save_plots: true
+  merge_intermediate_into_inferred_for_plots: true
   top_k_predicates: 15
+  ignore_predicates: []
 
 logging:
   level: INFO

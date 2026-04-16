@@ -12,6 +12,7 @@ from typing import Dict, Iterable, List, Optional
 
 import hydra
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 from loguru import logger
 from omegaconf import DictConfig, OmegaConf
 
@@ -19,7 +20,8 @@ from omegaconf import DictConfig, OmegaConf
 def _configure_plot_style() -> dict[str, bool]:
     """Configure consistent plotting style with optional LaTeX text rendering."""
 
-    latex_available = shutil.which("latex") is not None
+    disable_latex = os.environ.get("SYNTHOLOGY_DISABLE_LATEX_PLOTS", "").strip().lower() in {"1", "true", "yes"}
+    latex_available = (shutil.which("latex") is not None) and not disable_latex
     plt.rcParams.update(
         {
             "figure.dpi": 160,
@@ -177,6 +179,21 @@ def _sum_counters(stats: Iterable[SplitStats], attr: str) -> Counter:
     return total
 
 
+def _hop_bucket_counts(hops_counts: Counter) -> Dict[str, int]:
+    d1 = 0
+    d2 = 0
+    d3p = 0
+    for hop_key, count in hops_counts.items():
+        hop = _safe_int(str(hop_key), 0)
+        if hop <= 1:
+            d1 += int(count)
+        elif hop == 2:
+            d2 += int(count)
+        else:
+            d3p += int(count)
+    return {"d1": d1, "d2": d2, "d3p": d3p}
+
+
 def _method_summary(method: MethodStats) -> Dict:
     split_values = list(method.split_stats.values())
     facts_total = sum(s.facts_count for s in split_values)
@@ -187,6 +204,7 @@ def _method_summary(method: MethodStats) -> Dict:
     type_counts = _sum_counters(split_values, "type_counts")
     corruption_counts = _sum_counters(split_values, "corruption_counts")
     hops_counts = _sum_counters(split_values, "hops_counts")
+    hop_buckets = _hop_bucket_counts(hops_counts)
     predicate_counts = _sum_counters(split_values, "predicate_counts_targets")
     predicate_fact_group_counts = _sum_counters(split_values, "predicate_counts_by_fact_group")
 
@@ -211,6 +229,7 @@ def _method_summary(method: MethodStats) -> Dict:
         "type_counts": dict(type_counts),
         "corruption_counts": dict(corruption_counts),
         "hops_counts": dict(hops_counts),
+        "hop_buckets": hop_buckets,
         "top_predicates": dict(predicate_counts.most_common(30)),
         "predicate_fact_group_counts": predicate_fact_group_nested,
         "splits": {
@@ -247,6 +266,195 @@ def _write_csv_summary(summary: List[Dict], out_dir: Path) -> None:
         writer.writeheader()
         for row in summary:
             writer.writerow({k: row.get(k) for k in fieldnames})
+
+
+def _write_hops_csv(summary: List[Dict], out_dir: Path) -> None:
+    path = out_dir / "hops_by_method.csv"
+    fieldnames = ["method", "hop", "count", "share"]
+
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in summary:
+            hops = {int(k): int(v) for k, v in row.get("hops_counts", {}).items()}
+            total = sum(hops.values())
+            for hop in sorted(hops.keys()):
+                count = hops[hop]
+                share = (count / total) if total else 0.0
+                writer.writerow(
+                    {
+                        "method": row["method"],
+                        "hop": hop,
+                        "count": count,
+                        "share": f"{share:.8f}",
+                    }
+                )
+
+
+def _write_hop_bucket_csv(summary: List[Dict], out_dir: Path) -> None:
+    path = out_dir / "hop_buckets_by_method.csv"
+    fieldnames = ["method", "bucket", "count", "share"]
+
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in summary:
+            buckets = row.get("hop_buckets", {})
+            total = int(sum(int(v) for v in buckets.values()))
+            for bucket in ("d1", "d2", "d3p"):
+                count = int(buckets.get(bucket, 0))
+                share = (count / total) if total else 0.0
+                writer.writerow(
+                    {
+                        "method": row["method"],
+                        "bucket": bucket,
+                        "count": count,
+                        "share": f"{share:.8f}",
+                    }
+                )
+
+
+def _write_predicate_fact_group_csv(summary: List[Dict], out_dir: Path) -> None:
+    path = out_dir / "predicate_fact_group_counts.csv"
+    fieldnames = ["method", "predicate", "fact_group", "count"]
+
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for row in summary:
+            nested_counts: Dict[str, Dict[str, int]] = row.get("predicate_fact_group_counts", {})
+            for predicate in sorted(nested_counts.keys()):
+                groups = nested_counts[predicate]
+                for fact_group in sorted(groups.keys()):
+                    writer.writerow(
+                        {
+                            "method": row["method"],
+                            "predicate": predicate,
+                            "fact_group": fact_group,
+                            "count": int(groups[fact_group]),
+                        }
+                    )
+
+
+def _write_inferred_predicates_csv(summary: List[Dict], out_dir: Path, ignore_predicates: Optional[List[str]] = None) -> None:
+    path = out_dir / "inferred_predicates_by_method.csv"
+    fieldnames = ["predicate", "method", "count"]
+    ignored = _normalize_predicate_filter(ignore_predicates)
+
+    methods = [m["method"] for m in summary]
+    all_predicates = set()
+    inferred_by_method: Dict[str, Dict[str, int]] = {}
+
+    for m in summary:
+        nested_counts: Dict[str, Dict[str, int]] = m.get("predicate_fact_group_counts", {})
+        inferred_counts: Dict[str, int] = {}
+        for predicate, groups in nested_counts.items():
+            if str(predicate).strip().lower() in ignored:
+                continue
+            inferred_count = int(groups.get("inferred", 0))
+            if inferred_count > 0:
+                inferred_counts[predicate] = inferred_count
+                all_predicates.add(predicate)
+        inferred_by_method[m["method"]] = inferred_counts
+
+    ordered_predicates = sorted(
+        all_predicates,
+        key=lambda p: sum(inferred_by_method.get(method, {}).get(p, 0) for method in methods),
+        reverse=True,
+    )
+
+    rows: List[Dict[str, str]] = []
+    for predicate in ordered_predicates:
+        for method in methods:
+            rows.append(
+                {
+                    "predicate": predicate,
+                    "method": method,
+                    "count": str(inferred_by_method.get(method, {}).get(predicate, 0)),
+                }
+            )
+
+    with open(path, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_derived_predicates_csv(summary: List[Dict], out_dir: Path, ignore_predicates: Optional[List[str]] = None) -> None:
+    path = out_dir / "derived_predicates_by_method.csv"
+    fieldnames = ["predicate", "method", "count"]
+    ignored = _normalize_predicate_filter(ignore_predicates)
+
+    methods = [m["method"] for m in summary]
+    all_predicates = set()
+    derived_by_method: Dict[str, Dict[str, int]] = {}
+
+    for m in summary:
+        nested_counts: Dict[str, Dict[str, int]] = m.get("predicate_fact_group_counts", {})
+        derived_counts: Dict[str, int] = {}
+        for predicate, groups in nested_counts.items():
+            if str(predicate).strip().lower() in ignored:
+                continue
+            derived_count = int(groups.get("inferred", 0)) + int(groups.get("intermediate", 0))
+            if derived_count > 0:
+                derived_counts[predicate] = derived_count
+                all_predicates.add(predicate)
+        derived_by_method[m["method"]] = derived_counts
+
+    ordered_predicates = sorted(
+        all_predicates,
+        key=lambda p: sum(derived_by_method.get(method, {}).get(p, 0) for method in methods),
+        reverse=True,
+    )
+
+    rows: List[Dict[str, str]] = []
+    for predicate in ordered_predicates:
+        for method in methods:
+            rows.append(
+                {
+                    "predicate": predicate,
+                    "method": method,
+                    "count": str(derived_by_method.get(method, {}).get(predicate, 0)),
+                }
+            )
+
+    with open(path, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_missing_inferred_predicates_csv(
+    summary: List[Dict], out_dir: Path, ignore_predicates: Optional[List[str]] = None
+) -> None:
+    path = out_dir / "missing_inferred_predicates_by_method.csv"
+    fieldnames = ["method", "predicate", "inferred_count", "derived_count"]
+    ignored = _normalize_predicate_filter(ignore_predicates)
+
+    rows: List[Dict[str, str]] = []
+    for m in summary:
+        method_name = str(m.get("method", ""))
+        nested_counts: Dict[str, Dict[str, int]] = m.get("predicate_fact_group_counts", {})
+        for predicate in sorted(nested_counts.keys()):
+            if str(predicate).strip().lower() in ignored:
+                continue
+            groups = nested_counts[predicate]
+            inferred_count = int(groups.get("inferred", 0))
+            derived_count = inferred_count + int(groups.get("intermediate", 0))
+            if inferred_count == 0:
+                rows.append(
+                    {
+                        "method": method_name,
+                        "predicate": str(predicate),
+                        "inferred_count": str(inferred_count),
+                        "derived_count": str(derived_count),
+                    }
+                )
+
+    with open(path, "w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def _plot_bar(values: Dict[str, float], title: str, ylabel: str, out_path: Path) -> None:
@@ -310,9 +518,57 @@ def _plot_hops_distribution(summary: List[Dict], out_path: Path) -> None:
     plt.close(fig)
 
 
-def _plot_top_predicates_per_method(summary: List[Dict], out_dir: Path, top_k: int) -> None:
+def _normalize_predicate_filter(ignore_predicates: Optional[List[str]]) -> set[str]:
+    return {str(p).strip().lower() for p in (ignore_predicates or []) if str(p).strip()}
+
+
+def _merge_type_counts_for_plot(type_counts: Dict[str, int]) -> Dict[str, int]:
+    merged: Counter = Counter()
+    for row_type, count in type_counts.items():
+        key = str(row_type)
+        if key in {"inf_root", "inf_intermediate", "inferred"}:
+            key = "inferred"
+        elif key in {"neg_inf_root", "neg_inf_intermediate", "neg_inferred"}:
+            key = "neg_inferred"
+        merged[key] += int(count)
+    return dict(merged)
+
+
+def _merge_fact_group_counts_for_plot(nested_counts: Dict[str, Dict[str, int]]) -> Dict[str, Dict[str, int]]:
+    merged: Dict[str, Dict[str, int]] = {}
+    for predicate, groups in nested_counts.items():
+        predicate_totals: Counter = Counter()
+        for group, count in groups.items():
+            key = "inferred" if str(group) == "intermediate" else str(group)
+            predicate_totals[key] += int(count)
+        merged[predicate] = dict(predicate_totals)
+    return merged
+
+
+def _plot_summary_view(summary: List[Dict], merge_intermediate_into_inferred: bool) -> List[Dict]:
+    if not merge_intermediate_into_inferred:
+        return summary
+
+    plot_summary: List[Dict] = []
+    for row in summary:
+        merged_row = dict(row)
+        merged_row["type_counts"] = _merge_type_counts_for_plot(row.get("type_counts", {}))
+        merged_row["predicate_fact_group_counts"] = _merge_fact_group_counts_for_plot(
+            row.get("predicate_fact_group_counts", {})
+        )
+        plot_summary.append(merged_row)
+
+    return plot_summary
+
+
+def _plot_top_predicates_per_method(
+    summary: List[Dict], out_dir: Path, top_k: int, ignore_predicates: Optional[List[str]] = None
+) -> None:
+    ignored = _normalize_predicate_filter(ignore_predicates)
+
     for m in summary:
-        top = list(m["top_predicates"].items())[:top_k]
+        filtered = [(k, v) for k, v in m["top_predicates"].items() if str(k).strip().lower() not in ignored]
+        top = filtered[:top_k]
         if not top:
             continue
         labels = [k for k, _ in top]
@@ -328,11 +584,107 @@ def _plot_top_predicates_per_method(summary: List[Dict], out_dir: Path, top_k: i
         plt.close(fig)
 
 
-def _plot_predicate_distribution_by_fact_group(summary: List[Dict], out_dir: Path) -> None:
-    fact_groups = ["base", "inferred", "intermediate"]
+def _plot_top_predicates_combined(
+    summary: List[Dict], out_path: Path, top_k: int, ignore_predicates: Optional[List[str]] = None
+) -> None:
+    methods = [m["method"] for m in summary]
+    if not methods:
+        return
+
+    ignored = _normalize_predicate_filter(ignore_predicates)
+
+    discovered_groups = {
+        str(group)
+        for m in summary
+        for groups in m.get("predicate_fact_group_counts", {}).values()
+        for group in groups.keys()
+    }
+    preferred_order = ["base", "inferred", "intermediate"]
+    fact_groups = [g for g in preferred_order if g in discovered_groups]
+    if not fact_groups:
+        return
+    group_colors = {
+        "base": "#1f77b4",
+        "inferred": "#ff7f0e",
+        "intermediate": "#2ca02c",
+    }
+    method_hatches = {
+        methods[0]: "",
+    }
+    if len(methods) > 1:
+        method_hatches[methods[1]] = "//"
+
+    combined_counts: Counter = Counter()
+    per_method: Dict[str, Dict[str, Dict[str, int]]] = {}
 
     for m in summary:
-        nested_counts: Dict[str, Dict[str, int]] = m.get("predicate_fact_group_counts", {})
+        nested_counts: Dict[str, Dict[str, int]] = {
+            p: {g: int(c) for g, c in groups.items()} for p, groups in m.get("predicate_fact_group_counts", {}).items()
+        }
+        nested_counts = {p: groups for p, groups in nested_counts.items() if str(p).strip().lower() not in ignored}
+        per_method[m["method"]] = nested_counts
+        for predicate, groups in nested_counts.items():
+            combined_counts[predicate] += sum(int(groups.get(g, 0)) for g in fact_groups)
+
+    predicates = [p for p, _ in combined_counts.most_common(top_k)]
+    if not predicates:
+        return
+
+    x = list(range(len(predicates)))
+    width = 0.8 / max(len(methods), 1)
+
+    fig_width = max(12, 0.65 * len(predicates) + 4)
+    fig, ax = plt.subplots(figsize=(fig_width, 6))
+
+    for i, method in enumerate(methods):
+        offset = (i - (len(methods) - 1) / 2) * width
+        nested = per_method.get(method, {})
+        bottom = [0.0] * len(predicates)
+
+        for fact_group in fact_groups:
+            vals = [float(nested.get(p, {}).get(fact_group, 0)) for p in predicates]
+            ax.bar(
+                [xi + offset for xi in x],
+                vals,
+                width=width,
+                bottom=bottom,
+                color=group_colors[fact_group],
+                edgecolor="black",
+                linewidth=0.35,
+                hatch=method_hatches.get(method, ".."),
+            )
+            bottom = [b + v for b, v in zip(bottom, vals)]
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(predicates, rotation=45, ha="right")
+    ax.set_title(f"Top {top_k} Predicates by Method and Fact Group")
+    ax.set_xlabel("Predicate")
+    ax.set_ylabel("Count")
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+
+    group_handles = [Patch(facecolor=group_colors.get(g, "#7f7f7f"), edgecolor="black", label=g) for g in fact_groups]
+    method_handles = [
+        Patch(facecolor="white", edgecolor="black", hatch=method_hatches.get(m, ".."), label=m) for m in methods
+    ]
+    legend_groups = ax.legend(handles=group_handles, title="Fact Group", loc="upper right")
+    ax.add_artist(legend_groups)
+    ax.legend(handles=method_handles, title="Method", loc="upper left")
+
+    fig.tight_layout()
+    _save_figure(fig, out_path)
+    plt.close(fig)
+
+
+def _plot_predicate_distribution_by_fact_group(summary: List[Dict], out_dir: Path, ignore_predicates: Optional[List[str]] = None) -> None:
+    fact_groups = ["base", "inferred", "intermediate"]
+    ignored = _normalize_predicate_filter(ignore_predicates)
+
+    for m in summary:
+        nested_counts: Dict[str, Dict[str, int]] = {
+            p: groups
+            for p, groups in m.get("predicate_fact_group_counts", {}).items()
+            if str(p).strip().lower() not in ignored
+        }
         predicates = sorted(nested_counts.keys())
         if not predicates:
             continue
@@ -363,8 +715,117 @@ def _plot_predicate_distribution_by_fact_group(summary: List[Dict], out_dir: Pat
         plt.close(fig)
 
 
-def _write_markdown_report(summary: List[Dict], out_dir: Path) -> None:
+def _plot_all_inferred_predicates_by_method(
+    summary: List[Dict], out_path: Path, ignore_predicates: Optional[List[str]] = None
+) -> None:
+    methods = [m["method"] for m in summary]
+    if not methods:
+        return
+
+    ignored = _normalize_predicate_filter(ignore_predicates)
+    inferred_by_method: Dict[str, Dict[str, int]] = {}
+    all_predicates: set[str] = set()
+
+    for m in summary:
+        nested_counts: Dict[str, Dict[str, int]] = m.get("predicate_fact_group_counts", {})
+        inferred_counts: Dict[str, int] = {}
+        for predicate, groups in nested_counts.items():
+            if str(predicate).strip().lower() in ignored:
+                continue
+            count = int(groups.get("inferred", 0))
+            if count > 0:
+                inferred_counts[predicate] = count
+                all_predicates.add(predicate)
+        inferred_by_method[m["method"]] = inferred_counts
+
+    if not all_predicates:
+        return
+
+    ordered_predicates = sorted(
+        all_predicates,
+        key=lambda p: sum(inferred_by_method.get(method, {}).get(p, 0) for method in methods),
+        reverse=True,
+    )
+
+    x = list(range(len(ordered_predicates)))
+    width = 0.8 / max(len(methods), 1)
+    fig_width = max(14, 0.45 * len(ordered_predicates) + 6)
+
+    fig, ax = plt.subplots(figsize=(fig_width, 6))
+    for i, method in enumerate(methods):
+        offset = (i - (len(methods) - 1) / 2) * width
+        y = [inferred_by_method.get(method, {}).get(p, 0) for p in ordered_predicates]
+        ax.bar([xi + offset for xi in x], y, width=width, label=method)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(ordered_predicates, rotation=90)
+    ax.set_title("All Inferred Predicates by Method (inferred only)")
+    ax.set_xlabel("Predicate")
+    ax.set_ylabel("Inferred Count")
+    ax.legend(title="Method")
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+    fig.tight_layout()
+    _save_figure(fig, out_path)
+    plt.close(fig)
+
+
+def _plot_all_derived_predicates_by_method(
+    summary: List[Dict], out_path: Path, ignore_predicates: Optional[List[str]] = None
+) -> None:
+    methods = [m["method"] for m in summary]
+    if not methods:
+        return
+
+    ignored = _normalize_predicate_filter(ignore_predicates)
+    derived_by_method: Dict[str, Dict[str, int]] = {}
+    all_predicates: set[str] = set()
+
+    for m in summary:
+        nested_counts: Dict[str, Dict[str, int]] = m.get("predicate_fact_group_counts", {})
+        derived_counts: Dict[str, int] = {}
+        for predicate, groups in nested_counts.items():
+            if str(predicate).strip().lower() in ignored:
+                continue
+            count = int(groups.get("inferred", 0)) + int(groups.get("intermediate", 0))
+            if count > 0:
+                derived_counts[predicate] = count
+                all_predicates.add(predicate)
+        derived_by_method[m["method"]] = derived_counts
+
+    if not all_predicates:
+        return
+
+    ordered_predicates = sorted(
+        all_predicates,
+        key=lambda p: sum(derived_by_method.get(method, {}).get(p, 0) for method in methods),
+        reverse=True,
+    )
+
+    x = list(range(len(ordered_predicates)))
+    width = 0.8 / max(len(methods), 1)
+    fig_width = max(14, 0.45 * len(ordered_predicates) + 6)
+
+    fig, ax = plt.subplots(figsize=(fig_width, 6))
+    for i, method in enumerate(methods):
+        offset = (i - (len(methods) - 1) / 2) * width
+        y = [derived_by_method.get(method, {}).get(p, 0) for p in ordered_predicates]
+        ax.bar([xi + offset for xi in x], y, width=width, label=method)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(ordered_predicates, rotation=90)
+    ax.set_title("All Derived Predicates by Method (inferred + intermediate)")
+    ax.set_xlabel("Predicate")
+    ax.set_ylabel("Derived Count")
+    ax.legend(title="Method")
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+    fig.tight_layout()
+    _save_figure(fig, out_path)
+    plt.close(fig)
+
+
+def _write_markdown_report(summary: List[Dict], out_dir: Path, ignore_predicates: Optional[List[str]] = None) -> None:
     md_path = out_dir / "report.md"
+    ignored = _normalize_predicate_filter(ignore_predicates)
 
     lines = [
         "# Dataset Comparison Report",
@@ -387,6 +848,20 @@ def _write_markdown_report(summary: List[Dict], out_dir: Path) -> None:
     lines.append("## Split-Level Stats")
     lines.append("")
 
+    lines.append("## Budget + Hop Diagnostics")
+    lines.append("")
+    lines.append(
+        "| Method | Facts Total | Positives | Negatives | Hop d=1 | Hop d=2 | Hop d>=3 |"
+    )
+    lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: |")
+    for m in summary:
+        hop_buckets = m.get("hop_buckets", {})
+        lines.append(
+            f"| {m['method']} | {m['facts_total']} | {m['positives_total']} | {m['negatives_total']} | "
+            f"{int(hop_buckets.get('d1', 0))} | {int(hop_buckets.get('d2', 0))} | {int(hop_buckets.get('d3p', 0))} |"
+        )
+    lines.append("")
+
     for m in summary:
         lines.append(f"### {m['method']}")
         lines.append("")
@@ -401,11 +876,44 @@ def _write_markdown_report(summary: List[Dict], out_dir: Path) -> None:
             )
         lines.append("")
 
+    lines.append("## Predicates With No Inferred Facts")
+    lines.append("")
+    lines.append("(Inferred = counts from `inf_root`/`inferred`. Derived adds `inf_intermediate`.)")
+    lines.append("")
+
+    for m in summary:
+        method_name = str(m.get("method", ""))
+        nested_counts: Dict[str, Dict[str, int]] = m.get("predicate_fact_group_counts", {})
+        missing_rows = []
+        for predicate in sorted(nested_counts.keys()):
+            if str(predicate).strip().lower() in ignored:
+                continue
+            groups = nested_counts[predicate]
+            inferred_count = int(groups.get("inferred", 0))
+            if inferred_count == 0:
+                derived_count = inferred_count + int(groups.get("intermediate", 0))
+                missing_rows.append((predicate, derived_count))
+
+        lines.append(f"### {method_name}")
+        lines.append("")
+        if not missing_rows:
+            lines.append("- None")
+            lines.append("")
+            continue
+
+        lines.append("| Predicate | Inferred Count | Derived Count |")
+        lines.append("| --- | ---: | ---: |")
+        for predicate, derived_count in missing_rows:
+            lines.append(f"| {predicate} | 0 | {derived_count} |")
+        lines.append("")
+
     with open(md_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
 
-def _generate_plots(summary: List[Dict], out_dir: Path, top_k_predicates: int) -> None:
+def _generate_plots(
+    summary: List[Dict], out_dir: Path, top_k_predicates: int, ignore_predicates: Optional[List[str]] = None
+) -> None:
     _plot_bar(
         {m["method"]: m["targets_total"] for m in summary},
         "Total Targets by Method",
@@ -426,8 +934,11 @@ def _generate_plots(summary: List[Dict], out_dir: Path, top_k_predicates: int) -
     )
     _plot_type_distribution(summary, out_dir / "type_distribution_stacked.png")
     _plot_hops_distribution(summary, out_dir / "hops_distribution.png")
-    _plot_predicate_distribution_by_fact_group(summary, out_dir)
-    _plot_top_predicates_per_method(summary, out_dir, top_k_predicates)
+    _plot_predicate_distribution_by_fact_group(summary, out_dir, ignore_predicates)
+    _plot_top_predicates_per_method(summary, out_dir, top_k_predicates, ignore_predicates)
+    _plot_top_predicates_combined(summary, out_dir / "top_predicates_combined.png", top_k_predicates, ignore_predicates)
+    _plot_all_inferred_predicates_by_method(summary, out_dir / "all_inferred_predicates_by_method.png", ignore_predicates)
+    _plot_all_derived_predicates_by_method(summary, out_dir / "all_derived_predicates_by_method.png", ignore_predicates)
 
 
 def _analyze_method(name: str, path: Path, splits: List[str]) -> MethodStats:
@@ -465,10 +976,19 @@ def main(cfg: DictConfig) -> None:
         json.dump({"methods": summary, "plot_style": style_info}, f, indent=2)
 
     _write_csv_summary(summary, out_dir)
-    _write_markdown_report(summary, out_dir)
+    _write_hops_csv(summary, out_dir)
+    _write_hop_bucket_csv(summary, out_dir)
+    _write_predicate_fact_group_csv(summary, out_dir)
+    ignore_predicates = list(cfg.output.get("ignore_predicates", []))
+    _write_inferred_predicates_csv(summary, out_dir, ignore_predicates)
+    _write_derived_predicates_csv(summary, out_dir, ignore_predicates)
+    _write_missing_inferred_predicates_csv(summary, out_dir, ignore_predicates)
+    _write_markdown_report(summary, out_dir, ignore_predicates)
 
     if cfg.output.save_plots:
-        _generate_plots(summary, out_dir, int(cfg.output.top_k_predicates))
+        merge_intermediate_into_inferred = bool(cfg.output.get("merge_intermediate_into_inferred_for_plots", False))
+        plot_summary = _plot_summary_view(summary, merge_intermediate_into_inferred)
+        _generate_plots(plot_summary, out_dir, int(cfg.output.top_k_predicates), ignore_predicates)
 
     logger.success(f"Saved reports to {out_dir}")
 

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 #BSUB -q hpc
-#BSUB -J exp3-generate-gold-test
-#BSUB -n 2
+#BSUB -J exp3-report-and-analyze
+#BSUB -n 4
 #BSUB -W 02:00
-#BSUB -R "rusage[mem=4GB]"
-#BSUB -o logs/exp3_generate_gold_test_%J.out
-#BSUB -e logs/exp3_generate_gold_test_%J.err
+#BSUB -R "rusage[mem=8GB]"
+#BSUB -o logs/exp3_report_and_analyze_%J.out
+#BSUB -e logs/exp3_report_and_analyze_%J.err
 
 set -euo pipefail
 
@@ -33,8 +33,9 @@ synthology_sync_deps
 CONFIG_PATH="${1:-configs/experiments/exp3_hpc.yaml}"
 synthology_require_file "${CONFIG_PATH}" "Exp3 HPC config"
 
-echo "Starting Exp3 gold-test freeze with config: ${CONFIG_PATH}"
-uv run invoke exp3-generate-gold-test-hpc --config-path="${CONFIG_PATH}"
+echo "Starting Exp3 report + analysis with config: ${CONFIG_PATH}"
+uv run invoke exp3-report-and-analyze-hpc --config-path="${CONFIG_PATH}"
 
-echo "Finished Exp3 gold-test freeze at:"
+echo
+echo "Exp3 report + analysis complete at:"
 date
