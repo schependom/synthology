@@ -5,9 +5,14 @@ baseline:
   abox_jena_heap_mb: 8192
   final_reasoning_input_triple_cap: 15000
   final_jena_profile: owl_mini
-  args: "dataset.mask_base_facts=false dataset.target_ratio=0.0 dataset.negatives_per_positive=1 dataset.inferred_target_limit=250000"
+  # All canonical paper settings are already set in configs/owl2bench/config.yaml.
+  # Only add genuine per-run overrides here; leave empty for paper runs.
+  args: ""
 
 synthology:
+  args: ""
+
+training:
   args: ""
 
 report:
@@ -31,7 +36,7 @@ paper_visual_report:
   exp2_synth_targets: data/exp2/synthology/family_tree/train/targets.csv
   exp2_parity_summary: data/exp2/baseline/parity_runs/parity_loop_summary.json
   exp3_targets: data/owl2bench/output/owl2bench_5/train/targets.csv
-  exp3_abox: data/owl2bench/output/raw/owl2bench_5/OWL2RL-5.owl
+  exp3_abox: data/owl2bench/output/raw/owl2bench_5/OWL2RL-20.owl
   exp3_inferred: data/exp3/baseline/owl2bench_5/inferred.nt
   out_dir: reports/paper
   args: ""

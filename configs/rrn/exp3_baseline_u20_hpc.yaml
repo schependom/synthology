@@ -1,0 +1,13 @@
+defaults:
+  - exp3_owl2bench_hpc
+  - _self_
+
+data:
+  train_path: "data/owl2bench/output/owl2bench_5/train"
+  val_path: "data/owl2bench/output/owl2bench_5/val"
+  test_path: "data/owl2bench/output/owl2bench_5/test"
+
+logger:
+  name: "exp3_baseline_owl2bench_u5_hpc"
+  group: "exp3_scaling"
+  tags: [exp3, baseline, owl2bench, u5, hpc]

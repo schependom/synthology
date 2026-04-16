@@ -79,7 +79,7 @@ Changes:
     - `dataset.diagnostics.max_rows_per_file: 0 -> 200000`
 - `rrn/data/dataset/owl2bench.yaml`
     - fixed path casing and aligned to U=20:
-    - `data/OWL2Bench/output/owl2bench_10/... -> data/owl2bench/output/owl2bench_20/...`
+    - `data/OWL2Bench/output/owl2bench_10/... -> data/owl2bench/output/owl2bench_5/...`
 
 Why this is realistic:
 

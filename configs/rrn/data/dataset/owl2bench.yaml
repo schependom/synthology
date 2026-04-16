@@ -1,5 +1,5 @@
 name: "OWL2Bench (OWL 2 RL)"
 
-train_path: "data/owl2bench/output/owl2bench_20/train"
-val_path: "data/owl2bench/output/owl2bench_20/val"
-test_path: "data/owl2bench/output/owl2bench_20/test"
+train_path: "data/owl2bench/output/owl2bench_5/train"
+val_path: "data/owl2bench/output/owl2bench_5/val"
+test_path: "data/owl2bench/output/owl2bench_5/test"

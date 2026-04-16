@@ -235,9 +235,9 @@ Generate combined figures used for data-level comparisons:
 uv run invoke paper-visual-report \
   --exp2-synth-targets=data/exp2/synthology/family_tree/train/targets.csv \
   --exp2-parity-summary=data/exp2/baseline/parity_runs/parity_loop_summary.json \
-  --exp3-targets=data/owl2bench/output/owl2bench_20/train/targets.csv \
-  --exp3-abox=data/owl2bench/output/raw/owl2bench_20/OWL2RL-20.owl \
-  --exp3-inferred=data/exp3/baseline/owl2bench_20/inferred.nt \
+  --exp3-targets=data/owl2bench/output/owl2bench_5/train/targets.csv \
+  --exp3-abox=data/owl2bench/output/raw/owl2bench_5/OWL2RL-20.owl \
+  --exp3-inferred=data/exp3/baseline/owl2bench_5/inferred.nt \
   --out-dir=reports/paper
 ```
 

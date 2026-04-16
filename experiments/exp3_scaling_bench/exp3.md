@@ -98,8 +98,8 @@ uv run invoke exp3-generate-synthology --universities=20
 
 Default Synthology-side outputs are written to:
 
-- `data/exp3/synthology/owl2bench_20/`
-- `data/exp3/synthology/raw/owl2bench_20/`
+- `data/exp3/synthology/owl2bench_5/`
+- `data/exp3/synthology/raw/owl2bench_5/`
 
 ### 3. Exp3 ABox generation wrapper (explicit university count)
 
@@ -179,10 +179,10 @@ uv run invoke exp3-generate-gold-test --universities=20
 
 ```bash
 uv run invoke exp3-materialize-abox \
-  --abox=data/owl2bench/output/raw/owl2bench_20/OWL2RL-20.owl \
+  --abox=data/owl2bench/output/raw/owl2bench_5/OWL2RL-20.owl \
   --tbox=ontologies/UNIV-BENCH-OWL2RL.owl \
-  --closure-out=data/exp3/baseline/owl2bench_20/closure.nt \
-  --inferred-out=data/exp3/baseline/owl2bench_20/inferred.nt \
+  --closure-out=data/exp3/baseline/owl2bench_5/closure.nt \
+  --inferred-out=data/exp3/baseline/owl2bench_5/inferred.nt \
   --jena-profile=owl_mini
 ```
 
@@ -200,9 +200,9 @@ Direct task equivalent:
 uv run invoke paper-visual-report \
   --exp2-synth-targets=data/exp2/synthology/family_tree/train/targets.csv \
   --exp2-parity-summary=data/exp2/baseline/parity_runs/parity_loop_summary.json \
-  --exp3-targets=data/owl2bench/output/owl2bench_20/train/targets.csv \
-  --exp3-abox=data/owl2bench/output/raw/owl2bench_20/OWL2RL-20.owl \
-  --exp3-inferred=data/exp3/baseline/owl2bench_20/inferred.nt \
+  --exp3-targets=data/owl2bench/output/owl2bench_5/train/targets.csv \
+  --exp3-abox=data/owl2bench/output/raw/owl2bench_5/OWL2RL-20.owl \
+  --exp3-inferred=data/exp3/baseline/owl2bench_5/inferred.nt \
   --out-dir=reports/paper
 ```
 
@@ -246,7 +246,7 @@ uv run invoke exp3-train-rrn --dataset=synthology --universities=20
 ```
 
 The synthology arm automatically prefers balanced data at
-`data/exp3/balanced/owl2bench_20/` when present.
+`data/exp3/balanced/owl2bench_5/` when present.
 
 ## Fair Comparison Protocol (Exp3)
 

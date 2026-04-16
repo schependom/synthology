@@ -1235,7 +1235,20 @@ def exp2_balance_datasets(ctx: Context, config_path="configs/experiments/exp2_ba
     cfg = _load_yaml_config(config_path)
     run_dir = _make_run_archive("exp2", "balance_datasets", label="matched")
     _write_json(run_dir / "manifest.json", cfg)
-    exp2_generate_both(ctx)
+    fact_cap = int(cfg["fact_cap"]) if cfg.get("fact_cap") is not None else None
+    target_cap = int(cfg["target_cap"]) if cfg.get("target_cap") is not None else None
+    baseline_base_facts = int(cfg["baseline_base_facts"]) if cfg.get("baseline_base_facts") is not None else None
+    synthology_proof_roots = int(cfg["synthology_proof_roots"]) if cfg.get("synthology_proof_roots") is not None else None
+    exp2_generate_both(
+        ctx,
+        fact_cap=fact_cap,
+        target_cap=target_cap,
+        baseline_base_facts=baseline_base_facts,
+        synthology_proof_roots=synthology_proof_roots,
+        args=str(cfg.get("args", "")),
+        baseline_args=str(cfg.get("baseline_args", "")),
+        synthology_args=str(cfg.get("synthology_args", "")),
+    )
 
 
 
@@ -2030,6 +2043,19 @@ def exp3_generate_gold_test_hpc(ctx: Context, config_path="configs/experiments/e
         universities=int(cfg["universities"]),
         source_test_dir=str(gold_test.get("source_test_dir", "")),
         output_test_dir=str(gold_test.get("output_test_dir", "")),
+    )
+
+
+@task
+def exp3_train_rrn_hpc(ctx: Context, dataset="baseline", config_path="configs/experiments/exp3_hpc.yaml"):
+    """Trains Exp3 RRN for one arm (baseline or synthology) using centralized YAML preset."""
+    cfg = _load_yaml_config(config_path)
+    training = dict(cfg.get("training", {}))
+    exp3_train_rrn(
+        ctx,
+        dataset=dataset,
+        universities=int(cfg["universities"]),
+        args=str(training.get("args", "")),
     )
 
 

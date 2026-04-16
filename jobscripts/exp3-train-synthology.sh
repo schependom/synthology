@@ -11,8 +11,14 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+if [ -f "${PWD}/jobscripts/common.sh" ]; then
+	REPO_ROOT="${PWD}"
+elif [ -n "${LS_SUBCWD:-}" ] && [ -f "${LS_SUBCWD}/jobscripts/common.sh" ]; then
+	REPO_ROOT="${LS_SUBCWD}"
+else
+	SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+	REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+fi
 
 . "${REPO_ROOT}/jobscripts/common.sh"
 
@@ -24,8 +30,11 @@ synthology_load_modules python3/3.9.19 cuda/11.7
 synthology_activate_python_env 0
 synthology_sync_deps
 
-echo "Starting Exp3 RRN training (synthology)"
-uv run --package rrn python -m rrn.train --config-name=exp3_synthology_u5_hpc
+CONFIG_PATH="${1:-configs/experiments/exp3_hpc.yaml}"
+synthology_require_file "${CONFIG_PATH}" "Exp3 HPC config"
+
+echo "Starting Exp3 RRN training (synthology) with config: ${CONFIG_PATH}"
+uv run invoke exp3-train-rrn-hpc --dataset=synthology --config-path="${CONFIG_PATH}"
 
 echo "Finished Exp3 synthology training at:"
 date
