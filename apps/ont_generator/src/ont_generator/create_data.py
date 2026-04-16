@@ -141,6 +141,15 @@ class KGEDatasetGenerator:
         self.rule_selection_count: Dict[str, int] = defaultdict(int)
         self.rule_success_count: Dict[str, int] = defaultdict(int)
 
+        self.train_goal_predicates_seen = set()
+        self.test_goal_predicates_seen = set()
+        self.all_goal_predicates = set()
+        if self.rules:
+            for rule in self.rules:
+                if hasattr(rule, "conclusion") and hasattr(rule.conclusion, "predicate"):
+                    pred = rule.conclusion.predicate
+                    self.all_goal_predicates.add(str(getattr(pred, "name", pred)))
+
         if self.verbose:
             logger.info(f"Loaded {len(self.rules)} rules from ontology")
             logger.info(
@@ -335,11 +344,11 @@ class KGEDatasetGenerator:
 
         while len(samples) < n_samples and failed_attempts < max_failed_attempts:
             if sample_type == "TEST":
-                prefix = "test_"
+                prefix = f"test_{len(samples)}_"
             elif sample_type == "VAL":
-                prefix = "val_"
+                prefix = f"val_{len(samples)}_"
             else:
-                prefix = "train_"
+                prefix = f"train_{len(samples)}_"
 
             # Reset individual pool for each sample
             self.generator.chainer.reset_individual_pool(name_prefix=prefix)
