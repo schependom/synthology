@@ -1,190 +1,78 @@
-# Experiment 1 - Known Problems
+# Experiment 1: W&B Training Analysis & Issue Tracker
+
+Based on a detailed review of the provided Weights & Biases plots, the experiment documentation (`exp1.md`), and the model implementation (`rrn_batched.py`), several critical issues are affecting the training runs. 
+
+Here is the breakdown of the anomalies, their likely causes, and actionable steps to resolve them.
 
 ---
 
-## 1. Constrained class head collapse
+## Issue 1: Missing Primary Metric (`val/triple_pr_auc`) for the Proof-Based Run
+**Description:** The `val/triple_pr_auc` plot completely lacks the pink line corresponding to `exp1_proof_based_hpc`. Given that your `exp1.md` document explicitly states that PR-AUC is the "primary discrimination metric for near-miss negatives" required for the paper, its absence is a showstopper.
 
-**Severity:** 🚨 Critical  
-**Affected run:** `exp1_constrained_hpc`  
-**Observed symptoms:**
+**Possible Causes:**
+* **NaN Values in Predictions:** If the RRN is outputting extreme logits that result in exact 0s or 1s after the sigmoid activation, the precision/recall calculations might be dividing by zero, resulting in `NaN`s. W&B will silently drop `NaN` metric points from line plots.
+* **Metric Logging Configuration:** There might be a condition in the PyTorch Lightning module where PR-AUC is skipped or errors out exclusively for the `proof_based` batch structures.
 
-- `val/class_loss` stays flat at ~0.83 throughout entire training (never decreases)
-- `val/class_fpr` = 1.0 throughout (100% of class negatives classified as positive)
-- `val/class_acc_neg` = 0 from ~1k steps onward
-- `val/class_f1` = 0.5 (degenerate constant)
-- `val/class_auc_roc` drops below 0.5 (worse than random guessing)
-- `val/total_loss` stuck at ~1.45 with no convergence (inflated by the stuck class loss)
-- All `val/class_acc_type_*` metrics collapse to 0 for constrained
-
-**What this is not affecting:**
-
-- Relation-triple metrics (FPR, F1, AUC-ROC, hop-stratified accuracy) are unaffected
-    - the relation head is learning normally
-
-**Possible causes:**
-
-1. **No class membership negatives in the constrained dataset (most likely)**  
-   The constrained negative sampling strategy may only corrupt relation triples
-   (substituting subject/object) without ever generating negative `rdf:type`
-   membership assertions. If the class head receives only positive supervision
-   signals, BCE loss stays at max uncertainty (~0.693 for balanced, ~0.83 for
-   skewed) and the head learns to always predict positive.  
-   → Check `configs/ont_generator/exp1_constrained.yaml`: is there a
-   `class_negative_ratio` or equivalent field? Is it zero or missing?
-
-2. **Constrained corruption silently rejects all class membership candidates**  
-   If the constrained strategy enforces type constraints so strictly that all
-   candidate class negatives are rejected (e.g., a constraint that prevents
-   assigning an individual to a class it is already a member of, recursively),
-   the fallback may generate zero class negatives. The dataset would then contain
-   only positive class memberships, collapsing the head.
-
-3. **Dataloader bug for the constrained split**  
-   A bug in the constrained dataset YAML or dataloader could cause class
-   membership negatives to be silently dropped, mislabeled as positive, or
-   excluded from batches, even if the generation phase produced them correctly.
-   → Compare the raw `targets.csv` for the constrained split against random
-   and proof-based: does it contain rows where the class membership label = 0?
-
-4. **Class membership negatives present but masked by the loss weight**  
-   If there is a `class_loss_weight` or `neg_weight` parameter set to 0 for
-   the constrained run in the RRN config, the gradient from class negatives
-   would be zeroed out even if the data is correct.
+**Points of Action:**
+* Check the raw W&B tables (not the plots) to see if `val/triple_pr_auc` for the `proof_based` run is logged as `NaN` or `None`.
+* Inspect the validation loop in your `LightningModule`. Add numerical stability checks (e.g., `torch.clamp`) before passing predictions to your AUROC/PRAUC metric functions.
 
 ---
 
-## 2. Sharp periodic metric drops in the random run
+## Issue 2: Catastrophic Mode Collapse in the Constrained Model
+**Description:**
+The `exp1_constrained_hpc` (blue line) experiences a severe, perfectly vertical drop across almost all class-related metrics at exactly ~2.5k global steps. For example, `val/class_acc_pos` plummets from 1.0 to a flat ~0.58, and `val/class_recall` drops identically. After this drop, the metrics flatline completely for the remainder of the run.
 
-**Severity:** ⚠️ Moderate  
-**Affected run:** `exp1_random_hpc`  
-**Observed symptoms:**
+**Possible Causes:**
+* **Exploding Gradients:** The model likely encountered a bad batch, causing gradients to explode and updating the weights to `NaN` or pushing them into a dead zone (e.g., dying ReLUs in the `ClassesMLP` or `RelationMLP`).
+* **Mode Collapse:** The model learned a degenerate heuristic (like predicting all 0s or a constant probability) to minimize loss, effectively guessing the majority class.
 
-- `val/triple_acc_pos` drops sharply from ~0.88 to ~0.61 at ~4.5k steps, then partially recovers
-- `val/triple_acc_hops_1` drops similarly at ~2k and ~4.5k steps
-- `val/triple_acc_type_inf_intermediate` drops at ~4.5k and ~5k steps
-- Drops are sudden (one step) and partial recovery takes many steps
-
-**Possible causes:**
-
-1. **Learning rate scheduler with aggressive decay or restart (most likely)**  
-   A cosine annealing with warm restarts, or a ReduceLROnPlateau with a large
-   factor, could spike the effective step size at regular intervals, temporarily
-   destabilizing the model. The periodicity (roughly every 2–2.5k steps) is
-   consistent with a scheduler cycle.  
-   → Check `cfg.hyperparams` for `scheduler`, `lr_scheduler`, or `step_size`.
-
-2. **Gradient explosion event at specific steps**  
-   Without gradient clipping, a bad batch can cause a gradient spike that
-   overwrites learned weights. The partial recovery suggests the optimizer
-   corrects over subsequent steps.  
-   → Add `gradient_clip_val=1.0` to the `pl.Trainer` constructor and monitor
-   `trainer/grad_norm` in W&B.
-
-3. **Validation set composition changes at epoch boundaries**  
-   If the validation dataloader reshuffles or regenerates graphs at certain
-   epoch boundaries, the effective difficulty of the validation set could spike.
-   The random model - being the most sensitive to negative type - would show this
-   most clearly.
-
-4. **Checkpoint callback causing model state interference**  
-   If a `ModelCheckpoint` restores an earlier checkpoint mid-training (e.g., due
-   to a misconfigured `restore_best_weights` equivalent), it could reset the
-   model to an earlier state, causing a temporary performance drop.
+**Points of Action:**
+* Implement Gradient Clipping in your PyTorch Lightning Trainer (e.g., `trainer = Trainer(gradient_clip_val=1.0)`).
+* Log gradient norms to W&B to verify if a spike occurs right before the 2.5k step mark.
+* Lower the learning rate for the `constrained` run, or introduce a learning rate warmup phase.
 
 ---
 
-## 3. proof_based absent from class-level metrics
+## Issue 3: Contrary Performance and High Loss for the Proof-Based Model
+**Description:**
+According to `exp1.md`, the hypothesis is that the `proof_based` strategy should be the winner on hard negatives, yielding a *lower* False Positive Rate (FPR). However, the plots show that `val/triple_fpr` for `exp1_proof_based_hpc` (pink line) is the highest of all three runs (~0.7). Additionally, `val/total_loss` and `val/relation_loss` are significantly higher and plateauing early compared to the random and constrained runs.
 
-**Severity:** ✅ Expected - not a bug, but must be documented  
-**Affected metrics:** `val/class_recall`, `val/class_precision`, `val/class_fpr`,
-`val/class_auc_roc`, `val/class_acc_neg`, `val/class_acc_hops_*`,
-`val/class_acc_type_neg_*`
+**Possible Causes:**
+* **Task Difficulty (Underfitting):** Proof-based hard negatives might be *too* difficult for the current network capacity or learning rate. If the model cannot find a generalizing pattern to separate positive multi-hop paths from structurally identical corrupted paths, it will default to a high false-positive rate.
+* **Distribution Shift:** As noted in your Threats to Validity (`exp1.md`), the test set is generated using the `proof_based` strategy. While this gives a distributional advantage to the pink run, it also means the training set is saturated with incredibly difficult negatives, potentially halting convergence.
 
-**Explanation:**  
-Proof-based corruption operates at the base-fact level and propagates a substitution
-up through the proof tree to produce a corrupted _root-level inferred triple_ as the
-negative target. Class membership (`rdf:type`) assertions are not targeted by this
-corruption strategy. If the proof-based split contains no class membership negatives,
-all class-negative metrics are undefined (division by zero / empty set) and W&B
-simply produces no curve.
-
-**Why this matters for the paper:**  
-You cannot report class-level metrics for the proof-based strategy in Table 1 or any
-figure. This is a real limitation: your proof-based corruption is designed for relation
-triples, not for class membership reasoning. If class membership prediction quality is
-important for the paper's claims, you need either:
-
-- A separate class membership corruption mode in the proof-based strategy, or
-- Explicit acknowledgment that the experiment covers relation link prediction only.
+**Points of Action:**
+* Review the model capacity (e.g., `embedding_size`, `num_hidden_layers` in MLPs). You may need to scale up the RRN to handle the stricter logical boundaries.
+* Consider a curriculum learning approach: start training with random/constrained negatives and transition to proof-based negatives as the loss stabilizes.
 
 ---
 
-## 4. proof_based absent from triple_acc_type_neg_inf_intermediate and neg_base_fact
+## Issue 4: Premature Run Terminations
+**Description:**
+The three runs do not reach the same number of global steps. 
+* `exp1_proof_based_hpc` (pink) terminates around 5.5k steps.
+* `exp1_constrained_hpc` (blue) terminates around 6.5k steps.
+* `exp1_random_hpc` (orange) continues past 8k steps.
 
-**Severity:** ✅ Expected - not a bug  
-**Explanation:**  
-Same structural reason as above. Proof-based corruption produces negatives of type
-`neg_inf_root` (corrupted inferred goals). There are no negatives of type
-`neg_inf_intermediate` (corrupted intermediate derivation steps) or `neg_base_fact`
-(corrupted base facts treated as targets) in the proof-based split.
+**Possible Causes:**
+* **HPC Walltime Limits:** The batched tensor operations might have different memory/compute footprints depending on the dataset structure, causing the `proof_based` and `constrained` runs to hit SLURM/HPC time limits before the `random` run.
+* **Early Stopping:** If PyTorch Lightning's EarlyStopping callback is tied to a metric like `val_loss`, the higher losses in the pink and blue runs might be triggering a halt.
 
----
-
-## 5. Extreme noise in val/triple_acc_type_neg_base_fact
-
-**Severity:** ⚠️ Minor / informational  
-**Affected runs:** random, constrained (proof_based absent by design)  
-**Observed symptoms:** Random oscillates between 0.25 and 0.75+ within single
-evaluation steps. Constrained is flatter but still noisy.
-
-**Cause:**  
-The denominator for this metric (number of base-fact-type negatives in the validation
-set) is very small. One or two misclassifications per validation pass causes large
-swings. This is not a model instability; it is a statistical artifact of a small
-validation subset.  
-→ Do not report this metric in the paper without a confidence interval, or aggregate
-it over multiple validation steps.
+**Points of Action:**
+* Check the standard output (`stdout`/`stderr`) of the HPC jobs to confirm if they were killed due to `TimeLimit`.
+* If using Early Stopping, review the `patience` parameter and ensure it's not killing the harder datasets prematurely.
+* Standardize the `max_steps` or `max_epochs` in the Lightning Trainer and ensure walltime requests accommodate the slowest dataset.
 
 ---
 
-## 6. Test set distributional bias toward the proof-based strategy
+## Issue 5: Dashboard Clutter from Expected Metric Sparsity
+**Description:**
+Several plots look broken or incomplete, but this is actually expected behavior based on your dataset design. For instance, `val/triple_acc_type_neg_inf_root` only has a pink line, while pink is missing from `val/class_acc_type_neg_base_fact`. 
 
-**Severity:** ⚠️ Design-level - must be acknowledged in threats to validity  
-**Description:**  
-The frozen test set (`data/exp1/test_set`) is generated with proof-based corruption,
-meaning its negatives are structurally similar to those in the proof-based _training_
-set. The proof-based model therefore has a distributional advantage on the test set
-that random and constrained models do not share.
+**Possible Causes:**
+* As explicitly stated in `exp1.md`, proof-based generation produces no negative class targets and no `neg_base_fact` targets. Therefore, these metrics are physically impossible to calculate for the `proof_based` run. 
 
-**Implications:**
-
-- The experiment cannot distinguish between "proof-based training teaches better
-  logical reasoning" and "proof-based training simply matches the test distribution."
-- Random and constrained models are evaluated out-of-distribution relative to their
-  training negatives.
-
-**Possible mitigations:**
-
-1. Add a secondary test set using random or constrained corruption to check whether
-   proof-based training _also_ generalizes to other negative types (it should, if the
-   claim is about logical reasoning and not distribution matching).
-2. Frame the test set explicitly as "the gold standard for hard-negative evaluation"
-   and argue that any model that truly understands the ontology should score well on
-   it regardless of training distribution - then acknowledge this as an assumption
-   in Threats to Validity.
-3. Report results on _both_ a strategy-matched validation set (each model on its own
-   val negatives) and the shared proof-based test set, separating in-distribution
-   from out-of-distribution performance.
-
----
-
-## Summary table
-
-| #   | Problem                                                        | Severity    | Action required                           |
-| --- | -------------------------------------------------------------- | ----------- | ----------------------------------------- |
-| 1   | Constrained class head collapse                                | 🚨 Critical | Fix dataset config; rerun constrained     |
-| 2   | Sharp periodic drops in random                                 | ⚠️ Moderate | Investigate LR schedule + grad norm       |
-| 3   | proof_based absent from class metrics                          | ✅ Expected | Document as limitation in paper           |
-| 4   | proof_based absent from neg_intermediate/neg_base_fact metrics | ✅ Expected | Document; expected by design              |
-| 5   | Noisy neg_base_fact metric                                     | ⚠️ Minor    | Do not report without CI; ignore in paper |
-| 6   | Test set distributional bias                                   | ⚠️ Design   | Add to Threats to Validity section        |
+**Points of Action:**
+* **No Code Fix Required:** This is mathematically correct. 
+* **Dashboard Fix:** To make the W&B dashboard presentation-ready for the paper, group these specific "type-based" accuracy plots under a separate W&B section with a markdown note explaining the sparsity, or filter the legends so reviewers/collaborators aren't confused by the missing lines.

@@ -470,6 +470,8 @@ class RRNSystem(pl.LightningModule):
             }
 
         probs = probs.float()
+        probs = torch.nan_to_num(probs, nan=0.0)
+        probs = torch.clamp(probs, min=1e-7, max=1.0 - 1e-7)
         targets = targets.float()
 
         # Binary metrics are only meaningful if both classes are present.
