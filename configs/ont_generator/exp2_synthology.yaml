@@ -31,7 +31,7 @@ export_proofs: false
 export_graphs: false
 
 generator:
-  min_individuals: 30
+  min_individuals: 50
   max_individuals: 300
   min_rules: 3
   max_rules: 8
@@ -42,14 +42,14 @@ generator:
   max_recursion: 5
   global_max_depth: 12
   max_proofs_per_atom: 5
-  min_lcc_ratio: 0.6
-  proof_selection_strategy: "random"
+  min_lcc_ratio: 0.8
+  proof_selection_strategy: "stratified"
   proof_selection_weights:
     easy: 5
     medium: 30
     hard: 65
   individual_pool_size: 5000
-  individual_reuse_prob: 0.2
+  individual_reuse_prob: 0.5
   use_signature_sampling: true
   min_proof_roots: 10
   max_proof_roots: 30
