@@ -211,11 +211,11 @@ log.*
 
 # Apache Jena should be installed manually by the user of Synthology
 vendor/apache-jena-6.0.0/*
-!vendor/apache-jena-6.0.0/.gitkeep
+!vendor/apache-jena-6.0.0/NOTE.txt
 
 # Same with OWL2Bench
 vendor/OWL2Bench/*
-!vendor/OWL2Bench/.gitkeep
+!vendor/OWL2Bench/NOTE.txt
 
 data/OWL2Bench/output/*
 data/OWL2Bench/diagnostics/*
@@ -230,6 +230,8 @@ data/exp2/baseline
 
 matlab/out
 
-apache-maven*.*
+apache-maven*/*
+!apache-maven*/NOTE.txt
+
 *.out
 *.err
