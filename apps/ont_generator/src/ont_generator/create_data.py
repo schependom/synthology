@@ -976,10 +976,22 @@ class KGEDatasetGenerator:
         # Detailed breakdown of unused rules
         all_unused = unused_in_train.union(unused_in_test)
         total_rules = len(self.rules)
-        train_coverage_pct = 0.0
-        test_coverage_pct = 0.0
-        overall_coverage_pct = 0.0
-        overall_triggered = set()
+        overall_triggered = set(self.train_rule_usage.keys()) | set(self.test_rule_usage.keys())
+        if total_rules > 0:
+            train_coverage_pct = (len(self.train_rule_usage) / total_rules) * 100
+            test_coverage_pct = (len(self.test_rule_usage) / total_rules) * 100
+            overall_coverage_pct = (len(overall_triggered) / total_rules) * 100
+        else:
+            train_coverage_pct = 0.0
+            test_coverage_pct = 0.0
+            overall_coverage_pct = 0.0
+
+        logger.info("=" * 80)
+        logger.info("ONTOLOGY COVERAGE")
+        logger.info("=" * 80)
+        logger.info(f"Train coverage:   {train_coverage_pct:.2f}% ({len(self.train_rule_usage)}/{total_rules})")
+        logger.info(f"Test coverage:    {test_coverage_pct:.2f}% ({len(self.test_rule_usage)}/{total_rules})")
+        logger.info(f"Overall coverage: {overall_coverage_pct:.2f}% ({len(overall_triggered)}/{total_rules})")
 
         if all_unused:
             logger.info("Unused Rules Analysis:")
@@ -992,19 +1004,6 @@ class KGEDatasetGenerator:
                 else:
                     reason = "Failed to Generate"
                 logger.info(f"{rule_name:<60} | {reason:<20} | {attempts:<10}")
-
-            if total_rules > 0:
-                train_coverage_pct = (len(self.train_rule_usage) / total_rules) * 100
-                test_coverage_pct = (len(self.test_rule_usage) / total_rules) * 100
-                overall_triggered = set(self.train_rule_usage.keys()) | set(self.test_rule_usage.keys())
-                overall_coverage_pct = (len(overall_triggered) / total_rules) * 100
-
-            logger.info("=" * 80)
-            logger.info("ONTOLOGY COVERAGE")
-            logger.info("=" * 80)
-            logger.info(f"Train coverage:   {train_coverage_pct:.2f}% ({len(self.train_rule_usage)}/{total_rules})")
-            logger.info(f"Test coverage:    {test_coverage_pct:.2f}% ({len(self.test_rule_usage)}/{total_rules})")
-            logger.info(f"Overall coverage: {overall_coverage_pct:.2f}% ({len(overall_triggered)}/{total_rules})")
 
         # Negative Strategy Usage
         strategy_usage = self.negative_sampler.strategy_usage

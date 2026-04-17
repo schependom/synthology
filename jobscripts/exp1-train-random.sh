@@ -15,10 +15,16 @@
 ### -- send notification at completion--
 #BSUB -N
 
-set -e
+set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+if [ -f "${PWD}/jobscripts/common.sh" ]; then
+	REPO_ROOT="${PWD}"
+elif [ -n "${LS_SUBCWD:-}" ] && [ -f "${LS_SUBCWD}/jobscripts/common.sh" ]; then
+	REPO_ROOT="${LS_SUBCWD}"
+else
+	SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+	REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+fi
 
 . "${REPO_ROOT}/jobscripts/common.sh"
 

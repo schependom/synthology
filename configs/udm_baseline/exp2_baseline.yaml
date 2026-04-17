@@ -19,10 +19,10 @@ dataset:
   seed: 23
 
 generator:
-  min_individuals: 5
-  max_individuals: 25
-  min_base_relations: 8
-  max_base_relations: 40
+  min_individuals: 15
+  max_individuals: 70
+  min_base_relations: 50
+  max_base_relations: 200
   base_relations_per_sample: null
   min_types_per_individual: 1
   max_types_per_individual: 2

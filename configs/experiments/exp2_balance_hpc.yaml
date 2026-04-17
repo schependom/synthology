@@ -1,21 +1,32 @@
-# Exp2 FULL-SCALE matched-budget generation preset for fair non-parity comparison.
+# Exp2 matched-budget generation preset for fair comparison.
 # Use this with:
 #   uv run invoke exp2-balance-datasets-hpc --config-path=configs/experiments/exp2_balance_hpc.yaml
-# Goal: equal split sizes, explicit train caps for matching fact budgets,
-# and reproducible timing traces for paper tables.
+# Goal: equal split sizes, shared fact and target caps, label-aligned target budgets.
+#
+# Both methods use an identical fact_cap so the training-fact budget is strictly equalized.
+# Both generators are configured to naturally exceed this cap, so it binds for both methods
+# and neither is disadvantaged by raw data volume. After generation, both datasets are trimmed
+# to the minimum target count per label via _align_exp2_split_target_labels.
+#
+# Cap is set to be binding for synthology (the larger-subgraph method) while allowing
+# baseline to reach its n_train target. After generation, _align_exp2_split_sample_counts
+# trims both to the minimum sample count for a fair comparison.
+#
+# Observed facts/sample (measured 2026-04-17):
+#   - Baseline: ~189 facts/sample  → 300k cap = ~1587 samples (n_train=1200 binds first)
+#   - Synthology: ~284 facts/sample → 300k cap = ~1056 samples (cap binds)
+# Aligned result: ~1056 train samples for both methods.
 
+# Shared caps applied identically to both generators.
+fact_cap: 300000
+target_cap: null
 
-# Shared train caps applied to both generators (used for reporting/validation only).
-fact_cap: 400000
-target_cap: 1200000
-
-# Split sizes (identical for both methods).
-args: "dataset.n_train=1200 dataset.n_val=150 dataset.n_test=150"
+# n_train set above synthology's cap-limited count so the fact_cap is what stops it.
+args: "dataset.n_train=2000 dataset.n_val=150 dataset.n_test=150"
 
 # All detailed generator/materialization config should be set in
 #   configs/ont_generator/exp2_synthology.yaml and configs/udm_baseline/exp2_baseline.yaml
 # Only minimal CLI overrides should be used here if absolutely necessary.
 
-# Method-specific args (optional, keep minimal):
 baseline_args: "materialization.timing.run_tag=exp2_balance"
 synthology_args: ""

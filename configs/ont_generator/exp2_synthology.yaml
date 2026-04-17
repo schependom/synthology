@@ -1,65 +1,39 @@
-# See config.yaml for more details about all configuration options.
-# The README file also contains further details.
+# See config.yaml for full documentation of all options.
+# Only overrides from config.yaml defaults are listed here.
 
 defaults:
-  - config # override default config options
+  - config
   - _self_
-
-# Fixed seed to keep parity runs deterministic.
-seed: 23
-
-ontology:
-  path: "ontologies/family.ttl"
 
 dataset:
   n_train: 1200
   n_val: 150
   n_test: 150
-  train_fact_cap: 180000
-  val_fact_cap: null
-  test_fact_cap: null
-  train_target_cap: 140000
-  val_target_cap: null
-  test_target_cap: null
+  train_fact_cap: 400000
   output_dir: "data/exp2/synthology/family_tree"
 
 hydra:
   run:
     dir: "${dataset.output_dir}/hydra"
 
-export_proofs: false
-export_graphs: false
-
 generator:
-  min_individuals: 50
-  max_individuals: 300
-  min_rules: 3
-  max_rules: 8
+  min_individuals: 30
+  max_individuals: 150
+  min_rules: 5
+  max_rules: 10
   rule_sampling_mode: "balanced"
   enforce_goal_predicate_coverage: true
   target_min_proofs_rule: 5
-  save_individual_samples: false
-  max_recursion: 5
   global_max_depth: 12
   max_proofs_per_atom: 5
   min_lcc_ratio: 0.8
   proof_selection_strategy: "stratified"
   proof_selection_weights:
     easy: 5
-    medium: 30
-    hard: 65
+    medium: 65
+    hard: 30
   individual_pool_size: 5000
   individual_reuse_prob: 0.5
-  use_signature_sampling: true
   min_proof_roots: 10
   max_proof_roots: 30
   proof_roots_per_rule: 12
-  always_generate_base: false
-
-neg_sampling:
-  strategy: "mixed"
-  ratio: 1.0
-  corrupt_base_facts: false
-
-logging:
-  level: INFO

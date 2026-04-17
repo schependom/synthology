@@ -44,488 +44,8 @@ class ExperimentRunSpec:
 
 
 # ------------------------------------------------------------ #
-# Replication of RRN paper results
+# Smoke tests and paper outputs
 # ------------------------------------------------------------ #
-
-
-# Generate the ASP dataset used by P. Hohenecker et al.
-@task
-def gen_ft_asp(ctx: Context):
-    """Generates family tree ASP datasets with ASP solver
-    as described in the RRN paper by P. Hohenecker et al. using
-    default configurations in configs/asp_generator/"""
-
-    # If ./data/asp/out-reldata has content,
-    # ask user to confirm cleanup
-    run_dir = _make_run_archive("asp_generator", "gen_ft_asp", label="family_tree")
-    _write_json(
-        run_dir / "manifest.json",
-        {
-            "experiment": "asp_generator",
-            "task": "gen_ft_asp",
-            "output_dir": "./data/asp/out-reldata",
-        },
-    )
-    if os.path.exists("./data/asp/out-reldata") and os.listdir("./data/asp/out-reldata"):
-        response = input(
-            "Previous ASP generator outputs detected in ./data/asp/out-reldata.\n"
-            "You can convert them to CSV using 'invoke convert-reldata' if needed.\n\n"
-            "Do you want to delete them before generating new data? (y/n): "
-        )
-        if response.lower() != "y":
-            print("Aborting dataset generation.")
-            return
-
-    # Clean up ./data/asp/out-reldata first
-    logger.info("Cleaning up previous ASP generator outputs.")
-    _run_logged_command("rm -rf ./data/asp/out-reldata", run_dir / "cleanup.log")
-    logger.success("Cleanup done.")
-
-    # Run ASP generator using
-    # config from configs/asp_generator/config.yaml
-    print("-------------------------------------------------------")
-    print("Running family tree ASP generator by Patrick Hohenecker")
-    print("-------------------------------------------------------\n")
-    generator_cmd = _build_uv_command(
-        "asp_generator",
-        "asp_generator",
-        python_module=False,
-        env={"PYTHONUNBUFFERED": "1", "LOGURU_COLORIZE": "1"},
-    )
-    _run_logged_command(generator_cmd, run_dir / "generator.log")
-
-    # Convert reldata outputs to CSV
-    # using config from configs/asp_generator/config.yaml
-    print("\n-------------------------------------------")
-    print("Converting generated ASP data to CSV format")
-    print("--------------------------------------------\n")
-    convert_cmd = _build_uv_command(
-        "asp_generator",
-        "asp_generator.convert_to_csv",
-        env={"PYTHONUNBUFFERED": "1", "LOGURU_COLORIZE": "1"},
-    )
-    _run_logged_command(convert_cmd, run_dir / "convert.log")
-
-    logger.success("Family tree dataset generation with ASP completed.")
-
-
-# Convert proprietary reldata format by P. Hohenecker's generator
-# to CSV for RRN training/evaluation
-@task
-def convert_reldata(ctx: Context):
-    """Converts family tree datasets in reldata format to CSV format."""
-
-    print("\n-------------------------------------------")
-    print("Converting generated ASP data to CSV format")
-    print("--------------------------------------------\n")
-    run_dir = _make_run_archive("asp_generator", "convert_reldata", label="family_tree")
-    cmd = _build_uv_command(
-        "asp_generator",
-        "asp_generator.convert_to_csv",
-        env={"PYTHONUNBUFFERED": "1", "LOGURU_COLORIZE": "1"},
-    )
-    _write_json(run_dir / "manifest.json", {"experiment": "asp_generator", "task": "convert_reldata", "command": cmd})
-    _run_logged_command(cmd, run_dir / "run.log")
-
-    logger.success("Conversion of family tree dataset from reldata to CSV completed.")
-
-
-# Train the RRN on the ASP dataset
-@task
-def train_rrn_asp(ctx: Context, args=""):
-    """Trains RRN on ASP-generated Family Tree dataset."""
-
-    print("\nRunning RRN training with ASP dataset.")
-    run_dir = _make_run_archive("rrn", "train_asp", label="asp")
-    cmd = _build_uv_command(
-        "rrn",
-        "rrn.train",
-        overrides=("data/dataset=asp",),
-        args=args,
-        env={"PYTHONUNBUFFERED": "1", "LOGURU_COLORIZE": "1"},
-    )
-    _write_json(
-        run_dir / "manifest.json",
-        {
-            "experiment": "rrn",
-            "task": "train_asp",
-            "args": args,
-            "command": cmd,
-        },
-    )
-    _run_logged_command(cmd, run_dir / "run.log")
-
-
-# ------------------------------------------------------------ #
-# Generate/Train on Family Tree data with Synthology/RRN
-# ------------------------------------------------------------ #
-
-
-@task
-def gen_ft_ont(ctx: Context, args=""):
-    """
-    Generates family tree datasets with Ontology-based 'Synthology' Generator
-    using default configurations in configs/ont_generator/config.yaml
-    """
-
-    print("\nRunning family tree Ontology-based generator.")
-    run_dir = _make_run_archive("ont_generator", "gen_ft_ont", label="family_tree")
-    cmd = _build_uv_command(
-        "ont_generator",
-        "ont_generator.create_data",
-        env={"LOGURU_COLORIZE": "1"},
-        args=args,
-    )
-    _write_json(
-        run_dir / "manifest.json", {"experiment": "ont_generator", "task": "gen_ft_ont", "args": args, "command": cmd}
-    )
-    _run_logged_command(cmd, run_dir / "run.log")
-
-
-@task
-def train_rrn_ont(ctx: Context, args=""):
-    """Trains RRN based on default configurations in configs/rrn/"""
-
-    print("\nRunning RRN training with Ontology-based dataset.")
-    run_dir = _make_run_archive("rrn", "train_ont", label="ont")
-    cmd = _build_uv_command(
-        "rrn",
-        "rrn.train",
-        overrides=("data/dataset=ont",),
-        args=args,
-        env={"PYTHONUNBUFFERED": "1", "LOGURU_COLORIZE": "1"},
-    )
-    _write_json(
-        run_dir / "manifest.json",
-        {
-            "experiment": "rrn",
-            "task": "train_ont",
-            "args": args,
-            "command": cmd,
-        },
-    )
-    _run_logged_command(cmd, run_dir / "run.log")
-
-
-@task
-def gen_ft_fc(ctx: Context, args=""):
-    """
-    Generates family tree datasets with random base facts + owlrl
-    forward-chaining materialization baseline.
-    Uses configs/udm_baseline/config.yaml by default.
-    """
-
-    print("\nRunning family tree FC baseline generator.")
-    run_dir = _make_run_archive("udm_baseline", "gen_ft_fc", label="family_tree")
-    cmd = _build_uv_command(
-        "udm_baseline",
-        "udm_baseline.create_data",
-        env={"LOGURU_COLORIZE": "1"},
-        args=args,
-    )
-    _write_json(
-        run_dir / "manifest.json", {"experiment": "udm_baseline", "task": "gen_ft_fc", "args": args, "command": cmd}
-    )
-    _run_logged_command(cmd, run_dir / "run.log")
-
-
-@task
-def train_rrn_fc(ctx: Context, args=""):
-    """Trains RRN on FC baseline dataset."""
-
-    print("\nRunning RRN training with FC baseline dataset.")
-    run_dir = _make_run_archive("rrn", "train_fc", label="fc")
-    cmd = _build_uv_command(
-        "rrn",
-        "rrn.train",
-        overrides=("data/dataset=fc",),
-        args=args,
-        env={"PYTHONUNBUFFERED": "1", "LOGURU_COLORIZE": "1"},
-    )
-    _write_json(
-        run_dir / "manifest.json",
-        {
-            "experiment": "rrn",
-            "task": "train_fc",
-            "args": args,
-            "command": cmd,
-        },
-    )
-    _run_logged_command(cmd, run_dir / "run.log")
-
-
-# ------------------------------------------------------------ #
-# Helper commands to verify correctness.
-# ------------------------------------------------------------ #
-
-
-@task
-def synthology_visual_verification(ctx: Context, args=""):
-    """
-    Generates a few decently sized knowledge graphs that contain both
-    positive, negative, base and inferred samples and visualizes them.
-    Uses configs/ont_generator/config_visual_inspection.yaml.
-    Output saved to visual-verification/ folder.
-    """
-
-    print("\nRunning Visual Inspection Generator.")
-    run_dir = _make_run_archive("ont_generator", "visual_verification", label="inspection")
-    cmd = _build_uv_command(
-        "ont_generator",
-        "ont_generator.create_data",
-        config_name="config_visual_inspection",
-        args=args,
-        env={"LOGURU_COLORIZE": "1"},
-    )
-    _write_json(
-        run_dir / "manifest.json",
-        {"experiment": "ont_generator", "task": "visual_verification", "args": args, "command": cmd},
-    )
-    _run_logged_command(cmd, run_dir / "run.log")
-
-
-@task
-def udm_visual_verification(ctx: Context, n_samples=3, args=""):
-    """
-    Generates UDM baseline samples and renders comparable PDF graph visuals
-    for side-by-side inspection against synthology-visual-verification outputs.
-
-    Output is written to visual-verification/udm_baseline/.
-    """
-
-    print("\nRunning UDM visual verification generator.")
-    run_dir = _make_run_archive("udm_baseline", "visual_verification", label="inspection")
-
-    output_root = Path("visual-verification") / "udm_baseline"
-    dataset_output_dir = output_root
-    # Match Synthology visual output location while keeping UDM filenames explicit.
-    graphs_output_dir = Path("visual-verification") / "graphs"
-
-    try:
-        n_samples_int = max(1, int(n_samples))
-    except (TypeError, ValueError):
-        raise ValueError(f"n_samples must be an integer >= 1, got: {n_samples}")
-
-    n_train_for_render = max(1, n_samples_int)
-
-    cmd = _build_uv_command(
-        "udm_baseline",
-        "udm_baseline.create_data",
-        overrides=(
-            f"dataset.n_train={n_train_for_render}",
-            "dataset.n_val=0",
-            "dataset.n_test=0",
-            f"dataset.output_dir={dataset_output_dir.as_posix()}",
-            "generator.min_individuals=8",
-            "generator.max_individuals=18",
-            "generator.min_base_relations=8",
-            "generator.max_base_relations=24",
-            "neg_sampling.ratio=0.5",
-            "materialization.reasoner=jena",
-            "materialization.jena_profile=owl_mini",
-            "materialization.iterative=false",
-        ),
-        args=args,
-        env={"LOGURU_COLORIZE": "1"},
-    )
-    _run_logged_command(cmd, run_dir / "run.log")
-
-    targets_csv = dataset_output_dir / "train" / "targets.csv"
-    facts_csv = dataset_output_dir / "train" / "facts.csv"
-
-    if not targets_csv.exists():
-        raise RuntimeError(f"Expected targets CSV not found at {targets_csv}")
-    if not facts_csv.exists():
-        raise RuntimeError(f"Expected facts CSV not found at {facts_csv}")
-
-    per_sample: Dict[str, Dict[str, Any]] = {}
-    with targets_csv.open("r", newline="", encoding="utf-8") as handle:
-        reader = csv.DictReader(handle)
-        for row in reader:
-            sample_id = str(row.get("sample_id", "")).strip()
-            if not sample_id:
-                continue
-
-            stats = per_sample.setdefault(
-                sample_id,
-                {
-                    "sample_id": sample_id,
-                    "total": 0,
-                    "base": 0,
-                    "inferred": 0,
-                    "negative": 0,
-                },
-            )
-            stats["total"] += 1
-
-            row_type = str(row.get("type", "")).strip().lower()
-            if row_type == "base_fact":
-                stats["base"] += 1
-            elif row_type.startswith("inf") or row_type == "inferred":
-                stats["inferred"] += 1
-
-            if _is_negative_row(row):
-                stats["negative"] += 1
-
-    def _numeric_sample_key(sample_id: str) -> int:
-        try:
-            return int(sample_id)
-        except ValueError:
-            return -1
-
-    ranked_samples = sorted(
-        per_sample.values(),
-        key=lambda s: (
-            min(int(s["base"]), int(s["inferred"])),
-            int(s["base"]),
-            int(s["inferred"]),
-            int(s["total"]),
-            int(s["negative"]),
-            _numeric_sample_key(str(s["sample_id"])),
-        ),
-        reverse=True,
-    )
-
-    if not ranked_samples:
-        raise RuntimeError(f"No sample_id values found in {targets_csv}")
-
-    selected_sample_ids = [str(stats["sample_id"]) for stats in ranked_samples[:n_samples_int]]
-    graphs_output_dir.mkdir(parents=True, exist_ok=True)
-
-    visualization_commands = []
-    for sample_id in selected_sample_ids:
-        output_stem = f"udm_baseline_sample_{sample_id}"
-        viz_cmd = _build_uv_command(
-            "kgvisualiser",
-            "kgvisualiser.visualize",
-            overrides=(
-                f"io.input_csv={facts_csv.as_posix()}",
-                f"io.targets_csv={targets_csv.as_posix()}",
-                f"io.sample_id={sample_id}",
-                f"output.dir={graphs_output_dir.as_posix()}",
-                f"output.name_template={output_stem}",
-                "output.format=pdf",
-                "filters.include_negatives=false",
-                "filters.max_edges=75",
-                "render.engine=dot",
-                "render.overlap=false",
-                "render.splines=curved",
-                "render.class_nodes=false",
-                "render.show_edge_labels=true",
-            ),
-            env={"LOGURU_COLORIZE": "1"},
-        )
-        _run_logged_command(viz_cmd, run_dir / f"visualize_{sample_id}.log")
-
-        expected_pdf = graphs_output_dir / f"{output_stem}.pdf"
-        if not expected_pdf.exists():
-            source_graph = graphs_output_dir / output_stem
-            if source_graph.exists():
-                fallback_cmd = f"dot -Tpdf {shlex.quote(str(source_graph))} -o {shlex.quote(str(expected_pdf))}"
-                _run_logged_command(fallback_cmd, run_dir / f"render_fallback_{sample_id}.log")
-
-            if not expected_pdf.exists():
-                raise RuntimeError(
-                    f"Expected PDF not generated for sample {sample_id}: {expected_pdf}. "
-                    f"Ensure Graphviz is installed and available on PATH."
-                )
-
-        visualization_commands.append(viz_cmd)
-
-    _write_json(
-        run_dir / "manifest.json",
-        {
-            "experiment": "udm_baseline",
-            "task": "visual_verification",
-            "args": args,
-            "n_samples": n_samples_int,
-            "selected_sample_ids": selected_sample_ids,
-            "generation_command": cmd,
-            "visualization_commands": visualization_commands,
-            "outputs": {
-                "dataset_output_dir": dataset_output_dir.as_posix(),
-                "graphs_output_dir": graphs_output_dir.as_posix(),
-            },
-        },
-    )
-
-    print(
-        f"Rendered {len(selected_sample_ids)} UDM visual verification PDF(s) to {graphs_output_dir.as_posix()}",
-        flush=True,
-    )
-
-
-@task
-def visualize_proofs(ctx: Context, args=""):
-    """
-    Generates a small dataset with all negative sampling strategies
-    and exports proof tree visualizations for manual inspection.
-    Output goes to visualizations/proofs/ and visualizations/graphs/.
-    """
-
-    print("\nGenerating proof visualizations (small dataset, mixed strategy).")
-    run_dir = _make_run_archive("ont_generator", "visualize_proofs", label="proofs")
-    cmd = _build_uv_command(
-        "ont_generator",
-        "ont_generator.create_data",
-        config_name="config_visualize",
-        args=args,
-        env={"LOGURU_COLORIZE": "1"},
-    )
-    _write_json(
-        run_dir / "manifest.json",
-        {"experiment": "ont_generator", "task": "visualize_proofs", "args": args, "command": cmd},
-    )
-    _run_logged_command(cmd, run_dir / "run.log")
-
-
-# ------------------------------------------------------------ #
-# Helper commands for experiments.
-# ------------------------------------------------------------ #
-
-
-@task
-def train_rrn_owl2bench(ctx: Context, args=""):
-    """Trains RRN using OWL2Bench OWL 2 RL dataset."""
-
-    print("\nRunning RRN training with OWL2Bench dataset.")
-    run_dir = _make_run_archive("rrn", "train_owl2bench", label="owl2bench")
-    cmd = _build_uv_command(
-        "rrn",
-        "rrn.train",
-        config_name="exp3_owl2bench_hpc",
-        args=args,
-        env={"PYTHONUNBUFFERED": "1", "LOGURU_COLORIZE": "1"},
-    )
-    _write_json(
-        run_dir / "manifest.json",
-        {
-            "experiment": "rrn",
-            "task": "train_owl2bench",
-            "args": args,
-            "command": cmd,
-        },
-    )
-    _run_logged_command(cmd, run_dir / "run.log")
-
-
-@task
-def gen_owl2bench(ctx: Context, args=""):
-    """
-    Runs the OWL2Bench OWL 2 RL pipeline:
-    ABox generation -> Apache Jena materialization -> CSV export.
-    """
-    print("\nRunning OWL2Bench OWL 2 RL generation pipeline.")
-    run_dir = _make_run_archive("owl2bench", "generate", label="default")
-    owl2bench_env = _resolve_owl2bench_env(run_dir)
-    cmd = _build_uv_command(
-        "owl2bench",
-        "owl2bench.pipeline",
-        env=owl2bench_env,
-        args=args,
-    )
-    _write_json(run_dir / "manifest.json", {"task": "generate", "args": args, "command": cmd})
-    _run_logged_command(cmd, run_dir / "run.log")
 
 
 @task
@@ -575,50 +95,6 @@ def gen_owl2bench_toy(ctx: Context, args=""):
         + "\n",
     )
     _run_logged_command(viz_cmd, run_dir / "visualize-run.log")
-
-
-@task
-def visualize_kg_sample(ctx: Context, args=""):
-    """
-    Visualizes one KG sample with base, inferred and negative facts.
-    Uses configs/kgvisualiser/config.yaml by default.
-    """
-
-    print("\nRunning KG sample visualization.")
-    run_dir = _make_run_archive("kgvisualiser", "visualize_kg_sample", label="sample")
-    cmd = _build_uv_command(
-        "kgvisualiser",
-        "kgvisualiser.visualize",
-        args=args,
-        env={"LOGURU_COLORIZE": "1"},
-    )
-    _write_json(
-        run_dir / "manifest.json",
-        {"experiment": "kgvisualiser", "task": "visualize_kg_sample", "args": args, "command": cmd},
-    )
-    _run_logged_command(cmd, run_dir / "run.log")
-
-
-@task
-def report_data(ctx: Context, args=""):
-    """
-    Generates method-comparison dataset reports and plots
-    (predicate/type/hops/negative distributions, counts, ratios).
-    Uses configs/data_reporter/config.yaml by default.
-    """
-
-    print("\nRunning dataset comparison report generator.")
-    run_dir = _make_run_archive("data_reporter", "report_data", label="report")
-    cmd = _build_uv_command(
-        "data_reporter",
-        "data_reporter.analyze",
-        args=args,
-        env={"LOGURU_COLORIZE": "1"},
-    )
-    _write_json(
-        run_dir / "manifest.json", {"experiment": "data_reporter", "task": "report_data", "args": args, "command": cmd}
-    )
-    _run_logged_command(cmd, run_dir / "run.log")
 
 
 @task
@@ -680,171 +156,6 @@ def paper_visual_report(
     )
     _run_logged_command(cmd, run_dir / "run.log")
     _archive_path(Path(out_dir), run_dir / "artifacts")
-
-
-@task
-def paper_export_tables(
-    ctx: Context,
-    out_dir="paper/generated",
-    exp2_summary="",
-    exp3_summary="",
-    exp2_timing_summary="",
-    exp3_timing_summary="",
-    model_metrics="paper/metrics/model_results.json",
-    args="",
-):
-    """Exports LaTeX table row snippets for the paper from latest run artifacts."""
-    print("\nExporting paper table rows.")
-    run_dir = _make_run_archive("paper", "export_tables", label="tables")
-    cmd = _build_uv_command(
-        "data_reporter",
-        "data_reporter.paper_tables",
-        overrides=(
-            f"--repo-root {shlex.quote(str(REPO_ROOT))}",
-            f"--out-dir {out_dir}",
-            f"--model-metrics {model_metrics}",
-        ),
-        env={"LOGURU_COLORIZE": "1"},
-    )
-    if exp2_summary:
-        cmd += f" --exp2-summary {exp2_summary}"
-    if exp3_summary:
-        cmd += f" --exp3-summary {exp3_summary}"
-    if exp2_timing_summary:
-        cmd += f" --exp2-timing-summary {exp2_timing_summary}"
-    if exp3_timing_summary:
-        cmd += f" --exp3-timing-summary {exp3_timing_summary}"
-    if args:
-        cmd += f" {args}"
-
-    _write_json(
-        run_dir / "manifest.json",
-        {
-            "experiment": "paper",
-            "task": "export_tables",
-            "out_dir": out_dir,
-            "exp2_summary": exp2_summary,
-            "exp3_summary": exp3_summary,
-            "exp2_timing_summary": exp2_timing_summary,
-            "exp3_timing_summary": exp3_timing_summary,
-            "model_metrics": model_metrics,
-            "args": args,
-            "command": cmd,
-        },
-    )
-    _run_logged_command(cmd, run_dir / "run.log")
-    _archive_path(Path(out_dir), run_dir / "artifacts")
-
-
-# ------------------------------------------------------------ #
-# EXP 1: Negative Sampling Strategies for RRN Training
-# ------------------------------------------------------------ #
-
-
-@task
-def exp1_generate_trainval_sets(ctx: Context):
-    """Generates train/val sets for Exp 1 for all negative sampling strategies."""
-    run_dir = _make_run_archive("exp1", "generate_trainval_sets", label="all")
-    _write_json(
-        run_dir / "manifest.json",
-        {
-            "experiment": "exp1",
-            "task": "generate_trainval_sets",
-            "strategies": ["random", "constrained", "proof_based"],
-        },
-    )
-    summary_lines = ["Exp1 train/val set generation summary"]
-    for strategy in ("random", "constrained", "proof_based"):
-        exp1_generate_trainval(ctx, strategy=strategy)
-        summary_lines.append(f"- generated strategy={strategy}")
-    _write_text(run_dir / "run.log", "\n".join(summary_lines) + "\n")
-
-
-@task
-def exp1_generate_trainval(ctx: Context, strategy="proof_based", args=""):
-    """Generates train/val sets for Exp 1 with a specific negative sampling strategy."""
-    print(f"\nGenerating Exp 1 data using strategy: {strategy}")
-    cmd = _build_uv_command(
-        "ont_generator",
-        "ont_generator.create_data",
-        config_name=f"exp1_{strategy}",
-        args=args,
-        env={"LOGURU_COLORIZE": "1"},
-    )
-    run_dir = _run_experiment_spec(
-        ExperimentRunSpec(
-            experiment="exp1",
-            task_name="generate_trainval",
-            label=strategy,
-            command=cmd,
-            config_paths=(f"configs/ont_generator/exp1_{strategy}.yaml", "configs/ont_generator/config.yaml"),
-            manifest={
-                "strategy": strategy,
-                "args": args,
-                "config_files": [
-                    f"configs/ont_generator/exp1_{strategy}.yaml",
-                    "configs/ont_generator/config.yaml",
-                ],
-            },
-            artifact_paths=(str(REPO_ROOT / "data" / "exp1" / strategy),),
-        )
-    )
-
-
-@task
-def exp1_generate_test_set(ctx: Context, args=""):
-    """Generates the frozen 'near-miss' hard negative test set for Exp 1."""
-    print("\nGenerating Exp 1 frozen test set (near-miss hard negatives)")
-    cmd = _build_uv_command(
-        "ont_generator",
-        "ont_generator.create_data",
-        config_name="exp1_test",
-        args=args,
-        env={"LOGURU_COLORIZE": "1"},
-    )
-    _run_experiment_spec(
-        ExperimentRunSpec(
-            experiment="exp1",
-            task_name="generate_test_set",
-            label="test_set",
-            command=cmd,
-            config_paths=("configs/ont_generator/exp1_test.yaml", "configs/ont_generator/config.yaml"),
-            manifest={
-                "args": args,
-                "config_files": ["configs/ont_generator/exp1_test.yaml", "configs/ont_generator/config.yaml"],
-            },
-            artifact_paths=(str(REPO_ROOT / "data" / "exp1" / "test_set"),),
-        )
-    )
-
-
-@task
-def exp1_train_rrn(ctx: Context, strategy="random", args=""):
-    """Trains RRN for Exp 1. Provide a strategy to match datasets/logs."""
-    print(f"\nTraining Exp 1 RRN. Strategy: {strategy}")
-    run_dir = _make_run_archive("exp1", "train_rrn", label=strategy)
-    config_name = f"exp1_{strategy}_hpc"
-    cmd = _build_uv_command(
-        "rrn",
-        "rrn.train",
-        config_name=config_name,
-        args=args,
-        env={"PYTHONUNBUFFERED": "1", "LOGURU_COLORIZE": "1"},
-    )
-    _run_experiment_spec(
-        ExperimentRunSpec(
-            experiment="exp1",
-            task_name="train_rrn",
-            label=strategy,
-            command=cmd,
-            config_paths=("configs/rrn/config.yaml", f"configs/rrn/{config_name}.yaml"),
-            manifest={
-                "strategy": strategy,
-                "args": args,
-                "config_files": ["configs/rrn/config.yaml", f"configs/rrn/{config_name}.yaml"],
-            },
-        )
-    )
 
 
 # ------------------------------------------------------------ #
@@ -969,6 +280,16 @@ def exp2_generate_synthology(ctx: Context, fact_cap=None, target_cap=None, proof
     )
 
 
+def _log_dataset_generation_time(name: str, root: Path) -> None:
+    """Logs the latest modification time of a dataset split to confirm freshness."""
+    sentinel = root / "train" / "facts.csv"
+    if sentinel.exists():
+        mtime = datetime.fromtimestamp(sentinel.stat().st_mtime)
+        logger.info(f"  {name:>12s} dataset last generated: {mtime.strftime('%Y-%m-%d %H:%M:%S')}")
+    else:
+        logger.warning(f"  {name:>12s} dataset NOT FOUND at {sentinel}")
+
+
 @task
 def exp2_report_data(ctx: Context, args="", strict="true"):
     """Generates parity/distribution reports for Exp 2 methods."""
@@ -977,6 +298,10 @@ def exp2_report_data(ctx: Context, args="", strict="true"):
 
     baseline_root = REPO_ROOT / "data" / "exp2" / "baseline" / "family_tree"
     synthology_root = REPO_ROOT / "data" / "exp2" / "synthology" / "family_tree"
+
+    logger.info("Dataset generation timestamps (train/facts.csv mtime):")
+    _log_dataset_generation_time("baseline", baseline_root)
+    _log_dataset_generation_time("synthology", synthology_root)
     mismatches = _get_split_sample_count_mismatches(baseline_root, synthology_root, splits=("train", "val", "test"))
     label_mismatches = _get_split_target_label_mismatches(baseline_root, synthology_root, splits=("train", "val", "test"))
     if mismatches:
@@ -1037,16 +362,18 @@ def exp3_report_data(ctx: Context, universities=20, baseline_path="", synthology
     run_dir = _make_run_archive("exp3", "report_data", label="compare")
     report_dir = run_dir / "report"
 
-    resolved_baseline_path = baseline_path or f"data/owl2bench/output_baseline/owl2bench_{universities}"
-    resolved_synthology_path = synthology_path or f"data/owl2bench/output/owl2bench_{universities}"
+    resolved_baseline_path = baseline_path or f"data/owl2bench/output/owl2bench_{universities}"
+    balanced = f"data/exp3/balanced/owl2bench_{universities}"
+    unbalanced = f"data/exp3/synthology/owl2bench_{universities}"
+    resolved_synthology_path = synthology_path or (balanced if Path(balanced).exists() else unbalanced)
 
     cmd = _build_uv_command(
         "data_reporter",
         "data_reporter.analyze",
         config_name="exp3_compare",
         overrides=(
-            f"methods[0].path={shlex.quote(str(resolved_baseline_path))}",
-            f"methods[1].path={shlex.quote(str(resolved_synthology_path))}",
+            f"methods.0.path={shlex.quote(str(resolved_baseline_path))}",
+            f"methods.1.path={shlex.quote(str(resolved_synthology_path))}",
             f"output.dir={shlex.quote(str(report_dir))}",
         ),
         args=args,
@@ -1249,7 +576,12 @@ def exp2_balance_datasets(ctx: Context, config_path="configs/experiments/exp2_ba
         baseline_args=str(cfg.get("baseline_args", "")),
         synthology_args=str(cfg.get("synthology_args", "")),
     )
-
+    baseline_root = REPO_ROOT / "data" / "exp2" / "baseline" / "family_tree"
+    synthology_root = REPO_ROOT / "data" / "exp2" / "synthology" / "family_tree"
+    sample_align_summary = _align_exp2_split_sample_counts(baseline_root, synthology_root, splits=("train", "val", "test"))
+    _write_json(run_dir / "sample_alignment.json", sample_align_summary)
+    label_align_summary = _align_exp2_split_target_labels(baseline_root, synthology_root, splits=("train", "val", "test"))
+    _write_json(run_dir / "label_alignment.json", label_align_summary)
 
 
 @task
@@ -1337,233 +669,6 @@ def exp2_sweep_targetcaps_seeds(ctx: Context, config_path="configs/experiments/e
                     f"+logger.group=exp2_multihop +logger.tags=[exp2,synthology,target_cap_{target_cap},seed{seed}]"
                 ),
             )
-
-
-@task
-def exp2_smoke_jena_visual(ctx: Context, args=""):
-    """Runs a tiny Jena-backed baseline generation and visualizes one sample graph."""
-    print("\nRunning Exp 2 Jena smoke generation (visual).")
-    run_dir = _make_run_archive("exp2", "smoke_jena_visual", label="visual")
-    cmd = _build_uv_command(
-        "udm_baseline",
-        "udm_baseline.create_data",
-        overrides=(
-            "dataset.n_train=1",
-            "dataset.n_val=0",
-            "dataset.n_test=0",
-            "dataset.output_dir=data/exp2/baseline/smoke_visual",
-            "materialization.reasoner=jena",
-            "materialization.iterative=false",
-            "materialization.jena_profile=owl_mini",
-            "materialization.timing.enabled=true",
-            "materialization.timing.output_dir=data/exp2/timings",
-            "materialization.timing.run_tag=exp2_smoke",
-        ),
-        args=args,
-        env={"LOGURU_COLORIZE": "1"},
-    )
-    _write_json(run_dir / "manifest.json", {"task": "smoke_jena_visual", "args": args, "command": cmd})
-    _run_logged_command(cmd, run_dir / "run.log")
-
-    print("\nRendering smoke sample graph to visual-verification/exp2_smoke")
-    viz_cmd = _build_uv_command(
-        "kgvisualiser",
-        "kgvisualiser.visualize",
-        overrides=(
-            "io.input_csv=data/exp2/baseline/smoke_visual/train/facts.csv",
-            "io.sample_id=1000",
-            "output.dir=visual-verification/exp2_smoke",
-            "output.name_template=exp2_jena_smoke_1000",
-        ),
-        env={"LOGURU_COLORIZE": "1"},
-    )
-    _run_logged_command(viz_cmd, run_dir / "visualize-run.log")
-
-
-@task
-def exp2_parity_loop(
-    ctx: Context,
-    config_path="configs/udm_baseline/exp2_parity_loop.json",
-    max_attempts=None,
-    min_deep_hops=None,
-    tolerance_pct=None,
-    synth_targets=None,
-    synth_facts=None,
-    synth_generation_metrics=None,
-    attempts_root=None,
-    deep_count_mode=None,
-    node_tolerance_pct=None,
-    edge_density_tolerance_pct=None,
-    target_ratio_tolerance_pct=None,
-    inferred_share_tolerance_pct=None,
-    attempt_timeout_seconds=None,
-    ensure_synth_reference=None,
-    args="",
-):
-    """Retries UDM baseline generation until Exp 2 deep and structural parity targets are reached."""
-    print("\nRunning Exp 2 UDM parity loop.")
-
-    parity_defaults = _load_json_defaults(config_path)
-    max_attempts = int(_resolve_default(max_attempts, parity_defaults, "max_attempts", 250))
-    min_deep_hops = int(_resolve_default(min_deep_hops, parity_defaults, "min_deep_hops", 3))
-    tolerance_pct = float(_resolve_default(tolerance_pct, parity_defaults, "tolerance_pct", 95.0))
-    synth_targets = str(
-        _resolve_default(
-            synth_targets, parity_defaults, "synth_targets", "data/exp2/synthology/family_tree/train/targets.csv"
-        )
-    )
-    synth_facts = str(
-        _resolve_default(
-            synth_facts, parity_defaults, "synth_facts", "data/exp2/synthology/family_tree/train/facts.csv"
-        )
-    )
-    synth_generation_metrics = str(
-        _resolve_default(
-            synth_generation_metrics,
-            parity_defaults,
-            "synth_generation_metrics",
-            "data/exp2/synthology/family_tree/generation_metrics.json",
-        )
-    )
-    attempts_root = str(
-        _resolve_default(attempts_root, parity_defaults, "attempts_root", "data/exp2/baseline/parity_runs")
-    )
-    deep_count_mode = str(_resolve_default(deep_count_mode, parity_defaults, "deep_count_mode", "tolerance"))
-    node_tolerance_pct = float(_resolve_default(node_tolerance_pct, parity_defaults, "node_tolerance_pct", 30.0))
-    edge_density_tolerance_pct = float(
-        _resolve_default(edge_density_tolerance_pct, parity_defaults, "edge_density_tolerance_pct", 60.0)
-    )
-    target_ratio_tolerance_pct = float(
-        _resolve_default(target_ratio_tolerance_pct, parity_defaults, "target_ratio_tolerance_pct", 30.0)
-    )
-    inferred_share_tolerance_pct = float(
-        _resolve_default(inferred_share_tolerance_pct, parity_defaults, "inferred_share_tolerance_pct", 30.0)
-    )
-    attempt_timeout_seconds = int(
-        _resolve_default(attempt_timeout_seconds, parity_defaults, "attempt_timeout_seconds", 1800)
-    )
-    ensure_synth_reference = _to_bool(
-        _resolve_default(ensure_synth_reference, parity_defaults, "ensure_synth_reference", True)
-    )
-
-    synth_targets_path = Path(synth_targets)
-    synth_facts_path = Path(synth_facts)
-    if ensure_synth_reference and (not synth_targets_path.exists() or not synth_facts_path.exists()):
-        print("Synthology reference dataset missing; generating Exp 2 synthology dataset first.")
-        exp2_generate_synthology(ctx)
-
-    run_dir = _make_run_archive("exp2", "parity_loop", label="parity")
-    attempts_dir = run_dir / "attempts"
-    cmd = _build_uv_command(
-        "udm_baseline",
-        "udm_baseline.exp2_parity_loop",
-        python_module=True,
-        overrides=(
-            f"--max-attempts {max_attempts}",
-            f"--min-deep-hops {min_deep_hops}",
-            f"--tolerance-pct {tolerance_pct}",
-            f"--deep-count-mode {deep_count_mode}",
-            f"--synth-targets {synth_targets}",
-            f"--synth-facts {synth_facts}",
-            f"--synth-generation-metrics {synth_generation_metrics}",
-            f"--node-tolerance-pct {node_tolerance_pct}",
-            f"--edge-density-tolerance-pct {edge_density_tolerance_pct}",
-            f"--target-ratio-tolerance-pct {target_ratio_tolerance_pct}",
-            f"--inferred-share-tolerance-pct {inferred_share_tolerance_pct}",
-            f"--attempt-timeout-seconds {attempt_timeout_seconds}",
-            f"--attempts-root {shlex.quote(str(attempts_dir))}",
-        ),
-        args=args,
-        env={"LOGURU_COLORIZE": "1"},
-    )
-    _run_experiment_spec(
-        ExperimentRunSpec(
-            experiment="exp2",
-            task_name="parity_loop",
-            label="parity",
-            command=cmd,
-            config_paths=("configs/udm_baseline/exp2_baseline.yaml", "configs/udm_baseline/config.yaml"),
-            manifest={
-                "max_attempts": max_attempts,
-                "min_deep_hops": min_deep_hops,
-                "tolerance_pct": tolerance_pct,
-                "deep_count_mode": deep_count_mode,
-                "synth_targets": synth_targets,
-                "synth_facts": synth_facts,
-                "synth_generation_metrics": synth_generation_metrics,
-                "node_tolerance_pct": node_tolerance_pct,
-                "edge_density_tolerance_pct": edge_density_tolerance_pct,
-                "target_ratio_tolerance_pct": target_ratio_tolerance_pct,
-                "inferred_share_tolerance_pct": inferred_share_tolerance_pct,
-                "attempt_timeout_seconds": attempt_timeout_seconds,
-                "ensure_synth_reference": ensure_synth_reference,
-                "config_path": config_path,
-                "args": args,
-                "config_files": ["configs/udm_baseline/exp2_baseline.yaml", "configs/udm_baseline/config.yaml"],
-                "attempts_root": str(attempts_dir),
-            },
-            hydra_run_dir=False,
-        )
-    )
-
-
-@task
-def exp2_parity_report(
-    ctx: Context,
-    min_deep_hops=3,
-    synth_targets="data/exp2/synthology/family_tree/train/targets.csv",
-    synth_facts="data/exp2/synthology/family_tree/train/facts.csv",
-    synth_generation_metrics="data/exp2/synthology/family_tree/generation_metrics.json",
-    attempts_root="data/exp2/baseline/parity_runs",
-    out_json="data/exp2/baseline/parity_runs/parity_report.json",
-    out_csv="data/exp2/baseline/parity_runs/parity_attempts.csv",
-    out_md="data/exp2/baseline/parity_runs/parity_report.md",
-    args="",
-):
-    """Builds Exp 2 parity report: K_deep plus per-attempt depth histograms."""
-    print("\nGenerating Exp 2 parity report.")
-    run_dir = _make_run_archive("exp2", "parity_report", label="parity")
-    report_json = run_dir / "parity_report.json"
-    report_csv = run_dir / "parity_attempts.csv"
-    report_md = run_dir / "parity_report.md"
-    cmd = _build_uv_command(
-        "udm_baseline",
-        "udm_baseline.exp2_parity_report",
-        python_module=True,
-        overrides=(
-            f"--min-deep-hops {min_deep_hops}",
-            f"--synth-targets {synth_targets}",
-            f"--synth-facts {synth_facts}",
-            f"--synth-generation-metrics {synth_generation_metrics}",
-            f"--attempts-root {attempts_root}",
-            f"--out-json {shlex.quote(str(report_json))}",
-            f"--out-csv {shlex.quote(str(report_csv))}",
-            f"--out-md {shlex.quote(str(report_md))}",
-        ),
-        args=args,
-        env={"LOGURU_COLORIZE": "1"},
-    )
-    _run_experiment_spec(
-        ExperimentRunSpec(
-            experiment="exp2",
-            task_name="parity_report",
-            label="parity",
-            command=cmd,
-            config_paths=("configs/udm_baseline/exp2_baseline.yaml", "configs/udm_baseline/config.yaml"),
-            manifest={
-                "min_deep_hops": min_deep_hops,
-                "synth_targets": synth_targets,
-                "synth_facts": synth_facts,
-                "synth_generation_metrics": synth_generation_metrics,
-                "attempts_root": attempts_root,
-                "legacy_outputs": {"out_json": out_json, "out_csv": out_csv, "out_md": out_md},
-                "archive_outputs": {"out_json": str(report_json), "out_csv": str(report_csv), "out_md": str(report_md)},
-                "args": args,
-                "config_files": ["configs/udm_baseline/exp2_baseline.yaml", "configs/udm_baseline/config.yaml"],
-            },
-            hydra_run_dir=False,
-        )
-    )
 
 
 # ------------------------------------------------------------ #
@@ -1722,28 +827,25 @@ def exp3_generate_baseline(
 
 @task
 def exp3_generate_synthology(ctx: Context, universities=5, args=""):
-    """Generates Exp 3 Synthology-side OWL2Bench dataset for a specific university count."""
+    """Generates Exp 3 Synthology backward-chaining dataset on the OWL2Bench TBox."""
     print(f"\nGenerating Exp 3 synthology dataset (universities={universities}).")
     run_dir = _make_run_archive("exp3", "generate_synthology", label=str(universities))
     _snapshot_configs(
         run_dir,
         [
-            "configs/owl2bench/config.yaml",
-            "configs/owl2bench/config_toy.yaml",
+            "configs/ont_generator/exp3_synthology.yaml",
+            "configs/ont_generator/config.yaml",
         ],
     )
 
-    owl2bench_env = _resolve_owl2bench_env(run_dir)
-    synth_output_root = "data/exp3/synthology"
+    output_dir = f"data/exp3/synthology/owl2bench_{universities}"
     cmd = _build_uv_command(
-        "owl2bench",
-        "owl2bench.pipeline",
-        overrides=(
-            f"dataset.universities=[{universities}]",
-            f"dataset.output_dir={synth_output_root}",
-        ),
+        "ont_generator",
+        "ont_generator.create_data",
+        config_name="exp3_synthology",
+        overrides=(f"dataset.output_dir={output_dir}",),
         args=args,
-        env=owl2bench_env,
+        env={"LOGURU_COLORIZE": "1"},
     )
     _run_experiment_spec(
         ExperimentRunSpec(
@@ -1751,19 +853,14 @@ def exp3_generate_synthology(ctx: Context, universities=5, args=""):
             task_name="generate_synthology",
             label=str(universities),
             command=cmd,
-            config_paths=("configs/owl2bench/config.yaml", "configs/owl2bench/config_toy.yaml"),
+            config_paths=("configs/ont_generator/exp3_synthology.yaml", "configs/ont_generator/config.yaml"),
             manifest={
                 "universities": universities,
                 "args": args,
-                "config_files": ["configs/owl2bench/config.yaml", "configs/owl2bench/config_toy.yaml"],
-                "output_dir": f"{synth_output_root}/owl2bench_{universities}",
-                "raw_output_dir": f"{synth_output_root}/raw/owl2bench_{universities}",
+                "config_files": ["configs/ont_generator/exp3_synthology.yaml", "configs/ont_generator/config.yaml"],
+                "output_dir": output_dir,
             },
-            cwd=REPO_ROOT,
-            artifact_paths=(
-                str(REPO_ROOT / "data" / "exp3" / "synthology" / f"owl2bench_{universities}"),
-                str(REPO_ROOT / "data" / "exp3" / "synthology" / "raw" / f"owl2bench_{universities}"),
-            ),
+            artifact_paths=(str(REPO_ROOT / "data" / "exp3" / "synthology" / f"owl2bench_{universities}"),),
         )
     )
 
@@ -2167,6 +1264,120 @@ def exp3_materialize_abox(
     inferred_target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(closure_archive, closure_target)
     shutil.copy2(inferred_archive, inferred_target)
+
+
+
+# ------------------------------------------------------------ #
+# Replication of RRN paper results
+# ------------------------------------------------------------ #
+
+
+# Generate the ASP dataset used by P. Hohenecker et al.
+@task
+def gen_ft_asp(ctx: Context):
+    """Generates family tree ASP datasets with ASP solver
+    as described in the RRN paper by P. Hohenecker et al. using
+    default configurations in configs/asp_generator/"""
+
+    # If ./data/asp/out-reldata has content,
+    # ask user to confirm cleanup
+    run_dir = _make_run_archive("asp_generator", "gen_ft_asp", label="family_tree")
+    _write_json(
+        run_dir / "manifest.json",
+        {
+            "experiment": "asp_generator",
+            "task": "gen_ft_asp",
+            "output_dir": "./data/asp/out-reldata",
+        },
+    )
+    if os.path.exists("./data/asp/out-reldata") and os.listdir("./data/asp/out-reldata"):
+        response = input(
+            "Previous ASP generator outputs detected in ./data/asp/out-reldata.\n"
+            "You can convert them to CSV using 'invoke convert-reldata' if needed.\n\n"
+            "Do you want to delete them before generating new data? (y/n): "
+        )
+        if response.lower() != "y":
+            print("Aborting dataset generation.")
+            return
+
+    # Clean up ./data/asp/out-reldata first
+    logger.info("Cleaning up previous ASP generator outputs.")
+    _run_logged_command("rm -rf ./data/asp/out-reldata", run_dir / "cleanup.log")
+    logger.success("Cleanup done.")
+
+    # Run ASP generator using
+    # config from configs/asp_generator/config.yaml
+    print("-------------------------------------------------------")
+    print("Running family tree ASP generator by Patrick Hohenecker")
+    print("-------------------------------------------------------\n")
+    generator_cmd = _build_uv_command(
+        "asp_generator",
+        "asp_generator",
+        python_module=False,
+        env={"PYTHONUNBUFFERED": "1", "LOGURU_COLORIZE": "1"},
+    )
+    _run_logged_command(generator_cmd, run_dir / "generator.log")
+
+    # Convert reldata outputs to CSV
+    # using config from configs/asp_generator/config.yaml
+    print("\n-------------------------------------------")
+    print("Converting generated ASP data to CSV format")
+    print("--------------------------------------------\n")
+    convert_cmd = _build_uv_command(
+        "asp_generator",
+        "asp_generator.convert_to_csv",
+        env={"PYTHONUNBUFFERED": "1", "LOGURU_COLORIZE": "1"},
+    )
+    _run_logged_command(convert_cmd, run_dir / "convert.log")
+
+    logger.success("Family tree dataset generation with ASP completed.")
+
+
+# Convert proprietary reldata format by P. Hohenecker's generator
+# to CSV for RRN training/evaluation
+@task
+def convert_reldata(ctx: Context):
+    """Converts family tree datasets in reldata format to CSV format."""
+
+    print("\n-------------------------------------------")
+    print("Converting generated ASP data to CSV format")
+    print("--------------------------------------------\n")
+    run_dir = _make_run_archive("asp_generator", "convert_reldata", label="family_tree")
+    cmd = _build_uv_command(
+        "asp_generator",
+        "asp_generator.convert_to_csv",
+        env={"PYTHONUNBUFFERED": "1", "LOGURU_COLORIZE": "1"},
+    )
+    _write_json(run_dir / "manifest.json", {"experiment": "asp_generator", "task": "convert_reldata", "command": cmd})
+    _run_logged_command(cmd, run_dir / "run.log")
+
+    logger.success("Conversion of family tree dataset from reldata to CSV completed.")
+
+
+# Train the RRN on the ASP dataset
+@task
+def train_rrn_asp(ctx: Context, args=""):
+    """Trains RRN on ASP-generated Family Tree dataset."""
+
+    print("\nRunning RRN training with ASP dataset.")
+    run_dir = _make_run_archive("rrn", "train_asp", label="asp")
+    cmd = _build_uv_command(
+        "rrn",
+        "rrn.train",
+        overrides=("data/dataset=asp",),
+        args=args,
+        env={"PYTHONUNBUFFERED": "1", "LOGURU_COLORIZE": "1"},
+    )
+    _write_json(
+        run_dir / "manifest.json",
+        {
+            "experiment": "rrn",
+            "task": "train_asp",
+            "args": args,
+            "command": cmd,
+        },
+    )
+    _run_logged_command(cmd, run_dir / "run.log")
 
 
 # ------------------------------------------------------------ #
