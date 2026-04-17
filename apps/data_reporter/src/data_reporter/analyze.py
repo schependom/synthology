@@ -495,24 +495,33 @@ def _plot_type_distribution(summary: List[Dict], out_path: Path) -> None:
 
 
 def _plot_hops_distribution(summary: List[Dict], out_path: Path) -> None:
-    hop_values = sorted({h for m in summary for h in m["hops_counts"].keys()}, key=lambda x: int(x))
-    methods = [m["method"] for m in summary]
+    # Exclude hop=0 (base facts and negatives) to show only inferred-target depth distribution.
+    # For synthology, hop>0 is exclusively positive inferred targets.
+    # For UDM baseline, hop>0 includes both positive and negative inferred targets.
+    all_hops = sorted(
+        {h for m in summary for h in m["hops_counts"].keys() if int(h) > 0},
+        key=lambda x: int(x),
+    )
+    if not all_hops:
+        return
 
-    x = list(range(len(hop_values)))
-    fig, ax = plt.subplots(figsize=(12, 6))
+    methods = [m["method"] for m in summary]
+    x = list(range(len(all_hops)))
+    fig, ax = plt.subplots(figsize=(10, 5))
 
     for method in methods:
         item = next(m for m in summary if m["method"] == method)
-        y = [item["hops_counts"].get(h, 0) for h in hop_values]
+        y = [item["hops_counts"].get(h, 0) for h in all_hops]
         ax.plot(x, y, marker="o", label=method)
 
     ax.set_xticks(x)
-    ax.set_xticklabels(hop_values)
-    ax.set_title("Hop Distribution by Method")
-    ax.set_xlabel("Hops")
-    ax.set_ylabel("Count")
+    ax.set_xticklabels(all_hops)
+    ax.set_yscale("log")
+    ax.set_title("Hop Distribution (Inferred Targets, log scale)")
+    ax.set_xlabel("Proof Depth")
+    ax.set_ylabel("Count (log scale)")
     ax.legend()
-    ax.grid(linestyle="--", alpha=0.4)
+    ax.grid(linestyle="--", alpha=0.4, which="both")
     fig.tight_layout()
     _save_figure(fig, out_path)
     plt.close(fig)
@@ -585,7 +594,7 @@ def _plot_top_predicates_per_method(
 
 
 def _plot_top_predicates_combined(
-    summary: List[Dict], out_path: Path, top_k: int, ignore_predicates: Optional[List[str]] = None
+    summary: List[Dict], out_path: Path, top_k: int, ignore_predicates: Optional[List[str]] = None, inferred_only: bool = False
 ) -> None:
     methods = [m["method"] for m in summary]
     if not methods:
@@ -599,7 +608,7 @@ def _plot_top_predicates_combined(
         for groups in m.get("predicate_fact_group_counts", {}).values()
         for group in groups.keys()
     }
-    preferred_order = ["base", "inferred", "intermediate"]
+    preferred_order = ["inferred", "intermediate"] if inferred_only else ["base", "inferred", "intermediate"]
     fact_groups = [g for g in preferred_order if g in discovered_groups]
     if not fact_groups:
         return
@@ -657,7 +666,8 @@ def _plot_top_predicates_combined(
 
     ax.set_xticks(x)
     ax.set_xticklabels(predicates, rotation=45, ha="right")
-    ax.set_title(f"Top {top_k} Predicates by Method and Fact Group")
+    title_suffix = " (Inferred Only)" if inferred_only else ""
+    ax.set_title(f"Top {top_k} Predicates by Method and Fact Group{title_suffix}")
     ax.set_xlabel("Predicate")
     ax.set_ylabel("Count")
     ax.grid(axis="y", linestyle="--", alpha=0.4)
@@ -675,8 +685,8 @@ def _plot_top_predicates_combined(
     plt.close(fig)
 
 
-def _plot_predicate_distribution_by_fact_group(summary: List[Dict], out_dir: Path, ignore_predicates: Optional[List[str]] = None) -> None:
-    fact_groups = ["base", "inferred", "intermediate"]
+def _plot_predicate_distribution_by_fact_group(summary: List[Dict], out_dir: Path, ignore_predicates: Optional[List[str]] = None, inferred_only: bool = False) -> None:
+    fact_groups = ["inferred", "intermediate"] if inferred_only else ["base", "inferred", "intermediate"]
     ignored = _normalize_predicate_filter(ignore_predicates)
 
     for m in summary:
@@ -912,7 +922,7 @@ def _write_markdown_report(summary: List[Dict], out_dir: Path, ignore_predicates
 
 
 def _generate_plots(
-    summary: List[Dict], out_dir: Path, top_k_predicates: int, ignore_predicates: Optional[List[str]] = None
+    summary: List[Dict], out_dir: Path, top_k_predicates: int, ignore_predicates: Optional[List[str]] = None, inferred_only: bool = False
 ) -> None:
     _plot_bar(
         {m["method"]: m["targets_total"] for m in summary},
@@ -934,9 +944,9 @@ def _generate_plots(
     )
     _plot_type_distribution(summary, out_dir / "type_distribution_stacked.png")
     _plot_hops_distribution(summary, out_dir / "hops_distribution.png")
-    _plot_predicate_distribution_by_fact_group(summary, out_dir, ignore_predicates)
+    _plot_predicate_distribution_by_fact_group(summary, out_dir, ignore_predicates, inferred_only=inferred_only)
     _plot_top_predicates_per_method(summary, out_dir, top_k_predicates, ignore_predicates)
-    _plot_top_predicates_combined(summary, out_dir / "top_predicates_combined.png", top_k_predicates, ignore_predicates)
+    _plot_top_predicates_combined(summary, out_dir / "top_predicates_combined.png", top_k_predicates, ignore_predicates, inferred_only=inferred_only)
     _plot_all_inferred_predicates_by_method(summary, out_dir / "all_inferred_predicates_by_method.png", ignore_predicates)
     _plot_all_derived_predicates_by_method(summary, out_dir / "all_derived_predicates_by_method.png", ignore_predicates)
 
@@ -987,8 +997,9 @@ def main(cfg: DictConfig) -> None:
 
     if cfg.output.save_plots:
         merge_intermediate_into_inferred = bool(cfg.output.get("merge_intermediate_into_inferred_for_plots", False))
+        inferred_only = bool(cfg.output.get("inferred_only", False))
         plot_summary = _plot_summary_view(summary, merge_intermediate_into_inferred)
-        _generate_plots(plot_summary, out_dir, int(cfg.output.top_k_predicates), ignore_predicates)
+        _generate_plots(plot_summary, out_dir, int(cfg.output.top_k_predicates), ignore_predicates, inferred_only=inferred_only)
 
     logger.success(f"Saved reports to {out_dir}")
 

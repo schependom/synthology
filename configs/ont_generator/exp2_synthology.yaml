@@ -29,9 +29,9 @@ generator:
   min_lcc_ratio: 0.8
   proof_selection_strategy: "stratified"
   proof_selection_weights:
-    easy: 5
-    medium: 65
-    hard: 30
+    easy: 2
+    medium: 55
+    hard: 43
   individual_pool_size: 5000
   individual_reuse_prob: 0.5
   min_proof_roots: 10

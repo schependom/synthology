@@ -20,6 +20,7 @@ output:
   top_k_predicates: 25
   ignore_predicates:
     - rdf:type
+  inferred_only: true
 
 logging:
   level: INFO

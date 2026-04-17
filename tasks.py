@@ -931,8 +931,57 @@ def exp3_balance_data(
         target_pos = min(len(baseline_pos), len(synth_pos))
         target_neg = min(len(baseline_neg), len(synth_neg))
 
-        selected_pos = rng.sample(synth_pos, target_pos) if target_pos < len(synth_pos) else list(synth_pos)
-        selected_neg = rng.sample(synth_neg, target_neg) if target_neg < len(synth_neg) else list(synth_neg)
+        # Stratified sampling: match baseline hop-bucket distribution (d=1, d=2, d>=3)
+        # so Synthology preserves the same depth profile as the baseline rather than
+        # inheriting the raw generator's ~57% hop=0 skew.
+        def _hop_bucket(row: dict[str, str]) -> str:
+            try:
+                h = int(row.get("hops", "0") or "0")
+            except ValueError:
+                h = 0
+            if h <= 1:
+                return "d1"
+            if h == 2:
+                return "d2"
+            return "d3p"
+
+        def _stratified_sample(pool: list, target_n: int, reference: list) -> list:
+            if target_n >= len(pool):
+                return list(pool)
+            # Compute reference bucket fractions
+            bucket_counts: dict[str, int] = {"d1": 0, "d2": 0, "d3p": 0}
+            for r in reference:
+                bucket_counts[_hop_bucket(r)] += 1
+            total_ref = sum(bucket_counts.values()) or 1
+            # Group pool by bucket
+            pool_buckets: dict[str, list] = {"d1": [], "d2": [], "d3p": []}
+            for r in pool:
+                pool_buckets[_hop_bucket(r)].append(r)
+            # Allocate target_n proportionally; remainder goes to largest bucket
+            alloc: dict[str, int] = {}
+            assigned = 0
+            for bkt in ("d1", "d2", "d3p"):
+                n = int(round(target_n * bucket_counts[bkt] / total_ref))
+                n = min(n, len(pool_buckets[bkt]))
+                alloc[bkt] = n
+                assigned += n
+            # Adjust for rounding errors, favouring d3p then d2 then d1
+            for bkt in ("d3p", "d2", "d1"):
+                while assigned < target_n and alloc[bkt] < len(pool_buckets[bkt]):
+                    alloc[bkt] += 1
+                    assigned += 1
+                while assigned > target_n and alloc[bkt] > 0:
+                    alloc[bkt] -= 1
+                    assigned -= 1
+            selected: list = []
+            for bkt in ("d1", "d2", "d3p"):
+                n = alloc[bkt]
+                candidates = pool_buckets[bkt]
+                selected.extend(rng.sample(candidates, n) if n < len(candidates) else list(candidates))
+            return selected
+
+        selected_pos = _stratified_sample(synth_pos, target_pos, baseline_pos)
+        selected_neg = _stratified_sample(synth_neg, target_neg, baseline_neg)
         selected_rows = selected_pos + selected_neg
         rng.shuffle(selected_rows)
 

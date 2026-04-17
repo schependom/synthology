@@ -78,6 +78,9 @@ class OntologyParser:
         self.domains: Dict[str, Set[str]] = defaultdict(set)  # e.g. "hasParent" -> {"Person"}
         self.ranges: Dict[str, Set[str]] = defaultdict(set)  # e.g. "hasParent" -> {"Person"}
 
+        # Storage for subPropertyOf relationships (used to generate guarded derivation rules)
+        self.sub_properties: Dict[str, str] = {}  # e.g. "fatherOf" -> "parentOf"
+
         # Pre-defined variables for rule creation
         # These are reused across rules for consistency
         self.X = Var("X")
@@ -92,16 +95,18 @@ class OntologyParser:
         logger.info("Parsing ontology axioms into rules and constraints.")
         self._setup_handlers()
         self._parse_rules_and_constraints()
+        self._generate_guarded_derivation_rules()
 
         logger.success("Ontology parsing complete:")
         logger.info(f"\t{len(self.classes)} Classes")
         logger.info(f"\t{len(self.relations)} Relations")
         logger.info(f"\t{len(self.attributes)} Attributes")
-        logger.info(f"\t{len(self.rules)} Executable Rules")
+        logger.info(f"\t{len(self.rules)} Executable Rules (incl. guarded derivation rules)")
         logger.info(f"\t{len(self.constraints)} Constraints")
         logger.info(f"\t{len(self.inverse_properties)} Inverse Property Pairs")
         logger.info(f"\t{len(self.domains)} Domain Constraints")
         logger.info(f"\t{len(self.ranges)} Range Constraints")
+        logger.info(f"\t{len(self.sub_properties)} SubProperty Relationships")
 
     def _get_clean_name(self, uri: URIRef) -> str:
         """
@@ -409,6 +414,9 @@ class OntologyParser:
 
             self.rules.append(rule)
 
+            if isinstance(p1, Relation) and isinstance(p2, Relation):
+                self.sub_properties[p1.name] = p2.name
+
         else:
             logger.warning(f"Invalid subPropertyOf axiom with non-URI: ({s}, {p}, {o})")
 
@@ -705,6 +713,49 @@ class OntologyParser:
             )
 
             self.constraints.append(constraint)
+
+    def _generate_guarded_derivation_rules(self) -> None:
+        """
+        Generates domain-guarded derivation rules for sub-properties.
+
+        For each property q that satisfies BOTH:
+          - q rdfs:subPropertyOf p   (q specialises p)
+          - q rdfs:domain C          (q requires subject type C)
+
+        we add the closed-world rule: q(X,Y) :- p(X,Y), type(X,C)
+
+        Rationale: in the family-tree domain, any male who stands in parentOf
+        also stands in fatherOf (and analogously for all other gendered
+        sub-properties). Without this rule, gendered predicates would only
+        ever appear as base facts because backward chaining has no rule
+        whose conclusion is fatherOf / motherOf / etc.
+        """
+        count = 0
+        for sub_name, super_name in self.sub_properties.items():
+            domain_classes = self.domains.get(sub_name, set())
+            if not domain_classes:
+                continue
+
+            sub_rel = self.relations.get(sub_name)
+            super_rel = self.relations.get(super_name)
+            if sub_rel is None or super_rel is None:
+                continue
+
+            for cls_name in domain_classes:
+                cls = self.classes.get(cls_name)
+                if cls is None:
+                    continue
+
+                rule = ExecutableRule(
+                    name=f"guarded_{super_name}_domain_{cls_name}_implies_{sub_name}",
+                    conclusion=Atom(self.X, sub_rel, self.Y),
+                    premises=[Atom(self.X, super_rel, self.Y), Atom(self.X, RDF.type, cls)],
+                )
+                self.rules.append(rule)
+                count += 1
+                logger.debug(f"  Added guarded rule: {sub_name}(X,Y) :- {super_name}(X,Y), type(X,{cls_name})")
+
+        logger.info(f"\t{count} Guarded Derivation Rules generated")
 
     def print_summary(self) -> None:
         """

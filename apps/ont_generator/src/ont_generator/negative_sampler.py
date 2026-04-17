@@ -217,7 +217,7 @@ class NegativeSampler:
                         pos_triple.object,
                         positive=False,
                         proofs=[],
-                        metadata={"source_type": "base" if pos_triple.is_base_fact else "inferred"},
+                        metadata={"source_type": "base" if pos_triple.is_base_fact else "inferred", "hops": pos_triple.get_hops()},
                     )
                 else:
                     continue
@@ -233,7 +233,7 @@ class NegativeSampler:
                         new_obj,
                         positive=False,
                         proofs=[],
-                        metadata={"source_type": "base" if pos_triple.is_base_fact else "inferred"},
+                        metadata={"source_type": "base" if pos_triple.is_base_fact else "inferred", "hops": pos_triple.get_hops()},
                     )
                 else:
                     continue
@@ -267,7 +267,7 @@ class NegativeSampler:
                     neg_cls,
                     is_member=False,
                     proofs=[],
-                    metadata={"source_type": "base" if pos_mem.is_base_fact else "inferred"},
+                    metadata={"source_type": "base" if pos_mem.is_base_fact else "inferred", "hops": pos_mem.get_hops()},
                 )
                 negative_memberships.append(neg_mem)
 
@@ -461,6 +461,7 @@ class NegativeSampler:
                                 proofs=[],
                                 metadata={
                                     "source_type": "propagated_inferred",
+                                    "hops": pos_triple.get_hops(),
                                 },
                             )
 
@@ -585,7 +586,7 @@ class NegativeSampler:
                     neg_cls,
                     is_member=False,
                     proofs=[],
-                    metadata={"source_type": "base" if pos_mem.is_base_fact else "inferred"},
+                    metadata={"source_type": "base" if pos_mem.is_base_fact else "inferred", "hops": pos_mem.get_hops()},
                 )
                 negative_memberships.append(neg_mem)
 
@@ -638,11 +639,11 @@ class NegativeSampler:
                         pos_triple.object,
                         positive=False,
                         proofs=[],
-                        metadata={"source_type": "base" if pos_triple.is_base_fact else "inferred"},
+                        metadata={"source_type": "base" if pos_triple.is_base_fact else "inferred", "hops": pos_triple.get_hops()},
                     )
                 else:
                     # Fallback: try constrained (domain-based)
-                    neg_triple = self._corrupt_triple_constrained(pos_triple, kg.individuals, ind_classes)
+                    neg_triple = self._corrupt_triple_constrained(pos_triple, kg.individuals, ind_classes, source_hops=pos_triple.get_hops())
                     if neg_triple:
                         used_strategy = "type_aware_fallback_constrained"
                     else:
@@ -663,11 +664,11 @@ class NegativeSampler:
                         new_obj,
                         positive=False,
                         proofs=[],
-                        metadata={"source_type": "base" if pos_triple.is_base_fact else "inferred"},
+                        metadata={"source_type": "base" if pos_triple.is_base_fact else "inferred", "hops": pos_triple.get_hops()},
                     )
                 else:
                     # Fallback: try constrained (range-based)
-                    neg_triple = self._corrupt_triple_constrained(pos_triple, kg.individuals, ind_classes)
+                    neg_triple = self._corrupt_triple_constrained(pos_triple, kg.individuals, ind_classes, source_hops=pos_triple.get_hops())
                     if neg_triple:
                         used_strategy = "type_aware_fallback_constrained"
                     else:
@@ -702,7 +703,7 @@ class NegativeSampler:
                     neg_cls,
                     is_member=False,
                     proofs=[],
-                    metadata={"source_type": "base" if pos_mem.is_base_fact else "inferred"},
+                    metadata={"source_type": "base" if pos_mem.is_base_fact else "inferred", "hops": pos_mem.get_hops()},
                 )
                 negative_memberships.append(neg_mem)
 
@@ -801,6 +802,7 @@ class NegativeSampler:
         triple: Triple,
         individuals: List[Individual],
         ind_classes: Dict[Individual, Set[str]],
+        source_hops: int = 0,
     ) -> Optional[Triple]:
         """Corrupts triple respecting domain/range constraints."""
         if random.random() < 0.5:
@@ -809,14 +811,14 @@ class NegativeSampler:
             candidates = [c for c in candidates if c != triple.subject]
             if candidates:
                 new_subj = random.choice(candidates)
-                return Triple(new_subj, triple.predicate, triple.object, positive=False, proofs=[])
+                return Triple(new_subj, triple.predicate, triple.object, positive=False, proofs=[], metadata={"hops": source_hops})
         else:
             # Corrupt object
             candidates = self._get_range_candidates(triple.predicate, individuals, ind_classes)
             candidates = [c for c in candidates if c != triple.object]
             if candidates:
                 new_obj = random.choice(candidates)
-                return Triple(triple.subject, triple.predicate, new_obj, positive=False, proofs=[])
+                return Triple(triple.subject, triple.predicate, new_obj, positive=False, proofs=[], metadata={"hops": source_hops})
         return None
 
     def _corrupt_triple_random(
@@ -835,6 +837,7 @@ class NegativeSampler:
             metadata = {}
             if original_triple:
                 metadata["source_type"] = "base" if original_triple.is_base_fact else "inferred"
+                metadata["hops"] = original_triple.get_hops()
             return Triple(new_subj, triple.predicate, triple.object, positive=False, proofs=[], metadata=metadata)
         else:
             # Corrupt object
@@ -845,6 +848,7 @@ class NegativeSampler:
             metadata = {}
             if original_triple:
                 metadata["source_type"] = "base" if original_triple.is_base_fact else "inferred"
+                metadata["hops"] = original_triple.get_hops()
             return Triple(triple.subject, triple.predicate, new_obj, positive=False, proofs=[], metadata=metadata)
 
     def _corrupt_subject(self, triple: Triple, individuals: List[Individual]) -> Optional[Triple]:
@@ -880,6 +884,7 @@ class NegativeSampler:
         metadata = {}
         if original_membership:
             metadata["source_type"] = "base" if original_membership.is_base_fact else "inferred"
+            metadata["hops"] = original_membership.get_hops()
         return Membership(membership.individual, new_cls, is_member=False, proofs=[], metadata=metadata)
 
     def _create_corrupted_proof(

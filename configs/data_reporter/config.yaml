@@ -20,6 +20,7 @@ output:
   merge_intermediate_into_inferred_for_plots: true
   top_k_predicates: 15
   ignore_predicates: []
+  inferred_only: false
 
 logging:
   level: INFO

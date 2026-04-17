@@ -22,7 +22,7 @@ hydra:
 
 generator:
   min_individuals: 20
-  max_individuals: 120
+  max_individuals: 250
   min_rules: 3
   max_rules: 6
   rule_sampling_mode: "balanced"
@@ -31,7 +31,7 @@ generator:
   max_recursion: 4
   global_max_depth: 10
   max_proofs_per_atom: 15
-  min_lcc_ratio: 0.75
+  min_lcc_ratio: 0.55
   proof_selection_strategy: "stratified"
   proof_selection_weights:
     easy: 10
