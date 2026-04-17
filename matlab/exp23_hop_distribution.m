@@ -1,173 +1,106 @@
-% --- Experiment 2/3: Hop Distribution Bar Charts (Auto from run artifacts) ---
-% This script reads dataset paths from the latest compare summaries:
-%   reports/experiment_runs/*/exp2/report_data/*/report/summary.json
-%   reports/experiment_runs/*/exp3/report_data/*/report/summary.json
-% and computes positive inferred hop buckets from train/targets.csv.
+% exp23_hop_distribution.m
+%
+% Reads the pre-computed hops_by_method.csv produced by the data reporter
+% and renders semilogy line charts for Exp2 and Exp3.
+%
+% Pin the exact report directories here — no glob searching, no targets.csv.
+
+EXP2_REPORT_DIR = '/dtu/blackhole/16/221590/synthology/reports/experiment_runs/2026-04-17/exp2/report_data/220147_compare/report';
+EXP3_REPORT_DIR = '/dtu/blackhole/16/221590/synthology/reports/experiment_runs/2026-04-17/exp3/report_data/162429_compare/report';
+
+% ---------------------------------------------------------------------------
 
 C = kulcolors();
 
-set(groot, 'defaultTextInterpreter', 'latex');
-set(groot, 'defaultAxesTickLabelInterpreter', 'latex');
-set(groot, 'defaultLegendInterpreter', 'latex');
-set(groot, 'defaultAxesFontSize', 16);
-set(groot, 'defaultLegendFontSize', 14);
-set(groot, 'defaultTextFontSize', 14);
+% No LaTeX — avoids cmcsc10 font error on HPC.
+set(groot, 'defaultTextInterpreter',          'none');
+set(groot, 'defaultAxesTickLabelInterpreter', 'none');
+set(groot, 'defaultLegendInterpreter',        'none');
+set(groot, 'defaultAxesFontSize',   14);
+set(groot, 'defaultLegendFontSize', 12);
+set(groot, 'defaultTextFontSize',   12);
 
 repoRoot = fileparts(fileparts(mfilename('fullpath')));
-outDir = fullfile(repoRoot, 'paper', 'figures');
-if ~exist(outDir, 'dir')
-    mkdir(outDir);
-end
+outDir   = fullfile(repoRoot, 'paper', 'figures');
+if ~exist(outDir, 'dir'), mkdir(outDir); end
 
-% Optional explicit run pinning (leave empty to auto-pick latest summaries).
-exp2SummaryOverride = '';
-exp3SummaryOverride = '';
+render_hop_chart( ...
+    fullfile(EXP2_REPORT_DIR, 'hops_by_method.csv'), ...
+    'Exp. 2 (Family Tree): Hop Distribution of Positive Inferred Targets', ...
+    fullfile(outDir, 'exp2_hop_distr.pdf'), C);
 
-if strlength(string(exp2SummaryOverride)) > 0
-    exp2Summary = exp2SummaryOverride;
-else
-    exp2Summary = find_latest_summary(fullfile(repoRoot, 'reports', 'experiment_runs', '*', 'exp2', 'report_data', '*', 'report', 'summary.json'));
-end
-if isempty(exp2Summary)
-    error('No Exp2 compare summary found. Run "uv run invoke exp2-report-data" first.');
-end
-
-[exp2Data, exp2Labels] = load_bucket_data(exp2Summary, repoRoot);
-render_hop_chart(exp2Data, exp2Labels, C, ...
-    'Experiment 2: Hop Distribution of Positive Inferred Targets', ...
-    fullfile(outDir, 'exp2_hop_distr.pdf'));
-
-if strlength(string(exp3SummaryOverride)) > 0
-    exp3Summary = exp3SummaryOverride;
-else
-    exp3Summary = find_latest_summary(fullfile(repoRoot, 'reports', 'experiment_runs', '*', 'exp3', 'report_data', '*', 'report', 'summary.json'));
-end
-if ~isempty(exp3Summary)
-    [exp3Data, exp3Labels] = load_bucket_data(exp3Summary, repoRoot);
-    render_hop_chart(exp3Data, exp3Labels, C, ...
-        'Experiment 3: Hop Distribution of Positive Inferred Targets', ...
-        fullfile(outDir, 'exp3_hop_distr.pdf'));
-else
-    fprintf('[WARN] No Exp3 compare summary found. Skipping exp3_hop_distr.pdf\n');
-end
+render_hop_chart( ...
+    fullfile(EXP3_REPORT_DIR, 'hops_by_method.csv'), ...
+    'Exp. 3 (OWL2Bench): Hop Distribution of Positive Inferred Targets', ...
+    fullfile(outDir, 'exp3_hop_distr.pdf'), C);
 
 
-function summaryPath = find_latest_summary(pattern)
-    matches = dir(pattern);
-    if isempty(matches)
-        summaryPath = '';
+% =========================================================================
+function render_hop_chart(csvPath, titleText, outFile, C)
+
+    if ~isfile(csvPath)
+        fprintf('[WARN] Missing %s — skipping.\n', csvPath);
         return;
     end
-    [~, idx] = max([matches.datenum]);
-    summaryPath = fullfile(matches(idx).folder, matches(idx).name);
-end
 
+    T = readtable(csvPath, 'TextType', 'string');
 
-function [data, labels] = load_bucket_data(summaryPath, repoRoot)
-    summary = jsondecode(fileread(summaryPath));
-    methodEntries = summary.methods;
+    % Keep only hop >= 1  (hop=0 are base facts)
+    T = T(str2double(string(T.hop)) >= 1, :);
 
-    baselinePath = '';
-    synthologyPath = '';
+    maxHop   = max(str2double(string(T.hop)));
+    hopTicks = 1:maxHop;
 
-    for i = 1:numel(methodEntries)
-        methodName = lower(string(methodEntries(i).method));
-        methodPath = string(methodEntries(i).path);
-
-        if startsWith(methodName, 'base')
-            baselinePath = methodPath;
-        elseif startsWith(methodName, 'synth')
-            synthologyPath = methodPath;
+    % Build count matrix: rows = hops, cols = [baseline, synthology]
+    colOrder = {'baseline', 'synthology'};
+    counts   = zeros(maxHop, 2);
+    for ci = 1:2
+        mask = strcmpi(string(T.method), colOrder{ci});
+        sub  = T(mask, :);
+        for r = 1:height(sub)
+            h = str2double(string(sub.hop(r)));
+            if h >= 1 && h <= maxHop
+                counts(h, ci) = str2double(string(sub.count(r)));
+            end
         end
     end
 
-    if strlength(baselinePath) == 0 || strlength(synthologyPath) == 0
-        error('Could not resolve baseline/synthology method paths from %s', summaryPath);
-    end
+    fig = figure('Position', [100, 100, 960, 380], 'Color', 'w');
 
-    baselineTargets = resolve_targets_path(char(baselinePath), repoRoot);
-    synthologyTargets = resolve_targets_path(char(synthologyPath), repoRoot);
-
-    baselineBuckets = hop_buckets_from_targets(baselineTargets);
-    synthologyBuckets = hop_buckets_from_targets(synthologyTargets);
-
-    data = [baselineBuckets(:), synthologyBuckets(:)];
+    styles = {'-o', '-s'};
+    colors = {C.KULijsblauw, C.KULcorporate};
     labels = {'UDM Baseline', 'Synthology'};
-end
 
-
-function targetsPath = resolve_targets_path(datasetPath, repoRoot)
-    if is_absolute_path(datasetPath)
-        basePath = datasetPath;
-    else
-        basePath = fullfile(repoRoot, datasetPath);
+    hold on;
+    ph = gobjects(2, 1);
+    for ci = 1:2
+        y     = counts(:, ci);
+        valid = y > 0;
+        if any(valid)
+            ph(ci) = semilogy(hopTicks(valid), y(valid), styles{ci}, ...
+                'Color',           colors{ci}, ...
+                'LineWidth',       2.2, ...
+                'MarkerSize',      8, ...
+                'MarkerFaceColor', colors{ci});
+        end
     end
-    targetsPath = fullfile(basePath, 'train', 'targets.csv');
-    if ~isfile(targetsPath)
-        error('Missing targets.csv at %s', targetsPath);
-    end
-end
+    hold off;
 
+    set(gca, 'XTick', hopTicks, 'FontSize', 12);
+    xlabel('Proof depth (hops)',            'FontSize', 13, 'FontWeight', 'bold');
+    ylabel('Positive inferred facts (log)', 'FontSize', 13, 'FontWeight', 'bold');
+    title(titleText,                        'FontSize', 13, 'FontWeight', 'bold');
 
-function out = hop_buckets_from_targets(targetsCsv)
-    T = readtable(targetsCsv, 'TextType', 'string');
+    % Only include handles that were actually plotted.
+    valid_ph  = ph(isgraphics(ph));
+    valid_lbl = labels(isgraphics(ph));
+    legend(valid_ph, valid_lbl, 'Location', 'northeast', 'FontSize', 12, 'Interpreter', 'none');
 
-    labelsNum = numeric_col(T.label);
-    hopsNum = numeric_col(T.hops);
-
-    if ismember('type', T.Properties.VariableNames)
-        types = lower(string(T.type));
-    else
-        types = repmat("", height(T), 1);
-    end
-
-    inferredMask = startsWith(types, 'inf') | (types == "inferred");
-    positiveMask = labelsNum == 1;
-    keep = inferredMask & positiveMask & ~isnan(hopsNum) & (hopsNum >= 1);
-    hops = hopsNum(keep);
-
-    out = [
-        sum(hops == 1), ...
-        sum(hops == 2), ...
-        sum(hops == 3), ...
-        sum(hops >= 4)
-    ];
-end
-
-
-function render_hop_chart(data, labels, C, titleText, outFile)
-    categories = {'1 Hop', '2 Hops', '3 Hops', '\geq 4 Hops'};
-    fig = figure('Position', [100, 100, 900, 340]);
-
-    b = bar(data, 'grouped');
-    b(1).FaceColor = C.KULijsblauw;
-    b(2).FaceColor = C.KULcorporate;
-
-    set(gca, 'XTickLabel', categories, 'FontSize', 12);
-    ylabel('Number of Positive Inferred Facts', 'FontSize', 13, 'FontWeight', 'bold');
-    xlabel('Logical Proof Depth (Hops)', 'FontSize', 13, 'FontWeight', 'bold');
-    title(titleText, 'FontSize', 14, 'FontWeight', 'bold');
-
-    legend(labels, 'Location', 'northeast', 'FontSize', 12, 'Interpreter', 'latex');
     box off;
     grid on;
-    set(gca, 'GridLineStyle', ':', 'GridAlpha', 0.6);
+    set(gca, 'GridLineStyle', ':', 'GridAlpha', 0.5);
 
     exportgraphics(fig, outFile, 'ContentType', 'vector');
     fprintf('Saved hop chart: %s\n', outFile);
     close(fig);
-end
-
-
-function tf = is_absolute_path(pathStr)
-    tf = startsWith(pathStr, '/') || startsWith(pathStr, '~') || ~isempty(regexp(pathStr, '^[A-Za-z]:[\\/]', 'once'));
-end
-
-
-function nums = numeric_col(col)
-    if isnumeric(col)
-        nums = double(col);
-        return;
-    end
-    nums = str2double(string(col));
 end

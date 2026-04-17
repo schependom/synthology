@@ -7,8 +7,8 @@ defaults:
 
 dataset:
   n_train: 1200
-  n_val: 150
-  n_test: 150
+  n_val: 0
+  n_test: 0
   train_fact_cap: 400000
   output_dir: "data/exp2/synthology/family_tree"
 
@@ -23,10 +23,11 @@ generator:
   max_rules: 10
   rule_sampling_mode: "balanced"
   enforce_goal_predicate_coverage: true
-  target_min_proofs_rule: 5
+  target_min_proofs_rule: 10
+  max_recursion: 5
   global_max_depth: 12
   max_proofs_per_atom: 5
-  min_lcc_ratio: 0.8
+  min_lcc_ratio: 0.5
   proof_selection_strategy: "stratified"
   proof_selection_weights:
     easy: 2

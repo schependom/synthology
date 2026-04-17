@@ -6,9 +6,9 @@ defaults:
 # Override with Hydra if your run directories differ.
 methods:
   - name: baseline
-    path: data/owl2bench/output/owl2bench_5
+    path: data/owl2bench/output/owl2bench_20
   - name: synthology
-    path: data/exp3/balanced/owl2bench_5
+    path: data/exp3/balanced/owl2bench_20
 
 splits:
   - train

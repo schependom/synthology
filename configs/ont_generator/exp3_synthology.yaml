@@ -12,8 +12,8 @@ ontology:
 # Generate more samples than the baseline so exp3-balance-data has room to downsample.
 dataset:
   n_train: 2000
-  n_val: 200
-  n_test: 200
+  n_val: 0
+  n_test: 0
   output_dir: "data/exp3/synthology/owl2bench"
 
 hydra:
@@ -27,9 +27,9 @@ generator:
   max_rules: 6
   rule_sampling_mode: "balanced"
   enforce_goal_predicate_coverage: true
-  target_min_proofs_rule: 5
-  max_recursion: 4
-  global_max_depth: 10
+  target_min_proofs_rule: 10
+  max_recursion: 5
+  global_max_depth: 12
   max_proofs_per_atom: 15
   min_lcc_ratio: 0.55
   proof_selection_strategy: "stratified"

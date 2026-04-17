@@ -84,7 +84,70 @@ def exp1_generate_trainval(c, strategy="proof_based"):
 
 This ensures that the `README.md` for an experiment can simply list the command, and the exact configuration state is preserved in the terminal execution and subsequently logged to the canonical run archive.
 
-## 5. Logging Contract
+## 5. Generating Paper Figures (MATLAB)
+
+All publication figures are produced by MATLAB scripts in the `matlab/` directory. On HPC, load the module before running:
+
+```bash
+module load matlab/R2024b
+```
+
+### Available scripts
+
+| Script | Output | Description |
+|--------|--------|-------------|
+| `exp23_hop_distribution.m` | `paper/figures/exp2_hop_distr.pdf`<br>`paper/figures/exp3_hop_distr.pdf` | Semilogy grouped bar chart of positive inferred hop depths (Baseline vs Synthology). Reads `hops_by_method.csv` directly — fast. |
+| `predicate_coverage.m` | `paper/figures/exp2_predicate_coverage.pdf`<br>`paper/figures/exp3_predicate_coverage.pdf` | Horizontal log-scale bar chart showing inferred fact count per predicate. Highlights in pink the predicates where UDM Baseline produces zero inferred facts. Reads `inferred_predicates_by_method.csv`. |
+| `ontology_hop_theory.m` | `paper/figures/exp2_hop_theory.pdf`<br>`paper/figures/exp3_hop_theory.pdf` | Theoretical hop distribution (from rule-graph analysis) overlaid with the actual Synthology distribution. Run `scripts/analyze_ontology_hops.py` first to generate the theory CSVs. |
+| `exp1_table.m` | _(Exp1 metrics table)_ | Exp1 negative sampling ablation results. |
+
+### Running on HPC
+
+Each script is self-contained — no arguments needed. Run from the repo root:
+
+```bash
+module load matlab/R2024b
+cd /dtu/blackhole/16/221590/synthology
+matlab -batch "cd matlab; exp23_hop_distribution"
+matlab -batch "cd matlab; predicate_coverage"
+matlab -batch "cd matlab; ontology_hop_theory"
+```
+
+Or run all figure scripts in one shot:
+
+```bash
+module load matlab/R2024b
+cd /dtu/blackhole/16/221590/synthology/matlab
+matlab -batch "exp23_hop_distribution; predicate_coverage; ontology_hop_theory"
+```
+
+### Pinning report directories
+
+`exp23_hop_distribution.m` and `predicate_coverage.m` read from hardcoded report directory paths at the top of each file. After a new data run, update those two constants to point at the new report folder before regenerating figures:
+
+```matlab
+% In exp23_hop_distribution.m and predicate_coverage.m:
+EXP2_REPORT_DIR = 'reports/experiment_runs/<date>/exp2/report_data/<id>/report';
+EXP3_REPORT_DIR = 'reports/experiment_runs/<date>/exp3/report_data/<id>/report';
+```
+
+### Prerequisite for `ontology_hop_theory.m`
+
+The theory CSVs must be generated once per ontology (re-run if the ontology changes):
+
+```bash
+uv run --package ont_generator python scripts/analyze_ontology_hops.py \
+    --ontology ontologies/family.ttl \
+    --max-depth 12 \
+    --out reports/ontology_hop_analysis/family
+
+uv run --package ont_generator python scripts/analyze_ontology_hops.py \
+    --ontology ontologies/UNIV-BENCH-OWL2RL.owl \
+    --max-depth 10 \
+    --out reports/ontology_hop_analysis/owl2bench
+```
+
+## 6. Logging Contract
 
 - Canonical paper-run artifacts live under `reports/experiment_runs/<YYYY-MM-DD>/<experiment>/<task>/<timestamp>/`.
 - Every archived run contains `manifest.json`, `run.log`, copied configs, and any copied outputs or checkpoints.

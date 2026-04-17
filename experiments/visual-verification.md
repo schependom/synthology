@@ -140,9 +140,9 @@ Use this report command when you want a side-by-side visual summary of baseline 
     uv run invoke paper-visual-report \
       --exp2-synth-targets=data/exp2/synthology/family_tree/train/targets.csv \
       --exp2-parity-summary=data/exp2/baseline/parity_runs/parity_loop_summary.json \
-      --exp3-targets=data/owl2bench/output/owl2bench_50/train/targets.csv \
-      --exp3-abox=data/owl2bench/output/raw/owl2bench_50/OWL2RL-50.owl \
-      --exp3-inferred=data/exp3/baseline/owl2bench_50/inferred.nt \
+      --exp3-targets=data/owl2bench/output/owl2bench_200/train/targets.csv \
+      --exp3-abox=data/owl2bench/output/raw/owl2bench_200/OWL2RL-50.owl \
+      --exp3-inferred=data/exp3/baseline/owl2bench_200/inferred.nt \
       --out-dir=reports/paper
     ```
 
@@ -190,18 +190,18 @@ Use this report command when you want a side-by-side visual summary of baseline 
 
     # Exp3 distribution report (same analyzer, Exp3 compare config)
     uv run invoke exp3-report-data --universities=50 \
-      --baseline-path=data/owl2bench/output_baseline/owl2bench_50 \
-      --synthology-path=data/owl2bench/output/owl2bench_50
+      --baseline-path=data/owl2bench/output_baseline/owl2bench_200 \
+      --synthology-path=data/owl2bench/output/owl2bench_200
 
     # Combined paper-style charts from existing full datasets
     uv run invoke paper-visual-report \
       --exp2-synth-targets=data/exp2/synthology/family_tree/train/targets.csv \
       --exp2-baseline-targets=data/exp2/baseline/family_tree/train/targets.csv \
       --exp2-parity-summary=data/exp2/baseline/parity_runs/parity_report.json \
-      --exp3-synth-targets=data/owl2bench/output/owl2bench_50/train/targets.csv \
-      --exp3-baseline-targets=data/owl2bench/output_baseline/owl2bench_50/train/targets.csv \
-      --exp3-abox=data/owl2bench/output/raw/owl2bench_50/OWL2RL-50.owl \
-      --exp3-inferred=data/exp3/baseline/owl2bench_50/inferred.nt \
+      --exp3-synth-targets=data/owl2bench/output/owl2bench_200/train/targets.csv \
+      --exp3-baseline-targets=data/owl2bench/output_baseline/owl2bench_200/train/targets.csv \
+      --exp3-abox=data/owl2bench/output/raw/owl2bench_200/OWL2RL-50.owl \
+      --exp3-inferred=data/exp3/baseline/owl2bench_200/inferred.nt \
       --out-dir=reports/paper_hpc
     ```
 
@@ -231,8 +231,8 @@ Use this report command when you want a side-by-side visual summary of baseline 
     # Make sure compare summaries exist first
     uv run invoke exp2-report-data
     uv run invoke exp3-report-data --universities=50 \
-      --baseline-path=data/owl2bench/output_baseline/owl2bench_50 \
-      --synthology-path=data/owl2bench/output/owl2bench_50
+      --baseline-path=data/owl2bench/output_baseline/owl2bench_200 \
+      --synthology-path=data/owl2bench/output/owl2bench_200
 
     # Then run from MATLAB/Octave
     cd matlab

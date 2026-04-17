@@ -1,0 +1,13 @@
+defaults:
+  - exp3_owl2bench
+  - _self_
+
+data:
+  train_path: "data/exp3/balanced/synthology/train"
+  val_path: "data/exp3/balanced/synthology/val"
+  test_path: "data/exp3/balanced/synthology/test"
+
+logger:
+  name: "exp3_synthology_hpc"
+  group: "exp3_scaling"
+  tags: [exp3, synthology, owl2bench, hpc]

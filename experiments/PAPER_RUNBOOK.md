@@ -136,8 +136,8 @@ SYNTHOLOGY_JENA_XMX_MB=16384 uv run invoke exp3-generate-synthology --universiti
 
 Default Synthology-side outputs:
 
-- `data/exp3/synthology/owl2bench_5/`
-- `data/exp3/synthology/raw/owl2bench_5/`
+- `data/exp3/synthology/owl2bench_20/`
+- `data/exp3/synthology/raw/owl2bench_20/`
 
 If this still OOMs on your node, re-run with explicit caps:
 
@@ -193,10 +193,10 @@ Path-casing guardrail:
 
 ```bash
 uv run invoke exp3-materialize-abox \
-  --abox=data/owl2bench/output/raw/owl2bench_5/OWL2RL-5.owl \
+  --abox=data/owl2bench/output/raw/owl2bench_20/OWL2RL-5.owl \
   --tbox=ontologies/UNIV-BENCH-OWL2RL.owl \
-  --closure-out=data/exp3/baseline/owl2bench_5/closure.nt \
-  --inferred-out=data/exp3/baseline/owl2bench_5/inferred.nt \
+  --closure-out=data/exp3/baseline/owl2bench_20/closure.nt \
+  --inferred-out=data/exp3/baseline/owl2bench_20/inferred.nt \
   --jena-profile=owl_mini
 ```
 
@@ -235,9 +235,9 @@ Generate combined figures used for data-level comparisons:
 uv run invoke paper-visual-report \
   --exp2-synth-targets=data/exp2/synthology/family_tree/train/targets.csv \
   --exp2-parity-summary=data/exp2/baseline/parity_runs/parity_loop_summary.json \
-  --exp3-targets=data/owl2bench/output/owl2bench_5/train/targets.csv \
-  --exp3-abox=data/owl2bench/output/raw/owl2bench_5/OWL2RL-20.owl \
-  --exp3-inferred=data/exp3/baseline/owl2bench_5/inferred.nt \
+  --exp3-targets=data/owl2bench/output/owl2bench_20/train/targets.csv \
+  --exp3-abox=data/owl2bench/output/raw/owl2bench_20/OWL2RL-20.owl \
+  --exp3-inferred=data/exp3/baseline/owl2bench_20/inferred.nt \
   --out-dir=reports/paper
 ```
 
@@ -289,17 +289,17 @@ When full Exp2/Exp3 datasets are already present on HPC, run only analysis/plott
 ```bash
 uv run invoke exp2-report-data
 uv run invoke exp3-report-data --universities=50 \
-  --baseline-path=data/owl2bench/output_baseline/owl2bench_50 \
-  --synthology-path=data/owl2bench/output/owl2bench_50
+  --baseline-path=data/owl2bench/output_baseline/owl2bench_200 \
+  --synthology-path=data/owl2bench/output/owl2bench_200
 
 uv run invoke paper-visual-report \
   --exp2-synth-targets=data/exp2/synthology/family_tree/train/targets.csv \
   --exp2-baseline-targets=data/exp2/baseline/family_tree/train/targets.csv \
   --exp2-parity-summary=data/exp2/baseline/parity_runs/parity_report.json \
-  --exp3-synth-targets=data/owl2bench/output/owl2bench_50/train/targets.csv \
-  --exp3-baseline-targets=data/owl2bench/output_baseline/owl2bench_50/train/targets.csv \
-  --exp3-abox=data/owl2bench/output/raw/owl2bench_50/OWL2RL-50.owl \
-  --exp3-inferred=data/exp3/baseline/owl2bench_50/inferred.nt \
+  --exp3-synth-targets=data/owl2bench/output/owl2bench_200/train/targets.csv \
+  --exp3-baseline-targets=data/owl2bench/output_baseline/owl2bench_200/train/targets.csv \
+  --exp3-abox=data/owl2bench/output/raw/owl2bench_200/OWL2RL-50.owl \
+  --exp3-inferred=data/exp3/baseline/owl2bench_200/inferred.nt \
   --out-dir=reports/paper_hpc
 ```
 

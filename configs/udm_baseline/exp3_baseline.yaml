@@ -8,8 +8,8 @@ ontology:
 
 dataset:
   n_train: 300
-  n_val: 30
-  n_test: 30
+  n_val: 0
+  n_test: 0
   train_fact_cap: null
   val_fact_cap: null
   test_fact_cap: null

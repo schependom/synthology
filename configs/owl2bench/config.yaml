@@ -1,6 +1,6 @@
 dataset:
   name: "owl2bench"
-  universities: [5]
+  universities: [20]
   output_dir: "data/owl2bench/output"
 
   split:

@@ -1,4 +1,4 @@
-universities: 5
+universities: 20
 
 baseline:
   reasoning_input_triple_cap: 1200
@@ -35,8 +35,8 @@ gold_test:
 paper_visual_report:
   exp2_synth_targets: data/exp2/synthology/family_tree/train/targets.csv
   exp2_parity_summary: data/exp2/baseline/parity_runs/parity_loop_summary.json
-  exp3_targets: data/owl2bench/output/owl2bench_5/train/targets.csv
-  exp3_abox: data/owl2bench/output/raw/owl2bench_5/OWL2RL-5.owl
-  exp3_inferred: data/exp3/baseline/owl2bench_5/inferred.nt
+  exp3_targets: data/owl2bench/output/owl2bench_20/train/targets.csv
+  exp3_abox: data/owl2bench/output/raw/owl2bench_20/OWL2RL-5.owl
+  exp3_inferred: data/exp3/baseline/owl2bench_20/inferred.nt
   out_dir: reports/paper
   args: ""

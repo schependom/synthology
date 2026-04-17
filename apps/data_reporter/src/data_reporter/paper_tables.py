@@ -147,9 +147,9 @@ def _resolve_generation_stats(
         exp2_paths["synthology"] = repo_root / "data" / "exp2" / "synthology" / "family_tree"
 
     if "baseline" not in exp3_paths:
-        exp3_paths["baseline"] = repo_root / "data" / "owl2bench" / "output_baseline" / "owl2bench_5"
+        exp3_paths["baseline"] = repo_root / "data" / "owl2bench" / "output_baseline" / "owl2bench_20"
     if "synthology" not in exp3_paths:
-        exp3_paths["synthology"] = repo_root / "data" / "owl2bench" / "output" / "owl2bench_5"
+        exp3_paths["synthology"] = repo_root / "data" / "owl2bench" / "output" / "owl2bench_20"
 
     return {
         "exp2_baseline": _dataset_metrics(exp2_paths["baseline"]),
