@@ -30,6 +30,15 @@ synthology_load_modules python3/3.9.19 cuda/11.7
 synthology_activate_python_env 0
 synthology_sync_deps
 
+echo "=== Data provenance ==="
+for split in train val; do
+	f="${REPO_ROOT}/data/exp2/baseline/family_tree/${split}/facts.csv"
+	[ -f "$f" ] && echo "  ${split}: $(stat -c '%y' "$f" | cut -d. -f1) — $f" || echo "  ${split}: MISSING — $f"
+done
+f="${REPO_ROOT}/data/exp2/frozen_test/facts.csv"
+[ -f "$f" ] && echo "  test: $(stat -c '%y' "$f" | cut -d. -f1) — $f" || echo "  test: MISSING — $f"
+echo "======================"
+
 echo "Starting Exp2 RRN training (baseline)"
 uv run invoke exp2-train-rrn --dataset=baseline
 

@@ -2,9 +2,9 @@
 name: familytree
 
 # Number of generated samples per split.
-n_train: 5000
-n_test: 500
-n_val: 500
+n_train: 2000
+n_test: 0
+n_val: 0
 
 # Optional caps for sampled base facts per split (null = uncapped).
 train_fact_cap: null

@@ -33,6 +33,15 @@ synthology_sync_deps
 CONFIG_PATH="${1:-configs/experiments/exp3_hpc.yaml}"
 synthology_require_file "${CONFIG_PATH}" "Exp3 HPC config"
 
+echo "=== Data provenance ==="
+f="${REPO_ROOT}/data/exp3/balanced/owl2bench_20/train/facts.csv"
+[ -f "$f" ] && echo "  train: $(stat -c '%y' "$f" | cut -d. -f1) — $f" || echo "  train: MISSING — $f"
+for split in val test; do
+	f="${REPO_ROOT}/data/owl2bench/output/owl2bench_20/${split}/facts.csv"
+	[ -f "$f" ] && echo "  ${split} (baseline fallback): $(stat -c '%y' "$f" | cut -d. -f1) — $f" || echo "  ${split}: MISSING — $f"
+done
+echo "======================"
+
 echo "Starting Exp3 RRN training (synthology) with config: ${CONFIG_PATH}"
 uv run invoke exp3-train-rrn-hpc --dataset=synthology --config-path="${CONFIG_PATH}"
 

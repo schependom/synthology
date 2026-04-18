@@ -858,7 +858,7 @@ class NegativeSampler:
             return None
         new_subj = random.choice(candidates)
         return Triple(
-            new_subj, triple.predicate, triple.object, positive=False, proofs=[], metadata={"source_type": "base"}
+            new_subj, triple.predicate, triple.object, positive=False, proofs=[], metadata={"source_type": "base", "hops": triple.get_hops()}
         )
 
     def _corrupt_object(self, triple: Triple, individuals: List[Individual]) -> Optional[Triple]:
@@ -868,7 +868,7 @@ class NegativeSampler:
             return None
         new_obj = random.choice(candidates)
         return Triple(
-            triple.subject, triple.predicate, new_obj, positive=False, proofs=[], metadata={"source_type": "base"}
+            triple.subject, triple.predicate, new_obj, positive=False, proofs=[], metadata={"source_type": "base", "hops": triple.get_hops()}
         )
 
     def _corrupt_membership_random(

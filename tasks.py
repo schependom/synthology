@@ -952,7 +952,12 @@ def exp3_balance_data(
         synth_neg = [row for row in synth_rows if _is_negative_row(row)]
 
         target_pos = min(len(baseline_pos), len(synth_pos))
-        target_neg = min(len(baseline_neg), len(synth_neg))
+        # Do NOT use baseline_neg as the ceiling — the baseline often fails to
+        # generate its target number of negatives (e.g. OWL2Bench is ~69%
+        # differentFrom triples, which can almost never be corrupted into a
+        # valid negative, leaving baseline_neg far below baseline_pos).
+        # Instead target 1:1 neg/pos from the synthology pool.
+        target_neg = min(len(synth_neg), target_pos)
 
         # Stratified sampling: match baseline hop-bucket distribution (d=1, d=2, d>=3)
         # so Synthology preserves the same depth profile as the baseline rather than
@@ -1178,6 +1183,10 @@ def exp3_train_rrn(ctx: Context, dataset="baseline", universities=5, args=""):
                 "dataset": dataset_key,
                 "universities": universities,
                 "dataset_root": str(dataset_root),
+                "train_path": str(train_path),
+                "val_path": str(val_path),
+                "test_path": str(test_path),
+                "train_facts_mtime": _mtime3(train_path),
                 "args": args,
                 "effective_args": combined_args,
                 "config_files": ["configs/rrn/config.yaml", "configs/rrn/exp3_owl2bench_hpc.yaml"],

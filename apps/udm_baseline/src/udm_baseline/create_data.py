@@ -571,10 +571,10 @@ class FCBaselineGenerator:
                 "predicate": "rdf:type" if p == RDF.type else self._clean_name(p),
                 "object": self._clean_name(o),
                 "label": 1,
-                "truth_value": "true",
+                "truth_value": "True",
                 "type": fact_type,
                 "hops": hops,
-                "corruption_method": "none",
+                "corruption_method": "",
             }
             targets_rows.append(row)
 
@@ -597,10 +597,19 @@ class FCBaselineGenerator:
         positive_set = set(positive_meta.keys())
         negatives: Set[Triple] = set()
 
+        # Exclude symmetric/identity predicates (owl:differentFrom, owl:sameAs)
+        # from the corruption pool.  In OWL2Bench all individuals are pairwise
+        # differentFrom, so any random corruption of such a triple hits an
+        # existing positive and is rejected, wasting nearly all attempts.
+        _SKIP_CORRUPTION = {OWL.differentFrom, OWL.sameAs}
+        corruptible = [(t, m) for t, m in positives if t[1] not in _SKIP_CORRUPTION]
+        if not corruptible:
+            corruptible = positives
+
         attempts = 0
-        while len(negatives) < n_negatives and attempts < max_attempts and positives:
+        while len(negatives) < n_negatives and attempts < max_attempts and corruptible:
             attempts += 1
-            (pos_triple, (pos_type, pos_hops)) = random.choice(positives)
+            (pos_triple, (pos_type, pos_hops)) = random.choice(corruptible)
             neg = self._random_negative_from_positive(pos_triple, individuals)
 
             if neg in positive_set or neg in negatives:
@@ -622,7 +631,7 @@ class FCBaselineGenerator:
                     "predicate": "rdf:type" if p == RDF.type else self._clean_name(p),
                     "object": self._clean_name(o),
                     "label": 0,
-                    "truth_value": "false",
+                    "truth_value": "False",
                     "type": neg_type,
                     "hops": pos_hops,
                     "corruption_method": "random",

@@ -11,7 +11,7 @@ ontology:
 
 # Generate more samples than the baseline so exp3-balance-data has room to downsample.
 dataset:
-  n_train: 2000
+  n_train: 600
   n_val: 0
   n_test: 0
   output_dir: "data/exp3/synthology/owl2bench"
@@ -19,6 +19,9 @@ dataset:
 hydra:
   run:
     dir: "${dataset.output_dir}/hydra"
+
+neg_sampling:
+  corrupt_base_facts: true
 
 generator:
   min_individuals: 20

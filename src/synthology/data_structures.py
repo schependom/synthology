@@ -459,11 +459,7 @@ class KnowledgeGraph:
         def get_truth_value(is_positive, corruption_method):
             if is_positive:
                 return "True"
-            # Negative
-            if corruption_method == "domain_violation":
-                return "False"
-            # Default assumption for others (broken chain etc) under CWA
-            return "Unknown"
+            return "False"
 
         # Memberships
         for m in self.memberships:

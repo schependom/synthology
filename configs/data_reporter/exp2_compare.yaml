@@ -10,8 +10,6 @@ methods:
 
 splits:
   - train
-  - val
-  - test
 
 output:
   dir: reports/exp2/compare
