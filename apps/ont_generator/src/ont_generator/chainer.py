@@ -49,6 +49,7 @@ class BackwardChainer:
         ranges: Optional[Dict[str, Set[str]]] = None,
         verbose: bool = False,
         entity_prefix: str = "Ind_",
+        pure_inverse_cycle_base_predicates: Optional[Set[str]] = None,
     ):
         """
         Initializes the chainer.
@@ -57,11 +58,13 @@ class BackwardChainer:
             all_rules (List[ExecutableRule]):           All rules from the ontology parser.
             cfg (DictConfig):                           Hydra configuration object.
             constraints (List[Constraint]):             All constraints from the ontology parser.
-            inverse_properties (Dict[str, Set[str]]):   Mapping of inverse properties.
-            domains (Dict[str, Set[str]]):              Mapping of property domains.
-            ranges (Dict[str, Set[str]]):               Mapping of property ranges.
-            verbose (bool):                             Enable detailed debug output.
-            entity_prefix (str):                        Prefix for generated individuals.
+            inverse_properties (Dict[str, Set[str]]):              Mapping of inverse properties.
+            domains (Dict[str, Set[str]]):                         Mapping of property domains.
+            ranges (Dict[str, Set[str]]):                          Mapping of property ranges.
+            verbose (bool):                                        Enable detailed debug output.
+            entity_prefix (str):                                   Prefix for generated individuals.
+            pure_inverse_cycle_base_predicates (Set[str]):         Predicates auto-detected by
+                the parser as forming pure-inverse cycles; always emitted as base ABox facts.
         """
         # Store rules, constraints and schema info
         self.all_rules = {rule.name: rule for rule in all_rules}
@@ -83,6 +86,11 @@ class BackwardChainer:
         self.individual_pool_size = cfg.generator.individual_pool_size
         self.individual_reuse_prob = cfg.generator.individual_reuse_prob
         self.always_generate_base = cfg.generator.get("always_generate_base", False)
+        # Pure-inverse-cycle predicates detected by the parser take precedence over any
+        # manual config list; the two sets are merged so users can still add extras.
+        detected = pure_inverse_cycle_base_predicates or set()
+        config_extras = set(cfg.generator.get("force_base_predicates", []))
+        self.force_base_predicates: set = detected | config_extras
         self.individual_pool: List[Individual] = []
         self._individual_counter = 0
         self.individual_name_prefix = entity_prefix
@@ -911,6 +919,14 @@ class BackwardChainer:
         # Check for circular reasoning
         if goal_atom in atoms_in_path:
             return  # Yield nothing - this would be circular
+
+        # Force-base predicates are always emitted as leaf ABox facts (never derived).
+        # Use this for pure-inverse-cycle predicates where you want the chainer to seed
+        # one side as a base fact so the other side can be inferred via the inverse rule.
+        pred_name = getattr(goal_atom.predicate, "name", str(goal_atom.predicate))
+        if self.force_base_predicates and pred_name in self.force_base_predicates:
+            yield Proof.create_base_proof(goal_atom)
+            return
 
         yielded_count = 0
 

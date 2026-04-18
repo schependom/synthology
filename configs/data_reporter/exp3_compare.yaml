@@ -12,8 +12,6 @@ methods:
 
 splits:
   - train
-  - val
-  - test
 
 output:
   dir: reports/exp3/compare

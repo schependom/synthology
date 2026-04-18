@@ -8,17 +8,39 @@ def build_bfs_subgraph_samples(
     base_sample_id: int,
     sample_count: int,
     max_individuals_per_sample: int,
+    use_closure_context: bool = True,
 ) -> tuple[
     list[tuple[int, list[tuple[str, str, str]]]],
     dict[int, list[tuple[str, str, str, int]]],
 ]:
+    """
+    Build BFS subgraph samples from the OWL2Bench materialized graph.
+
+    When use_closure_context=True (default), BFS adjacency is built from the full
+    closure (base + inferred) so that each subgraph contains a rich neighbourhood of
+    interconnected individuals.  ALL closure facts for the visited individuals are
+    written to facts.csv — not just the sparse base ABox triples.  This makes context
+    density comparable to what Synthology generates (~500 facts/sample vs 1-9 without).
+
+    When use_closure_context=False, only base_clean triples are used for adjacency and
+    context (legacy behaviour).
+    """
     if sample_count <= 0:
         return [], {}
+
+    # Build a unified triple list for adjacency and context.
+    # Include (s, p, o) from both base and inferred when using closure context.
+    if use_closure_context:
+        closure_triples: list[tuple[str, str, str]] = list(base_clean) + [
+            (s, p, o) for s, p, o, _ in inferred_clean
+        ]
+    else:
+        closure_triples = list(base_clean)
 
     adjacency: dict[str, set[str]] = {}
     individuals: set[str] = set()
 
-    for s, p, o in base_clean:
+    for s, p, o in closure_triples:
         individuals.add(s)
         adjacency.setdefault(s, set())
         if p != "rdf:type":
@@ -55,8 +77,9 @@ def build_bfs_subgraph_samples(
                 if len(visited) >= max_individuals_per_sample:
                     break
 
+        # Collect ALL closure facts whose subject (and object for non-type) are visited.
         sample_triples: list[tuple[str, str, str]] = []
-        for s, p, o in base_clean:
+        for s, p, o in closure_triples:
             if s not in visited:
                 continue
             if p == "rdf:type":
@@ -64,7 +87,15 @@ def build_bfs_subgraph_samples(
             elif o in visited:
                 sample_triples.append((s, p, o))
 
-        samples.append((sid, sample_triples))
+        # Deduplicate while preserving order.
+        seen: set[tuple[str, str, str]] = set()
+        deduped: list[tuple[str, str, str]] = []
+        for t in sample_triples:
+            if t not in seen:
+                seen.add(t)
+                deduped.append(t)
+
+        samples.append((sid, deduped))
         sample_nodes_by_sid[sid] = visited
 
     inferred_by_sample: dict[int, list[tuple[str, str, str, int]]] = {sid: [] for sid, _ in samples}

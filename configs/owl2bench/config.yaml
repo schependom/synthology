@@ -16,6 +16,10 @@ dataset:
   bfs:
     sample_count: 1800
     max_individuals_per_sample: 120
+    # Include the full materialized closure (base + inferred) as context in facts.csv.
+    # Makes context density comparable to Synthology (~500 facts/sample vs 1-9 without).
+    # Set false to restore the legacy base-ABox-only context behaviour.
+    use_closure_context: true
   # Enforce multiple sample_id graphs in each non-empty split CSV.
   require_multiple_graphs_per_csv: true
   # Set >0 to cap inferred positive targets for fair cross-generator matching.

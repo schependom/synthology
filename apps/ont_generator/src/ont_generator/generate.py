@@ -170,7 +170,6 @@ def atoms_to_knowledge_graph(
             if key not in attr_triples:
                 assert isinstance(s, Individual)
                 if isinstance(o, (Class, Relation, Attribute, Individual)):
-                    print(f"DEBUG BAD ATTR: p={p.name}, o={o}")
                     continue
                 attr_triples[key] = AttributeTriple(s, p, o, proofs=[])
             if current_proofs:
@@ -228,6 +227,7 @@ class KGenerator:
             domains=self.parser.domains,
             ranges=self.parser.ranges,
             verbose=verbose,
+            pure_inverse_cycle_base_predicates=self.parser.pure_inverse_cycle_base_predicates,
         )
 
         # Store schema references

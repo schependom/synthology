@@ -97,6 +97,10 @@ class OntologyParser:
         self._parse_rules_and_constraints()
         self._generate_guarded_derivation_rules()
 
+        # Detect predicates that form pure-inverse cycles so the chainer knows which
+        # side of each pair to seed as base ABox facts (ontology-agnostic).
+        self.pure_inverse_cycle_base_predicates: Set[str] = self._detect_pure_inverse_cycle_base_predicates()
+
         logger.success("Ontology parsing complete:")
         logger.info(f"\t{len(self.classes)} Classes")
         logger.info(f"\t{len(self.relations)} Relations")
@@ -107,6 +111,8 @@ class OntologyParser:
         logger.info(f"\t{len(self.domains)} Domain Constraints")
         logger.info(f"\t{len(self.ranges)} Range Constraints")
         logger.info(f"\t{len(self.sub_properties)} SubProperty Relationships")
+        if self.pure_inverse_cycle_base_predicates:
+            logger.info(f"\t{len(self.pure_inverse_cycle_base_predicates)} Pure-Inverse-Cycle Base Predicates: {sorted(self.pure_inverse_cycle_base_predicates)}")
 
     def _get_clean_name(self, uri: URIRef) -> str:
         """
@@ -527,6 +533,89 @@ class OntologyParser:
 
             self.rules.append(rule1)
             self.rules.append(rule2)
+
+    def _detect_pure_inverse_cycle_base_predicates(self) -> Set[str]:
+        """
+        Detect inverse-cycle predicate pairs and choose one side as a force-base
+        predicate so the other side can be reliably inferred.
+
+        A pair (A, B) forms an inverse cycle when:
+          - A has at least one pure-inverse rule concluding it from B (single premise,
+            premise predicate is a known inverse of A).
+          - B has at least one pure-inverse rule concluding it from A.
+          - Neither side can break the cycle on its own (the chainer would loop forever
+            without help).
+
+        Predicates are allowed to have *additional* non-inverse rules (guarded derivation
+        rules, subPropertyOf chains, etc.).  The side with MORE independent (non-pure-
+        inverse) rules is the one that can be inferred through other paths; its partner
+        — the "purer" side — becomes the force-base predicate.  When both sides have the
+        same number of independent rules, the lexicographically first name is chosen.
+
+        This heuristic ensures force-base is assigned to the side that cannot be derived
+        independently, mirroring what Jena does: it seeds the "passive/of" form as base
+        and infers the "active/has" form.  Ontology-agnostic — reads only the rule set
+        and inverse_properties map.
+        """
+        rules_by_conclusion: Dict[str, List] = defaultdict(list)
+        for rule in self.rules:
+            if hasattr(rule.conclusion, "predicate"):
+                pred = getattr(rule.conclusion.predicate, "name", str(rule.conclusion.predicate))
+                rules_by_conclusion[pred].append(rule)
+
+        def _is_pure_inverse_rule(rule, pred_name: str) -> bool:
+            """Single-premise rule whose premise predicate is a known inverse of pred_name."""
+            if len(rule.premises) != 1:
+                return False
+            premise_pred = getattr(rule.premises[0].predicate, "name", str(rule.premises[0].predicate))
+            return premise_pred in self.inverse_properties.get(pred_name, set())
+
+        def has_inverse_cycle_rule(pred_name: str, inv_pred: str) -> bool:
+            """True if pred_name has at least one rule deriving it from inv_pred (its inverse)."""
+            for rule in rules_by_conclusion.get(pred_name, []):
+                if not _is_pure_inverse_rule(rule, pred_name):
+                    continue
+                premise_pred = getattr(rule.premises[0].predicate, "name", str(rule.premises[0].predicate))
+                if premise_pred == inv_pred:
+                    return True
+            return False
+
+        def independent_rule_count(pred_name: str) -> int:
+            """Count rules that are NOT pure-inverse rules (guarded, chain, subPropertyOf, etc.)."""
+            return sum(
+                1 for rule in rules_by_conclusion.get(pred_name, [])
+                if not _is_pure_inverse_rule(rule, pred_name)
+            )
+
+        force_base: Set[str] = set()
+        visited_pairs: Set[frozenset] = set()
+
+        for pred_name in list(rules_by_conclusion.keys()):
+            for inv_pred in self.inverse_properties.get(pred_name, set()):
+                pair = frozenset([pred_name, inv_pred])
+                if pair in visited_pairs:
+                    continue
+                visited_pairs.add(pair)
+
+                # Both must have at least one pure-inverse rule pointing to the other.
+                if not has_inverse_cycle_rule(pred_name, inv_pred):
+                    continue
+                if not has_inverse_cycle_rule(inv_pred, pred_name):
+                    continue
+
+                # Cycle confirmed.  Force-base the side with fewer independent rules
+                # (the "purer" side that cannot be derived via any other path).
+                # Tie-break lexicographically so the result is deterministic.
+                n_pred = independent_rule_count(pred_name)
+                n_inv  = independent_rule_count(inv_pred)
+                if n_pred < n_inv:
+                    force_base.add(pred_name)
+                elif n_inv < n_pred:
+                    force_base.add(inv_pred)
+                else:
+                    force_base.add(min(pred_name, inv_pred))
+
+        return force_base
 
     def _handle_propertyChainAxiom(self, s: URIRef, p: URIRef, o: BNode) -> None:
         """

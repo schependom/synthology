@@ -462,17 +462,30 @@ def _build_bfs_subgraph_samples(
     base_sample_id: int,
     sample_count: int,
     max_individuals_per_sample: int,
+    use_closure_context: bool = True,
 ) -> tuple[
     list[tuple[int, list[tuple[str, str, str]]]],
     dict[int, list[tuple[str, str, str, int]]],
 ]:
+    """
+    When use_closure_context=True (default), BFS adjacency and the returned
+    context triples are derived from the full materialized closure (base + inferred),
+    giving each sample the same rich context density as Synthology-generated KGs.
+    Inferred triples are still tracked separately in inferred_by_sample so they
+    can be written to targets.csv.  Setting use_closure_context=False restores the
+    legacy behaviour (base-ABox-only context).
+    """
     if sample_count <= 0:
         return [], {}
+
+    closure_triples: list[tuple[str, str, str]] = list(base_clean) + [
+        (s, p, o) for s, p, o, _ in inferred_clean
+    ] if use_closure_context else list(base_clean)
 
     adjacency: dict[str, set[str]] = {}
     individuals: set[str] = set()
 
-    for s, p, o in base_clean:
+    for s, p, o in closure_triples:
         individuals.add(s)
         adjacency.setdefault(s, set())
         if p != "rdf:type":
@@ -510,13 +523,19 @@ def _build_bfs_subgraph_samples(
                     break
 
         sample_triples: list[tuple[str, str, str]] = []
-        for s, p, o in base_clean:
+        seen_t: set[tuple[str, str, str]] = set()
+        for s, p, o in closure_triples:
             if s not in visited:
                 continue
+            t = (s, p, o)
+            if t in seen_t:
+                continue
             if p == "rdf:type":
-                sample_triples.append((s, p, o))
+                sample_triples.append(t)
+                seen_t.add(t)
             elif o in visited:
-                sample_triples.append((s, p, o))
+                sample_triples.append(t)
+                seen_t.add(t)
 
         samples.append((sid, sample_triples))
         sample_nodes_by_sid[sid] = visited
@@ -817,6 +836,7 @@ def _parse_generated_to_csv(
     num_samples: int,
     bfs_sample_count: int,
     bfs_max_individuals_per_sample: int,
+    bfs_use_closure_context: bool,
     inferred_target_limit: int,
     negatives_per_positive: int,
     require_multiple_graphs_per_csv: bool,
@@ -904,6 +924,7 @@ def _parse_generated_to_csv(
             base_sample_id,
             bfs_sample_count,
             bfs_max_individuals_per_sample,
+            use_closure_context=bfs_use_closure_context,
         )
         logger.info(
             "Partitioned graph into {} BFS subgraph samples (target_count={}, max_individuals={})",
@@ -1128,6 +1149,7 @@ def main(cfg: DictConfig) -> None:
     bfs_cfg = dict(cfg.dataset.get("bfs", {}))
     bfs_sample_count = int(bfs_cfg.get("sample_count", 5000))
     bfs_max_individuals_per_sample = int(bfs_cfg.get("max_individuals_per_sample", 200))
+    bfs_use_closure_context = bool(bfs_cfg.get("use_closure_context", True))
     inferred_target_limit = int(cfg.dataset.get("inferred_target_limit", 0))
     negatives_per_positive = int(cfg.dataset.get("negatives_per_positive", 1))
     require_multiple_graphs_per_csv = bool(cfg.dataset.get("require_multiple_graphs_per_csv", False))
@@ -1169,6 +1191,7 @@ def main(cfg: DictConfig) -> None:
             num_samples=num_samples,
             bfs_sample_count=bfs_sample_count,
             bfs_max_individuals_per_sample=bfs_max_individuals_per_sample,
+            bfs_use_closure_context=bfs_use_closure_context,
             inferred_target_limit=inferred_target_limit,
             negatives_per_positive=negatives_per_positive,
             require_multiple_graphs_per_csv=require_multiple_graphs_per_csv,

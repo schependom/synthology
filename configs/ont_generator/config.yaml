@@ -70,6 +70,9 @@ generator:
   # If true, always allow a base proof even when matching derivation rules exist.
   # If false, base proofs are yielded only when no matching rules exist.
   always_generate_base: false
+  # Predicates that are always emitted as base ABox facts (never derived).
+  # Use for pure-inverse-cycle pairs so their partner predicate becomes inferable.
+  force_base_predicates: []
   # If true, writes per-sample CSVs via save_dataset_to_csv in addition to split files.
   save_individual_samples: false
 

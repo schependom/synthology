@@ -470,7 +470,27 @@ def exp2_train_rrn(ctx: Context, dataset="baseline", args=""):
     rrn_dataset = "exp2_baseline" if dataset_key == "baseline" else "exp2_synthology"
     config_name = f"{rrn_dataset}_hpc"
 
+    if dataset_key == "baseline":
+        train_path = REPO_ROOT / "data" / "exp2" / "baseline" / "family_tree" / "train"
+        val_path   = REPO_ROOT / "data" / "exp2" / "baseline" / "family_tree" / "val"
+        test_path  = REPO_ROOT / "data" / "exp2" / "frozen_test"
+    else:
+        train_path = REPO_ROOT / "data" / "exp2" / "synthology" / "family_tree" / "train"
+        val_path   = REPO_ROOT / "data" / "exp2" / "synthology" / "family_tree" / "val"
+        test_path  = REPO_ROOT / "data" / "exp2" / "frozen_test"
+
+    def _mtime(p: Path) -> str:
+        facts = p / "facts.csv"
+        if facts.exists():
+            import datetime
+            return datetime.datetime.fromtimestamp(facts.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+        return "missing"
+
     print(f"\nTraining Exp 2 RRN on: {dataset_key}")
+    print(f"  train : {train_path}  [{_mtime(train_path)}]")
+    print(f"  val   : {val_path}  [{_mtime(val_path)}]")
+    print(f"  test  : {test_path}  [{_mtime(test_path)}]")
+
     run_dir = _make_run_archive("exp2", "train_rrn", label=dataset_key)
     cmd = _build_uv_command(
         "rrn",
@@ -490,6 +510,10 @@ def exp2_train_rrn(ctx: Context, dataset="baseline", args=""):
                 "dataset": dataset_key,
                 "args": args,
                 "config_files": ["configs/rrn/config.yaml", f"configs/rrn/{config_name}.yaml"],
+                "train_path": str(train_path),
+                "val_path": str(val_path),
+                "test_path": str(test_path),
+                "train_facts_mtime": _mtime(train_path),
             },
         )
     )
@@ -701,7 +725,6 @@ def exp3_generate_owl2bench_abox(
     ]
     cap = int(reasoning_input_triple_cap)
     if cap > 0:
-        # Exp3 baseline only needs a stable generated ABox artifact; capping reasoning input avoids Jena OOM.
         overrides.append(f"+dataset.reasoning_input_triple_cap={cap}")
 
     abox_jena_heap_mb = str(abox_jena_heap_mb)
@@ -744,7 +767,7 @@ def exp3_generate_baseline(
     ctx: Context,
     universities=5,
     args="",
-    reasoning_input_triple_cap=1200,
+    reasoning_input_triple_cap=0,
     abox_jena_heap_mb=8192,
     final_reasoning_input_triple_cap=15000,
     final_jena_profile="owl_mini",
@@ -1077,8 +1100,10 @@ def exp3_train_rrn(ctx: Context, dataset="baseline", universities=5, args=""):
     if dataset_key not in {"baseline", "synthology"}:
         raise ValueError("dataset must be either 'baseline' or 'synthology'")
 
+    baseline_root = REPO_ROOT / "data" / "owl2bench" / "output" / f"owl2bench_{universities}"
+
     if dataset_key == "baseline":
-        dataset_root = REPO_ROOT / "data" / "owl2bench" / "output" / f"owl2bench_{universities}"
+        dataset_root = baseline_root
     else:
         balanced_root = REPO_ROOT / "data" / "exp3" / "balanced" / f"owl2bench_{universities}"
         synth_root = REPO_ROOT / "data" / "exp3" / "synthology" / f"owl2bench_{universities}"
@@ -1091,19 +1116,44 @@ def exp3_train_rrn(ctx: Context, dataset="baseline", universities=5, args=""):
                 "Synthology dataset not found. Run exp3-generate-synthology first or provide balanced data via exp3-balance-data."
             )
 
-    for split in ("train", "val", "test"):
-        split_path = dataset_root / split
-        if not split_path.exists():
-            raise FileNotFoundError(f"Missing split directory for Exp3 RRN training: {split_path}")
+    train_path = dataset_root / "train"
+    if not train_path.exists():
+        raise FileNotFoundError(f"Missing train directory for Exp3 RRN training: {train_path}")
+
+    # Synthology only has a train split; fall back to baseline val/test for evaluation.
+    val_path = dataset_root / "val"
+    test_path = dataset_root / "test"
+    if dataset_key == "synthology":
+        if not val_path.exists():
+            val_path = baseline_root / "val"
+            print(f"[exp3-train-rrn] Synthology val/ not found — using baseline val: {val_path}")
+        if not test_path.exists():
+            test_path = baseline_root / "test"
+            print(f"[exp3-train-rrn] Synthology test/ not found — using baseline test: {test_path}")
+
+    for label, p in [("val", val_path), ("test", test_path)]:
+        if not p.exists():
+            raise FileNotFoundError(f"Missing {label} directory for Exp3 RRN training: {p}")
+
+    def _mtime3(p: Path) -> str:
+        facts = p / "facts.csv"
+        if facts.exists():
+            import datetime
+            return datetime.datetime.fromtimestamp(facts.stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
+        return "missing"
 
     print(f"\nTraining Exp 3 RRN on: {dataset_key} (universities={universities})")
+    print(f"  train : {train_path}  [{_mtime3(train_path)}]")
+    print(f"  val   : {val_path}  [{_mtime3(val_path)}]")
+    print(f"  test  : {test_path}  [{_mtime3(test_path)}]")
+
     run_dir = _make_run_archive("exp3", "train_rrn", label=dataset_key)
 
     override_args = " ".join(
         [
-            f"data.train_path={dataset_root / 'train'}",
-            f"data.val_path={dataset_root / 'val'}",
-            f"data.test_path={dataset_root / 'test'}",
+            f"data.dataset.train_path={train_path}",
+            f"data.dataset.val_path={val_path}",
+            f"data.dataset.test_path={test_path}",
             f"logger.name=exp3_{dataset_key}_owl2bench_u{universities}",
             "logger.group=exp3_scaling",
         ]

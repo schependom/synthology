@@ -955,6 +955,10 @@ def _analyze_method(name: str, path: Path, splits: List[str]) -> MethodStats:
     method = MethodStats(name=name, path=str(path))
 
     for split in splits:
+        split_dir = path / split
+        if not split_dir.exists():
+            logger.warning(f"[{name}][{split}] Split directory not found, skipping: {split_dir}")
+            continue
         method.split_stats[split] = _collect_split_stats(name, path, split)
 
     return method

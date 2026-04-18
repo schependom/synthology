@@ -1,0 +1,13 @@
+defaults:
+  - config
+  - override data/dataset: owl2bench
+  - _self_
+
+callbacks:
+  model_checkpoint:
+    filename: "best-checkpoint-exp3-owl2bench"
+
+logger:
+  name: "exp3_owl2bench_hpc"
+  group: "exp3_scaling"
+  tags: [exp3, owl2bench, hpc]

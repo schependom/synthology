@@ -21,9 +21,6 @@
 fact_cap: 300000
 target_cap: null
 
-# n_train set above synthology's cap-limited count so the fact_cap is what stops it.
-args: "dataset.n_train=2000 dataset.n_val=150 dataset.n_test=150"
-
 # All detailed generator/materialization config should be set in
 #   configs/ont_generator/exp2_synthology.yaml and configs/udm_baseline/exp2_baseline.yaml
 # Only minimal CLI overrides should be used here if absolutely necessary.
