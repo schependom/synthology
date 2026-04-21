@@ -81,6 +81,11 @@ neg_sampling:
   # Allowed values in NegativeSampler: random, constrained, proof_based, type_aware, mixed.
   # "mixed" randomly selects one of the four strategies per corruption event.
   strategy: "mixed"
+  mixed_weights:
+    random: 0.0
+    constrained: 1.0
+    proof_based: 1.0
+    type_aware: 0.0
   # Number of negatives is int(number_of_positives * ratio) for triples and memberships.
   ratio: 1.0
   # Used by proof_based/mixed path to also keep direct base-fact corruptions.

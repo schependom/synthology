@@ -10,8 +10,3 @@ dataset:
 
 neg_sampling:
   strategy: "mixed"
-  mixed_weights:
-    random: 0.0
-    constrained: 1.0
-    proof_based: 1.0
-    type_aware: 0.0
