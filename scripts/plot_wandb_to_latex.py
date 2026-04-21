@@ -18,7 +18,7 @@ mpl.rcParams.update({
     "font.family": "serif",
     "text.usetex": True,
     "pgf.rcfonts": False,
-    "axes.labelsize": 14,
+    "axes.labelsize": 11,
     "font.size": 14,
     "legend.fontsize": 11,
     "xtick.labelsize": 11,
@@ -64,7 +64,6 @@ OWN_COLORS = {
 DEFAULT_COLORS = [
     KUL_COLORS["KULcorporate"],
     KUL_COLORS["KULblauw"],
-    OWN_COLORS["appelblauwzeegroen"],
     OWN_COLORS["geeloranje"],   
     KUL_COLORS["KULrood"],
     KUL_COLORS["KULpaars"],
@@ -72,6 +71,7 @@ DEFAULT_COLORS = [
     KUL_COLORS["KULgroen"],
     KUL_COLORS["KULpetrol"],
     KUL_COLORS["KULzwart"],
+    OWN_COLORS["appelblauwzeegroen"],
 ]
 
 def print_available_metrics(run):
@@ -124,44 +124,6 @@ def smooth_series(series: pd.Series, alpha: float) -> pd.Series:
         return series
     # In pandas ewm, alpha is the standard smoothing parameter
     return series.ewm(alpha=1-alpha, adjust=False).mean()
-
-
-def get_run_history(api: wandb.Api, project: str, run_id: str, metric_key: str):
-    """Fetch history from WandB. Tries finding by ID first, then by Display Name."""
-    try:
-        run = api.run(f"{project}/{run_id}")
-    except wandb.errors.CommError:
-        # Try finding by display name
-        runs = api.runs(project, {"display_name": run_id}, order="-created_at")
-        if len(runs) == 0:
-            print(f"Error: Could not find run with ID or name '{run_id}' in project '{project}'")
-            return None
-        if len(runs) > 1:
-            print(f"Note: Found {len(runs)} runs named '{run_id}'. Selecting the most recent one.")
-        run = runs[0]
-        
-    print(f"Fetching data for run: {run.name} (ID: {run.id})")
-    print(f"  -> Created At: {getattr(run, 'created_at', 'Unknown')}")
-    print(f"  -> State: {run.state}")
-    
-    # We use scan_history to get all points (history() is aggressively sampled)
-    rows = []
-    for row in run.scan_history(keys=["_step", metric_key]):
-        # Depending on how the user logged, the step might be stored differently,
-        # but "_step" is the global WandB step.
-        if metric_key in row and row[metric_key] is not None:
-            rows.append((row["_step"], row[metric_key]))
-            
-    if not rows:
-        print(f"Warning: Metric '{metric_key}' not found in run '{run_id}'.")
-        print("  -> Troubleshooting: Is the run stale?")
-        print_available_metrics(run)
-        print("Skipping to next run...")
-        return None
-        
-    df = pd.DataFrame(rows, columns=["step", "value"]).sort_values("step").dropna()
-    return df
-
 
 def main():
     parser = argparse.ArgumentParser(description="Generate LaTeX-quality graphs from W&B metrics.")
@@ -233,7 +195,7 @@ def main():
         sys.exit(1)
 
     if args.metric.lower() == "all":
-        date_str = datetime.datetime.now().strftime("%Y-%m-%d")
+        date_str = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
         out_base_dir = os.path.join("wandb", "graphs", date_str, args.section)
         
         shared_metrics = get_shared_metrics(api, project, args.runs, args.section)
@@ -247,6 +209,51 @@ def main():
         out_base_dir = None
         metrics_to_plot = [args.metric]
 
+    expected_keys = [f"{args.section}/{m}" for m in metrics_to_plot]
+    run_data_list = []
+    
+    print("Pre-fetching data for all requested runs...")
+    for i, run_id in enumerate(args.runs):
+        label = args.labels[i] if args.labels else run_id
+        
+        if args.colors:
+            color_name = args.colors[i]
+            color_hex = KUL_COLORS.get(color_name)
+            if not color_hex:
+                print(f"Warning: Color '{color_name}' not found in KUL palette. Falling back.")
+                color_hex = DEFAULT_COLORS[i % len(DEFAULT_COLORS)]
+        else:
+            color_hex = DEFAULT_COLORS[i % len(DEFAULT_COLORS)]
+        
+        try:
+            run = api.run(f"{project}/{run_id}")
+        except wandb.errors.CommError:
+            runs = api.runs(project, {"display_name": run_id}, order="-created_at")
+            if len(runs) == 0:
+                print(f"Error: Could not find run '{run_id}'")
+                continue
+            run = runs[0]
+            
+        print(f"  -> Bulk fetching '{run.name}' (ID: {run.id})")
+        
+        # We fetch all the required keys at once
+        keys_to_fetch = ["_step"] + expected_keys
+        rows = []
+        for row in run.scan_history(keys=keys_to_fetch):
+            rows.append(row)
+            
+        df = pd.DataFrame(rows)
+        if not df.empty and "_step" in df.columns:
+            df = df.sort_values("_step")
+            
+        run_data_list.append({
+            "label": label,
+            "color": color_hex,
+            "df": df,
+            "run_id": run_id
+        })
+
+    print("\nGenerating plots...")
     for metric in metrics_to_plot:
         metric_key = f"{args.section}/{metric}"
         
@@ -254,32 +261,25 @@ def main():
         data_found = False
         run_max_steps = []
         
-        for i, run_id in enumerate(args.runs):
-            label = args.labels[i] if args.labels else run_id
-            
-            if args.colors:
-                color_name = args.colors[i]
-                color_hex = KUL_COLORS.get(color_name)
-                if not color_hex:
-                    print(f"Warning: Color '{color_name}' not found in KUL palette. Falling back.")
-                    color_hex = DEFAULT_COLORS[i % len(DEFAULT_COLORS)]
-            else:
-                color_hex = DEFAULT_COLORS[i % len(DEFAULT_COLORS)]
-            
-            df = get_run_history(api, project, run_id, metric_key)
-            if df is None or df.empty:
+        for run_info in run_data_list:
+            df = run_info["df"]
+            if df is None or df.empty or metric_key not in df.columns:
+                continue
+                
+            # Filter and drop NA for this specific metric
+            metric_df = df[["_step", metric_key]].dropna()
+            if metric_df.empty:
                 continue
                 
             data_found = True
             
-            step_series = df["step"]
-            val_series = df["value"]
+            step_series = metric_df["_step"]
+            val_series = metric_df[metric_key]
             
             run_max_steps.append(step_series.max())
             
-            plot_kwargs = {"label": label, "linewidth": 1.5, "color": color_hex}
+            plot_kwargs = {"label": run_info["label"], "linewidth": 1.5, "color": run_info["color"]}
             
-            # Plot original (transparent) if smoothing is aggressively applied
             if args.smooth > 0.0:
                 smoothed = smooth_series(val_series, args.smooth)
                 p = ax.plot(step_series, smoothed, **plot_kwargs)
@@ -299,7 +299,7 @@ def main():
         if args.ylabel:
             ax.set_ylabel(args.ylabel)
         else:
-            ax.set_ylabel(f"{args.section} {metric}".replace("_", " ").title())
+            ax.set_ylabel(f"{metric}".replace("_", " ").title())
             
         if args.title:
             ax.set_title(args.title)
