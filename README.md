@@ -534,6 +534,36 @@ Adding new dependencies only to a specific subproject:
 uv add <dependency> --package my-new-app
 ```
 
+### WandB LaTeX plot export
+
+Experiment 1 (single metric):
+
+```bash
+uv run python scripts/plot_wandb_to_latex.py \
+  --runs "exp1_random_hpc" "exp1_constrained_hpc" "exp1_proof_based_hpc" \
+  --labels "Random Negative Sampling" "Constrained Negative Sampling" "Proof-Based Negative Sampling" \
+  --section "val" \
+  --metric "triple_pr_auc" \
+  --smooth 0.6 \
+  --output "paper/figures/exp1_validation_auc.pdf"
+```
+
+Experiment 1 (all metrics):
+
+```bash
+uv run python scripts/plot_wandb_to_latex.py \
+  --runs "exp1_random_hpc" "exp1_constrained_hpc" "exp1_proof_based_hpc" \
+  --labels "Random" "Constrained" "Proof-Based" \
+  --section "val" \
+  --metric "all" \
+  --smooth 0.6
+```
+
+The above command handles the directory structure automatically and will output the graphs to:
+```
+wandb/graphs/<date>/<section>/<metric>.pdf
+```
+
 ## Known issues
 
 ### 1. Python output buffering
