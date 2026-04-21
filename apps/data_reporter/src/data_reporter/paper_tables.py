@@ -147,9 +147,9 @@ def _resolve_generation_stats(
         exp2_paths["synthology"] = repo_root / "data" / "exp2" / "synthology" / "family_tree"
 
     if "baseline" not in exp3_paths:
-        exp3_paths["baseline"] = repo_root / "data" / "owl2bench" / "output_baseline" / "owl2bench_20"
+        exp3_paths["baseline"] = repo_root / "data" / "exp3" / "balanced_baseline" / "owl2bench"
     if "synthology" not in exp3_paths:
-        exp3_paths["synthology"] = repo_root / "data" / "owl2bench" / "output" / "owl2bench_20"
+        exp3_paths["synthology"] = repo_root / "data" / "exp3" / "balanced" / "owl2bench"
 
     return {
         "exp2_baseline": _dataset_metrics(exp2_paths["baseline"]),
@@ -212,11 +212,11 @@ def _resolve_timing_rows(
             "total": float(run_total),
         }
 
-    exp3_synth_gen_metrics_path = repo_root / "data" / "owl2bench" / "output" / "generation_metrics.json"
+    exp3_synth_gen_metrics_path = repo_root / "data" / "exp3" / "synthology" / "owl2bench" / "generation_metrics.json"
     exp3_synth_gen_metrics = _load_json(exp3_synth_gen_metrics_path)
-    runtime = exp3_synth_gen_metrics.get("runtime_seconds", {})
-    if runtime:
-        total = _safe_float(runtime.get("total"), 0.0)
+    timing_block = exp3_synth_gen_metrics.get("timing", {})
+    if timing_block:
+        total = _safe_float(timing_block.get("total_seconds"), 0.0)
         rows["exp3_synthology"] = {
             "base": total,
             "inference": 0.0,

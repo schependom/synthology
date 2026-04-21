@@ -5,10 +5,13 @@ defaults:
   - config # override default config options
   - _self_
 
+seed: 46 # distinct from training seed
+
 dataset:
   output_dir: "data/exp1/test_set"
   n_train: 0
   n_val: 0
+  n_test: 500
 
 hydra:
   run:

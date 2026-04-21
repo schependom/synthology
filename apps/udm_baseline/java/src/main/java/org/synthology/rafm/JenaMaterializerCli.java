@@ -25,16 +25,17 @@ public final class JenaMaterializerCli {
     }
 
     public static void main(String[] args) {
-        if (args.length != 3 && args.length != 4) {
+        if (args.length < 3 || args.length > 5) {
             System.err.println(
-                    "Usage: java -jar jena-materializer.jar <ontologyPath> <baseTriplesPath> <outputPath> [owl_micro|owl_mini|owl_full]");
+                    "Usage: java -jar jena-materializer.jar <ontologyPath> <baseTriplesPath> <outputPath> [owl_micro|owl_mini|owl_full] [true|false for derivation_logging]");
             System.exit(1);
         }
 
         String ontologyPath = args[0];
         String baseTriplesPath = args[1];
         String outputPath = args[2];
-        String profile = args.length == 4 ? args[3] : "owl_mini";
+        String profile = args.length >= 4 ? args[3] : "owl_mini";
+        boolean derivationLogging = args.length < 5 || !"false".equalsIgnoreCase(args[4]);
 
         Model schemaModel = ModelFactory.createDefaultModel();
         RDFDataMgr.read(schemaModel, ontologyPath);
@@ -43,7 +44,9 @@ public final class JenaMaterializerCli {
         RDFDataMgr.read(baseModel, baseTriplesPath);
 
         Reasoner reasoner = buildReasoner(profile).bindSchema(schemaModel);
-        reasoner.setDerivationLogging(true);
+        if (derivationLogging) {
+            reasoner.setDerivationLogging(true);
+        }
         InfModel infModel = ModelFactory.createInfModel(reasoner, baseModel);
         infModel.prepare();
 

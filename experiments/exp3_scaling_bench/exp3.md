@@ -48,6 +48,77 @@ Important notes for reviewers:
 - The task layer provides explicit Exp3 wrappers for baseline generation/materialization.
 - The task layer provides an explicit `exp3-generate-synthology` wrapper for Synthology-side OWL2Bench data generation.
 
+## Choosing University Count and BFS Sample Count
+
+### How many universities to generate
+
+The goal is to match the number of unique training subgraphs produced by Synthology
+(`n_train` in the Synthology config).  The calibration constant comes from measuring
+unique `sample_id` values in the train split:
+
+| Run | Universities | `bfs.sample_count` | Unique train `sample_id`s | Unique/university |
+|-----|-------------|-------------------|--------------------------|-------------------|
+| Full (u=20) | 20 | 1800 | 1440 | 72 |
+| Smoke (u=2) | 2 | 200 | 160 | 80 |
+
+The density converges around **72 unique train sample_ids per university** at standard
+settings.  Use this formula:
+
+```
+universities  = ceil(n_train / 72)
+sample_count  = universities × 90   # 90 total BFS draws/university; ~80% land in train
+```
+
+Example for `n_train = 1000`:
+
+```
+universities = ceil(1000 / 72) = 14
+sample_count = 14 × 90 = 1260
+```
+
+These are the values currently set in `configs/experiments/exp3_hpc.yaml` and
+`configs/owl2bench/config.yaml`.
+
+### Memory model
+
+Jena LP backward-chaining builds a tabling cache of every unique derived ground goal.
+Memory scales as a power law with ABox size:
+
+```
+process_GB ≈ 58.9 × (universities × 48495 / 969891)^0.55
+```
+
+Calibration data points:
+
+| Universities | Base triples | Heap (GB) | Process (GB) | Outcome |
+|-------------|-------------|-----------|--------------|---------|
+| 20 | ~970 K | 51 | ~59 | OOM — Jena LP tabling |
+| 14 | ~679 K | 51 | ~48 | Fits (estimated) |
+| 5 | ~242 K | 51 | ~27 | Fits (estimated) |
+| 2 | ~97 K | 8 | ~14 | Fits (measured, smoke run) |
+
+The safe ceiling on a standard 64 GB HPC node (51 GB heap) is approximately
+**u = 18–19** (process ≈ 57 GB).  Leave headroom; u = 14–16 is comfortable.
+
+For nodes with more RAM (e.g. `select[maxmem>=512000]` bigmem nodes), use a larger
+heap via `abox_jena_heap_mb` in `exp3_hpc.yaml`.
+
+### Derivation logging
+
+Full derivation logging (`derivation_logging: true`) stores complete proof trees per
+inferred triple for hop-depth analysis.  This is **additional** memory on top of the
+LP tabling overhead and is impractical at full scale.
+
+Resolution: disable derivation logging for the full-scale run; keep it enabled only
+for the 2-university smoke run.  The hop-depth distribution measured on the smoke run
+is representative of the full run because OWL2Bench universities are independent ABox
+fragments over the same TBox — the same rules fire at the same depths regardless of
+university count.
+
+Config flags:
+- `configs/owl2bench/config.yaml`: `materialization.derivation_logging: false`
+- `configs/owl2bench/config_smoke.yaml`: `materialization.derivation_logging: true`
+
 ## Preconditions
 
 ```bash

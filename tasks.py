@@ -157,6 +157,116 @@ def paper_visual_report(
     _run_logged_command(cmd, run_dir / "run.log")
     _archive_path(Path(out_dir), run_dir / "artifacts")
 
+# ------------------------------------------------------------ #
+# EXP 1: Negative Sampling Strategies for RRN Training
+# ------------------------------------------------------------ #
+
+@task
+def exp1_generate_trainval_sets(ctx: Context):
+    """Generates train/val sets for Exp 1 for all negative sampling strategies."""
+    run_dir = _make_run_archive("exp1", "generate_trainval_sets", label="all")
+    _write_json(
+        run_dir / "manifest.json",
+        {
+            "experiment": "exp1",
+            "task": "generate_trainval_sets",
+            "strategies": ["random", "constrained", "proof_based"],
+        },
+    )
+    summary_lines = ["Exp1 train/val set generation summary"]
+    for strategy in ("random", "constrained", "proof_based"):
+        exp1_generate_trainval(ctx, strategy=strategy)
+        summary_lines.append(f"- generated strategy={strategy}")
+    _write_text(run_dir / "run.log", "\n".join(summary_lines) + "\n")
+
+
+@task
+def exp1_generate_trainval(ctx: Context, strategy="proof_based", args=""):
+    """Generates train/val sets for Exp 1 with a specific negative sampling strategy."""
+    print(f"\nGenerating Exp 1 data using strategy: {strategy}")
+    cmd = _build_uv_command(
+        "ont_generator",
+        "ont_generator.create_data",
+        config_name=f"exp1_{strategy}",
+        args=args,
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    run_dir = _run_experiment_spec(
+        ExperimentRunSpec(
+            experiment="exp1",
+            task_name="generate_trainval",
+            label=strategy,
+            command=cmd,
+            config_paths=(f"configs/ont_generator/exp1_{strategy}.yaml", "configs/ont_generator/config.yaml"),
+            manifest={
+                "strategy": strategy,
+                "args": args,
+                "config_files": [
+                    f"configs/ont_generator/exp1_{strategy}.yaml",
+                    "configs/ont_generator/config.yaml",
+                ],
+            },
+            artifact_paths=(str(REPO_ROOT / "data" / "exp1" / strategy),),
+        )
+    )
+
+
+@task
+def exp1_generate_test_set(ctx: Context, args=""):
+    """Generates the frozen 'near-miss' hard negative test set for Exp 1."""
+    print("\nGenerating Exp 1 frozen test set (near-miss hard negatives)")
+    cmd = _build_uv_command(
+        "ont_generator",
+        "ont_generator.create_data",
+        config_name="exp1_test",
+        args=args,
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    _run_experiment_spec(
+        ExperimentRunSpec(
+            experiment="exp1",
+            task_name="generate_test_set",
+            label="test_set",
+            command=cmd,
+            config_paths=("configs/ont_generator/exp1_test.yaml", "configs/ont_generator/config.yaml"),
+            manifest={
+                "args": args,
+                "config_files": ["configs/ont_generator/exp1_test.yaml", "configs/ont_generator/config.yaml"],
+            },
+            artifact_paths=(str(REPO_ROOT / "data" / "exp1" / "test_set"),),
+        )
+    )
+
+
+@task
+def exp1_train_rrn(ctx: Context, strategy="random", args=""):
+    """Trains RRN for Exp 1. Provide a strategy to match datasets/logs."""
+    print(f"\nTraining Exp 1 RRN. Strategy: {strategy}")
+    run_dir = _make_run_archive("exp1", "train_rrn", label=strategy)
+    config_name = f"exp1_{strategy}_hpc"
+    cmd = _build_uv_command(
+        "rrn",
+        "rrn.train",
+        config_name=config_name,
+        args=args,
+        env={"PYTHONUNBUFFERED": "1", "LOGURU_COLORIZE": "1"},
+    )
+    _run_experiment_spec(
+        ExperimentRunSpec(
+            experiment="exp1",
+            task_name="train_rrn",
+            label=strategy,
+            command=cmd,
+            config_paths=("configs/rrn/config.yaml", f"configs/rrn/{config_name}.yaml"),
+            manifest={
+                "strategy": strategy,
+                "args": args,
+                "config_files": ["configs/rrn/config.yaml", f"configs/rrn/{config_name}.yaml"],
+            },
+        )
+    )
+
+
 
 # ------------------------------------------------------------ #
 # EXP 2: Synthology vs UDM Baseline on Family Tree
@@ -356,46 +466,44 @@ def exp2_report_data(ctx: Context, args="", strict="true"):
 
 
 @task
-def exp3_report_data(ctx: Context, universities=20, baseline_path="", synthology_path="", args=""):
-    """Generates parity/distribution reports for Exp 3 baseline vs synthology datasets."""
-    print("\nGenerating Exp 3 comparison report.")
-    run_dir = _make_run_archive("exp3", "report_data", label="compare")
-    report_dir = run_dir / "report"
-
-    resolved_baseline_path = baseline_path or f"data/owl2bench/output/owl2bench_{universities}"
-    balanced = f"data/exp3/balanced/owl2bench_{universities}"
-    unbalanced = f"data/exp3/synthology/owl2bench_{universities}"
-    resolved_synthology_path = synthology_path or (balanced if Path(balanced).exists() else unbalanced)
-
+def exp2_smoke_jena_visual(ctx: Context, args=""):
+    """Runs a tiny Jena-backed baseline generation and visualizes one sample graph."""
+    print("\nRunning Exp 2 Jena smoke generation (visual).")
+    run_dir = _make_run_archive("exp2", "smoke_jena_visual", label="visual")
     cmd = _build_uv_command(
-        "data_reporter",
-        "data_reporter.analyze",
-        config_name="exp3_compare",
+        "udm_baseline",
+        "udm_baseline.create_data",
         overrides=(
-            f"methods.0.path={shlex.quote(str(resolved_baseline_path))}",
-            f"methods.1.path={shlex.quote(str(resolved_synthology_path))}",
-            f"output.dir={shlex.quote(str(report_dir))}",
+            "dataset.n_train=1",
+            "dataset.n_val=0",
+            "dataset.n_test=0",
+            "dataset.output_dir=data/exp2/baseline/smoke_visual",
+            "materialization.reasoner=jena",
+            "materialization.iterative=false",
+            "materialization.jena_profile=owl_mini",
+            "materialization.timing.enabled=true",
+            "materialization.timing.output_dir=data/exp2/timings",
+            "materialization.timing.run_tag=exp2_smoke",
         ),
         args=args,
         env={"LOGURU_COLORIZE": "1"},
     )
-    _run_experiment_spec(
-        ExperimentRunSpec(
-            experiment="exp3",
-            task_name="report_data",
-            label="compare",
-            command=cmd,
-            config_paths=("configs/data_reporter/exp3_compare.yaml", "configs/data_reporter/config.yaml"),
-            manifest={
-                "universities": universities,
-                "baseline_path": resolved_baseline_path,
-                "synthology_path": resolved_synthology_path,
-                "args": args,
-                "config_files": ["configs/data_reporter/exp3_compare.yaml", "configs/data_reporter/config.yaml"],
-                "output_dir": str(report_dir),
-            },
-        )
+    _write_json(run_dir / "manifest.json", {"task": "smoke_jena_visual", "args": args, "command": cmd})
+    _run_logged_command(cmd, run_dir / "run.log")
+
+    print("\nRendering smoke sample graph to visual-verification/exp2_smoke")
+    viz_cmd = _build_uv_command(
+        "kgvisualiser",
+        "kgvisualiser.visualize",
+        overrides=(
+            "io.input_csv=data/exp2/baseline/smoke_visual/train/facts.csv",
+            "io.sample_id=1000",
+            "output.dir=visual-verification/exp2_smoke",
+            "output.name_template=exp2_jena_smoke_1000",
+        ),
+        env={"LOGURU_COLORIZE": "1"},
     )
+    _run_logged_command(viz_cmd, run_dir / "visualize-run.log")
 
 
 @task
@@ -428,36 +536,6 @@ def exp2_analyze_latest_baseline(ctx: Context, args=""):
         )
     )
 
-
-@task
-def exp3_analyze_latest_baseline(ctx: Context, args=""):
-    """Analyzes the latest archived Exp3 baseline run (label balance, hops, timing, integrity)."""
-    print("\nAnalyzing latest Exp 3 baseline run.")
-    run_dir = _make_run_archive("exp3", "analyze_latest_baseline", label="baseline")
-    analysis_dir = run_dir / "analysis"
-    cmd = _build_uv_command(
-        "data_reporter",
-        "data_reporter.exp3_latest_baseline",
-        overrides=(
-            f"--repo-root {shlex.quote(str(REPO_ROOT))}",
-            f"--out-dir {shlex.quote(str(analysis_dir))}",
-        ),
-        args=args,
-        env={"LOGURU_COLORIZE": "1"},
-    )
-    _run_experiment_spec(
-        ExperimentRunSpec(
-            experiment="exp3",
-            task_name="analyze_latest_baseline",
-            label="baseline",
-            command=cmd,
-            manifest={
-                "args": args,
-                "output_dir": str(analysis_dir),
-            },
-            hydra_run_dir=False,
-        )
-    )
 
 
 @task
@@ -580,7 +658,6 @@ def exp2_generate_both(
 
 
 @task
-
 def exp2_balance_datasets(ctx: Context, config_path="configs/experiments/exp2_balance_hpc.yaml"):
     """Generates both Exp 2 datasets using only YAML config files (no CLI overrides)."""
     cfg = _load_yaml_config(config_path)
@@ -695,9 +772,85 @@ def exp2_sweep_targetcaps_seeds(ctx: Context, config_path="configs/experiments/e
             )
 
 
+
 # ------------------------------------------------------------ #
 # EXP 3: OWL2Bench
 # ------------------------------------------------------------ #
+
+
+@task
+def exp3_report_data(ctx: Context, universities=20, baseline_path="", synthology_path="", args=""):
+    """Generates parity/distribution reports for Exp 3 baseline vs synthology datasets."""
+    print("\nGenerating Exp 3 comparison report.")
+    run_dir = _make_run_archive("exp3", "report_data", label="compare")
+    report_dir = run_dir / "report"
+
+    balanced_baseline = "data/exp3/balanced_baseline/owl2bench"
+    raw_baseline = "data/owl2bench/output/owl2bench"
+    resolved_baseline_path = baseline_path or (balanced_baseline if Path(balanced_baseline).exists() else raw_baseline)
+    balanced = "data/exp3/balanced/owl2bench"
+    unbalanced = "data/exp3/synthology/owl2bench"
+    resolved_synthology_path = synthology_path or (balanced if Path(balanced).exists() else unbalanced)
+
+    cmd = _build_uv_command(
+        "data_reporter",
+        "data_reporter.analyze",
+        config_name="exp3_compare",
+        overrides=(
+            f"methods.0.path={shlex.quote(str(resolved_baseline_path))}",
+            f"methods.1.path={shlex.quote(str(resolved_synthology_path))}",
+            f"output.dir={shlex.quote(str(report_dir))}",
+        ),
+        args=args,
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    _run_experiment_spec(
+        ExperimentRunSpec(
+            experiment="exp3",
+            task_name="report_data",
+            label="compare",
+            command=cmd,
+            config_paths=("configs/data_reporter/exp3_compare.yaml", "configs/data_reporter/config.yaml"),
+            manifest={
+                "universities": universities,
+                "baseline_path": resolved_baseline_path,
+                "synthology_path": resolved_synthology_path,
+                "args": args,
+                "config_files": ["configs/data_reporter/exp3_compare.yaml", "configs/data_reporter/config.yaml"],
+                "output_dir": str(report_dir),
+            },
+        )
+    )
+
+@task
+def exp3_analyze_latest_baseline(ctx: Context, args=""):
+    """Analyzes the latest archived Exp3 baseline run (label balance, hops, timing, integrity)."""
+    print("\nAnalyzing latest Exp 3 baseline run.")
+    run_dir = _make_run_archive("exp3", "analyze_latest_baseline", label="baseline")
+    analysis_dir = run_dir / "analysis"
+    cmd = _build_uv_command(
+        "data_reporter",
+        "data_reporter.exp3_latest_baseline",
+        overrides=(
+            f"--repo-root {shlex.quote(str(REPO_ROOT))}",
+            f"--out-dir {shlex.quote(str(analysis_dir))}",
+        ),
+        args=args,
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    _run_experiment_spec(
+        ExperimentRunSpec(
+            experiment="exp3",
+            task_name="analyze_latest_baseline",
+            label="baseline",
+            command=cmd,
+            manifest={
+                "args": args,
+                "output_dir": str(analysis_dir),
+            },
+            hydra_run_dir=False,
+        )
+    )
 
 
 @task
@@ -708,9 +861,10 @@ def exp3_generate_owl2bench_abox(
     archive_dir: Optional[str] = None,
     reasoning_input_triple_cap=0,
     abox_jena_heap_mb=8192,
+    config_name: str = "config",
 ):
     """Runs the existing OWL2Bench pipeline and stores raw generated OWL (ABox source)."""
-    print(f"\nGenerating OWL2Bench data for Exp 3 (universities={universities}).")
+    print(f"\nGenerating OWL2Bench data for Exp 3 (universities={universities}, config={config_name}).")
     run_dir = (
         Path(archive_dir)
         if archive_dir
@@ -728,10 +882,12 @@ def exp3_generate_owl2bench_abox(
         overrides.append(f"+dataset.reasoning_input_triple_cap={cap}")
 
     abox_jena_heap_mb = str(abox_jena_heap_mb)
+    config_file = f"configs/owl2bench/{config_name}.yaml"
 
     cmd = _build_uv_command(
         "owl2bench",
         "owl2bench.pipeline",
+        config_name=config_name,
         overrides=tuple(overrides),
         args=args,
         env={
@@ -747,13 +903,14 @@ def exp3_generate_owl2bench_abox(
             task_name="generate_owl2bench_abox",
             label=str(universities),
             command=cmd,
-            config_paths=("configs/owl2bench/config.yaml", "configs/owl2bench/config_toy.yaml"),
+            config_paths=(config_file, "configs/owl2bench/config_toy.yaml"),
             manifest={
                 "universities": universities,
                 "args": args,
+                "config_name": config_name,
                 "reasoning_input_triple_cap": cap,
                 "abox_jena_heap_mb": abox_jena_heap_mb,
-                "config_files": ["configs/owl2bench/config.yaml", "configs/owl2bench/config_toy.yaml"],
+                "config_files": [config_file, "configs/owl2bench/config_toy.yaml"],
                 "timing_dir": str(timing_dir),
             },
             cwd=REPO_ROOT,
@@ -769,23 +926,20 @@ def exp3_generate_baseline(
     args="",
     reasoning_input_triple_cap=0,
     abox_jena_heap_mb=8192,
-    final_reasoning_input_triple_cap=15000,
-    final_jena_profile="owl_mini",
+    owl2bench_config_name: str = "config",
 ):
-    """Generates Exp 3 baseline by chaining OWL2Bench generation with UDM/Jena materialization."""
+    """Generates Exp 3 baseline: OWL2Bench ABox generation + Jena BFS materialisation."""
     run_dir = _make_run_archive("exp3", "generate_baseline", label=str(universities))
+    config_file = f"configs/owl2bench/{owl2bench_config_name}.yaml"
     _snapshot_configs(
         run_dir,
         [
-            "configs/owl2bench/config.yaml",
+            config_file,
             "configs/owl2bench/config_toy.yaml",
-            "configs/udm_baseline/config.yaml",
         ],
     )
 
     reasoning_cap = int(reasoning_input_triple_cap)
-    final_reasoning_cap = int(final_reasoning_input_triple_cap)
-    final_jena_profile = str(final_jena_profile)
     exp3_generate_owl2bench_abox(
         ctx,
         universities=universities,
@@ -793,21 +947,7 @@ def exp3_generate_baseline(
         archive_dir=str(run_dir / "abox_generation"),
         reasoning_input_triple_cap=reasoning_cap,
         abox_jena_heap_mb=int(abox_jena_heap_mb),
-    )
-
-    abox_path = f"data/owl2bench/output/raw/owl2bench_{universities}/OWL2RL-{universities}.owl"
-    closure_out = f"data/exp3/baseline/owl2bench_{universities}/closure.nt"
-    inferred_out = f"data/exp3/baseline/owl2bench_{universities}/inferred.nt"
-
-    exp3_materialize_abox(
-        ctx,
-        abox=abox_path,
-        tbox="ontologies/UNIV-BENCH-OWL2RL.owl",
-        closure_out=closure_out,
-        inferred_out=inferred_out,
-        jena_profile=final_jena_profile,
-        reasoning_input_triple_cap=final_reasoning_cap,
-        archive_dir=str(run_dir / "materialization"),
+        config_name=owl2bench_config_name,
     )
     _write_json(
         run_dir / "manifest.json",
@@ -816,56 +956,35 @@ def exp3_generate_baseline(
             "task": "generate_baseline",
             "universities": universities,
             "args": args,
-            "abox_path": abox_path,
-            "closure_out": closure_out,
-            "inferred_out": inferred_out,
-            "sub_runs": {
-                "abox_generation": "abox_generation",
-                "materialization": "materialization",
-            },
             "reasoning_input_triple_cap": reasoning_cap,
             "abox_jena_heap_mb": int(abox_jena_heap_mb),
-            "final_reasoning_input_triple_cap": final_reasoning_cap,
-            "final_jena_profile": final_jena_profile,
+            "owl2bench_config_name": owl2bench_config_name,
         },
     )
-    _write_text(
-        run_dir / "run.log",
-        "\n".join(
-            [
-                "Exp3 baseline summary",
-                f"abox_generation={run_dir / 'abox_generation'}",
-                f"materialization={run_dir / 'materialization'}",
-                f"abox_path={abox_path}",
-                f"closure_out={closure_out}",
-                f"inferred_out={inferred_out}",
-            ]
-        )
-        + "\n",
-    )
-    generated_dir = REPO_ROOT / "data" / "exp3" / "baseline" / f"owl2bench_{universities}"
+    generated_dir = REPO_ROOT / "data" / "owl2bench" / "output" / "owl2bench"
     if generated_dir.exists():
         _archive_path(generated_dir, run_dir / "artifacts")
 
 
 @task
-def exp3_generate_synthology(ctx: Context, universities=5, args=""):
+def exp3_generate_synthology(ctx: Context, universities=5, args="", config_name="exp3_synthology"):
     """Generates Exp 3 Synthology backward-chaining dataset on the OWL2Bench TBox."""
-    print(f"\nGenerating Exp 3 synthology dataset (universities={universities}).")
+    print(f"\nGenerating Exp 3 synthology dataset (universities={universities}, config={config_name}).")
     run_dir = _make_run_archive("exp3", "generate_synthology", label=str(universities))
+    config_file = f"configs/ont_generator/{config_name}.yaml"
     _snapshot_configs(
         run_dir,
         [
-            "configs/ont_generator/exp3_synthology.yaml",
+            config_file,
             "configs/ont_generator/config.yaml",
         ],
     )
 
-    output_dir = f"data/exp3/synthology/owl2bench_{universities}"
+    output_dir = "data/exp3/synthology/owl2bench"
     cmd = _build_uv_command(
         "ont_generator",
         "ont_generator.create_data",
-        config_name="exp3_synthology",
+        config_name=config_name,
         overrides=(f"dataset.output_dir={output_dir}",),
         args=args,
         env={"LOGURU_COLORIZE": "1"},
@@ -876,14 +995,15 @@ def exp3_generate_synthology(ctx: Context, universities=5, args=""):
             task_name="generate_synthology",
             label=str(universities),
             command=cmd,
-            config_paths=("configs/ont_generator/exp3_synthology.yaml", "configs/ont_generator/config.yaml"),
+            config_paths=(config_file, "configs/ont_generator/config.yaml"),
             manifest={
                 "universities": universities,
                 "args": args,
-                "config_files": ["configs/ont_generator/exp3_synthology.yaml", "configs/ont_generator/config.yaml"],
+                "config_name": config_name,
+                "config_files": [config_file, "configs/ont_generator/config.yaml"],
                 "output_dir": output_dir,
             },
-            artifact_paths=(str(REPO_ROOT / "data" / "exp3" / "synthology" / f"owl2bench_{universities}"),),
+            artifact_paths=(str(REPO_ROOT / "data" / "exp3" / "synthology" / "owl2bench"),),
         )
     )
 
@@ -897,23 +1017,33 @@ def exp3_balance_data(
     output_dir="",
     seed=23,
 ):
-    """Downsamples Synthology targets to match baseline per-split label counts for Exp 3."""
-    print(f"\nBalancing Exp 3 Synthology targets to baseline counts (universities={universities}).")
+    """Balances Exp 3 datasets: keeps ALL Synthology data, downsamples baseline to match.
+
+    Synthology positives (the hard-to-generate inferred graphs) are fully preserved.
+    Baseline is downsampled so both sides contribute identical label counts.
+    If the baseline lacks enough negatives to cover Synthology's, Synthology negatives
+    are also capped — the stderr waste report will flag this so the university count or
+    inferred_target_limit can be adjusted for the next run.
+    Balanced baseline is written to data/exp3/balanced_baseline/... and balanced
+    Synthology to data/exp3/balanced/...
+    """
+    print(f"\nBalancing Exp 3 datasets (universities={universities}): keeping all Synthology, downsampling baseline.")
     run_dir = _make_run_archive("exp3", "balance_data", label=str(universities))
 
     baseline_root = (
         Path(baseline_dir)
         if baseline_dir
-        else REPO_ROOT / "data" / "owl2bench" / "output" / f"owl2bench_{universities}"
+        else REPO_ROOT / "data" / "owl2bench" / "output" / "owl2bench"
     )
     synthology_root = (
         Path(synthology_dir)
         if synthology_dir
-        else REPO_ROOT / "data" / "exp3" / "synthology" / f"owl2bench_{universities}"
+        else REPO_ROOT / "data" / "exp3" / "synthology" / "owl2bench"
     )
     output_root = (
-        Path(output_dir) if output_dir else REPO_ROOT / "data" / "exp3" / "balanced" / f"owl2bench_{universities}"
+        Path(output_dir) if output_dir else REPO_ROOT / "data" / "exp3" / "balanced" / "owl2bench"
     )
+    baseline_output_root = REPO_ROOT / "data" / "exp3" / "balanced_baseline" / "owl2bench"
 
     if not baseline_root.exists():
         raise FileNotFoundError(f"Baseline dataset directory not found: {baseline_root}")
@@ -951,82 +1081,89 @@ def exp3_balance_data(
         synth_pos = [row for row in synth_rows if not _is_negative_row(row)]
         synth_neg = [row for row in synth_rows if _is_negative_row(row)]
 
-        target_pos = min(len(baseline_pos), len(synth_pos))
-        # Do NOT use baseline_neg as the ceiling — the baseline often fails to
-        # generate its target number of negatives (e.g. OWL2Bench is ~69%
-        # differentFrom triples, which can almost never be corrupted into a
-        # valid negative, leaving baseline_neg far below baseline_pos).
-        # Instead target 1:1 neg/pos from the synthology pool.
-        target_neg = min(len(synth_neg), target_pos)
-
-        # Stratified sampling: match baseline hop-bucket distribution (d=1, d=2, d>=3)
-        # so Synthology preserves the same depth profile as the baseline rather than
-        # inheriting the raw generator's ~57% hop=0 skew.
-        def _hop_bucket(row: dict[str, str]) -> str:
-            try:
-                h = int(row.get("hops", "0") or "0")
-            except ValueError:
-                h = 0
-            if h <= 1:
-                return "d1"
-            if h == 2:
-                return "d2"
-            return "d3p"
-
-        def _stratified_sample(pool: list, target_n: int, reference: list) -> list:
+        def _random_sample(pool: list, target_n: int) -> list:
             if target_n >= len(pool):
                 return list(pool)
-            # Compute reference bucket fractions
-            bucket_counts: dict[str, int] = {"d1": 0, "d2": 0, "d3p": 0}
-            for r in reference:
-                bucket_counts[_hop_bucket(r)] += 1
-            total_ref = sum(bucket_counts.values()) or 1
-            # Group pool by bucket
-            pool_buckets: dict[str, list] = {"d1": [], "d2": [], "d3p": []}
-            for r in pool:
-                pool_buckets[_hop_bucket(r)].append(r)
-            # Allocate target_n proportionally; remainder goes to largest bucket
-            alloc: dict[str, int] = {}
-            assigned = 0
-            for bkt in ("d1", "d2", "d3p"):
-                n = int(round(target_n * bucket_counts[bkt] / total_ref))
-                n = min(n, len(pool_buckets[bkt]))
-                alloc[bkt] = n
-                assigned += n
-            # Adjust for rounding errors, favouring d3p then d2 then d1
-            for bkt in ("d3p", "d2", "d1"):
-                while assigned < target_n and alloc[bkt] < len(pool_buckets[bkt]):
-                    alloc[bkt] += 1
-                    assigned += 1
-                while assigned > target_n and alloc[bkt] > 0:
-                    alloc[bkt] -= 1
-                    assigned -= 1
-            selected: list = []
-            for bkt in ("d1", "d2", "d3p"):
-                n = alloc[bkt]
-                candidates = pool_buckets[bkt]
-                selected.extend(rng.sample(candidates, n) if n < len(candidates) else list(candidates))
-            return selected
+            return rng.sample(pool, target_n)
 
-        selected_pos = _stratified_sample(synth_pos, target_pos, baseline_pos)
-        selected_neg = _stratified_sample(synth_neg, target_neg, baseline_neg)
-        selected_rows = selected_pos + selected_neg
-        rng.shuffle(selected_rows)
+        # Keep ALL Synthology positives (the precious backward-chaining graphs).
+        # Downsample baseline pos to match Synthology's pos count.
+        # Negatives: baseline is the floor; if baseline has fewer negatives than Synthology,
+        # Synthology negatives are also capped (unavoidable — raise inferred_target_limit to fix).
+        target_pos = min(len(baseline_pos), len(synth_pos))
+        target_neg = min(len(baseline_neg), len(synth_neg))
+
+        # Synthology: keep all positives; cap negatives only if baseline can't cover them.
+        selected_synth_pos = synth_pos
+        selected_synth_neg = _random_sample(synth_neg, target_neg)
+        selected_synth_rows = selected_synth_pos + selected_synth_neg
+        rng.shuffle(selected_synth_rows)
 
         out_split.mkdir(parents=True, exist_ok=True)
         if synthology_facts.exists():
             shutil.copy2(synthology_facts, out_split / "facts.csv")
-        csv_fieldnames = list(synth_rows[0].keys()) if synth_rows else None
-        _write_csv_rows(out_split / "targets.csv", selected_rows, fieldnames=csv_fieldnames)
+        synth_fieldnames = list(synth_rows[0].keys()) if synth_rows else None
+        _write_csv_rows(out_split / "targets.csv", selected_synth_rows, fieldnames=synth_fieldnames)
+
+        # Baseline: downsample to match Synthology counts.
+        selected_baseline_pos = _random_sample(baseline_pos, target_pos)
+        selected_baseline_neg = _random_sample(baseline_neg, target_neg)
+        selected_baseline_rows = selected_baseline_pos + selected_baseline_neg
+        rng.shuffle(selected_baseline_rows)
+
+        baseline_out_split = baseline_output_root / split
+        baseline_facts = baseline_split / "facts.csv"
+        baseline_out_split.mkdir(parents=True, exist_ok=True)
+        if baseline_facts.exists():
+            shutil.copy2(baseline_facts, baseline_out_split / "facts.csv")
+        baseline_fieldnames = list(baseline_rows[0].keys()) if baseline_rows else None
+        _write_csv_rows(baseline_out_split / "targets.csv", selected_baseline_rows, fieldnames=baseline_fieldnames)
+
+        synth_pos_discarded = len(synth_pos) - len(selected_synth_pos)
+        synth_neg_discarded = len(synth_neg) - len(selected_synth_neg)
+        bl_pos_discarded = len(baseline_pos) - len(selected_baseline_pos)
+        bl_neg_discarded = len(baseline_neg) - len(selected_baseline_neg)
+
+        def _pct(n: int, total: int) -> str:
+            return f"{n / total:.1%}" if total else "n/a"
+
+        import sys
+        print(
+            f"[balance/{split}] Synthology: kept {len(selected_synth_pos):,} pos "
+            f"(discarded {synth_pos_discarded:,} = {_pct(synth_pos_discarded, len(synth_pos))}), "
+            f"kept {len(selected_synth_neg):,} neg "
+            f"(discarded {synth_neg_discarded:,} = {_pct(synth_neg_discarded, len(synth_neg))})",
+            file=sys.stderr,
+        )
+        print(
+            f"[balance/{split}] Baseline:   kept {len(selected_baseline_pos):,} pos "
+            f"(discarded {bl_pos_discarded:,} = {_pct(bl_pos_discarded, len(baseline_pos))}), "
+            f"kept {len(selected_baseline_neg):,} neg "
+            f"(discarded {bl_neg_discarded:,} = {_pct(bl_neg_discarded, len(baseline_neg))})",
+            file=sys.stderr,
+        )
+        if synth_neg_discarded > 0:
+            print(
+                f"[balance/{split}] WARNING: Synthology negatives were capped because baseline only has "
+                f"{len(baseline_neg):,} neg vs Synthology's {len(synth_neg):,}. "
+                "Raise inferred_target_limit in configs/owl2bench/config.yaml to fix.",
+                file=sys.stderr,
+            )
 
         summary["splits"][split] = {
             "baseline_positive": len(baseline_pos),
             "baseline_negative": len(baseline_neg),
             "synthology_positive": len(synth_pos),
             "synthology_negative": len(synth_neg),
-            "selected_positive": len(selected_pos),
-            "selected_negative": len(selected_neg),
-            "selected_total": len(selected_rows),
+            "selected_positive": len(selected_synth_pos),
+            "selected_negative": len(selected_synth_neg),
+            "selected_total": len(selected_synth_rows),
+            "synth_positive_discarded": synth_pos_discarded,
+            "synth_negative_discarded": synth_neg_discarded,
+            "balanced_baseline_positive": len(selected_baseline_pos),
+            "balanced_baseline_negative": len(selected_baseline_neg),
+            "baseline_positive_discarded": bl_pos_discarded,
+            "baseline_negative_discarded": bl_neg_discarded,
         }
 
     _write_json(
@@ -1040,6 +1177,7 @@ def exp3_balance_data(
     )
     _write_text(run_dir / "run.log", json.dumps(summary, indent=2) + "\n")
     _archive_path(output_root, run_dir / "artifacts")
+    _archive_path(baseline_output_root, run_dir / "artifacts_baseline")
 
 
 @task
@@ -1056,17 +1194,17 @@ def exp3_generate_gold_test(
     source_dir = (
         Path(source_test_dir)
         if source_test_dir
-        else REPO_ROOT / "data" / "exp3" / "balanced" / f"owl2bench_{universities}" / "test"
+        else REPO_ROOT / "data" / "exp3" / "balanced" / "owl2bench" / "test"
     )
     if not source_dir.exists():
-        source_dir = REPO_ROOT / "data" / "exp3" / "synthology" / f"owl2bench_{universities}" / "test"
+        source_dir = REPO_ROOT / "data" / "exp3" / "synthology" / "owl2bench" / "test"
     if not source_dir.exists():
-        source_dir = REPO_ROOT / "data" / "owl2bench" / "output" / f"owl2bench_{universities}" / "test"
+        source_dir = REPO_ROOT / "data" / "owl2bench" / "output" / "owl2bench" / "test"
 
     output_dir_path = (
         Path(output_test_dir)
         if output_test_dir
-        else REPO_ROOT / "data" / "exp3" / "frozen_test" / f"owl2bench_{universities}" / "test"
+        else REPO_ROOT / "data" / "exp3" / "frozen_test" / "owl2bench" / "test"
     )
     output_dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -1105,13 +1243,13 @@ def exp3_train_rrn(ctx: Context, dataset="baseline", universities=5, args=""):
     if dataset_key not in {"baseline", "synthology"}:
         raise ValueError("dataset must be either 'baseline' or 'synthology'")
 
-    baseline_root = REPO_ROOT / "data" / "owl2bench" / "output" / f"owl2bench_{universities}"
+    baseline_root = REPO_ROOT / "data" / "owl2bench" / "output" / "owl2bench"
 
     if dataset_key == "baseline":
         dataset_root = baseline_root
     else:
-        balanced_root = REPO_ROOT / "data" / "exp3" / "balanced" / f"owl2bench_{universities}"
-        synth_root = REPO_ROOT / "data" / "exp3" / "synthology" / f"owl2bench_{universities}"
+        balanced_root = REPO_ROOT / "data" / "exp3" / "balanced" / "owl2bench"
+        synth_root = REPO_ROOT / "data" / "exp3" / "synthology" / "owl2bench"
         if balanced_root.exists():
             dataset_root = balanced_root
         elif synth_root.exists():
@@ -1206,8 +1344,7 @@ def exp3_generate_baseline_hpc(ctx: Context, config_path="configs/experiments/ex
         args=str(baseline.get("args", "")),
         reasoning_input_triple_cap=int(baseline.get("reasoning_input_triple_cap", 1200)),
         abox_jena_heap_mb=int(baseline.get("abox_jena_heap_mb", 8192)),
-        final_reasoning_input_triple_cap=int(baseline.get("final_reasoning_input_triple_cap", 15000)),
-        final_jena_profile=str(baseline.get("final_jena_profile", "owl_mini")),
+        owl2bench_config_name=str(baseline.get("owl2bench_config_name", "config")),
     )
 
 
@@ -1220,6 +1357,7 @@ def exp3_generate_synthology_hpc(ctx: Context, config_path="configs/experiments/
         ctx,
         universities=int(cfg["universities"]),
         args=str(synthology.get("args", "")),
+        config_name=str(synthology.get("config_name", "exp3_synthology")),
     )
 
 
@@ -1265,23 +1403,6 @@ def exp3_train_rrn_hpc(ctx: Context, dataset="baseline", config_path="configs/ex
 
 
 @task
-def exp3_paper_visual_report_hpc(ctx: Context, config_path="configs/experiments/exp3_hpc.yaml"):
-    """Runs paper visual report with centralized Exp3 YAML preset."""
-    cfg = _load_yaml_config(config_path)
-    report = dict(cfg.get("paper_visual_report", {}))
-    paper_visual_report(
-        ctx,
-        exp2_synth_targets=str(report["exp2_synth_targets"]),
-        exp2_parity_summary=str(report["exp2_parity_summary"]),
-        exp3_targets=str(report["exp3_targets"]),
-        exp3_abox=str(report["exp3_abox"]),
-        exp3_inferred=str(report["exp3_inferred"]),
-        out_dir=str(report["out_dir"]),
-        args=str(report.get("args", "")),
-    )
-
-
-@task
 def exp3_report_and_analyze_hpc(ctx: Context, config_path="configs/experiments/exp3_hpc.yaml"):
     """Runs Exp3 comparison report and baseline analysis using centralized YAML preset."""
     cfg = _load_yaml_config(config_path)
@@ -1290,15 +1411,16 @@ def exp3_report_and_analyze_hpc(ctx: Context, config_path="configs/experiments/e
 
     baseline_path = str(report_cfg.get("baseline_path", "")).strip()
     if not baseline_path:
-        baseline_path = f"data/owl2bench/output/owl2bench_{universities}"
+        _balanced_bl = "data/exp3/balanced_baseline/owl2bench"
+        baseline_path = _balanced_bl if Path(_balanced_bl).exists() else "data/owl2bench/output/owl2bench"
 
     synthology_path = str(report_cfg.get("synthology_path", "")).strip()
     if not synthology_path:
         use_balanced_synthology = bool(report_cfg.get("use_balanced_synthology", True))
         if use_balanced_synthology:
-            synthology_path = f"data/exp3/balanced/owl2bench_{universities}"
+            synthology_path = "data/exp3/balanced/owl2bench"
         else:
-            synthology_path = f"data/exp3/synthology/owl2bench_{universities}"
+            synthology_path = "data/exp3/synthology/owl2bench"
 
     exp3_report_data(
         ctx,
@@ -1310,7 +1432,6 @@ def exp3_report_and_analyze_hpc(ctx: Context, config_path="configs/experiments/e
 
     if bool(report_cfg.get("run_baseline_analysis", True)):
         exp3_analyze_latest_baseline(ctx)
-
 
 @task
 def exp3_materialize_abox(
@@ -2185,3 +2306,491 @@ def _resolve_owl2bench_env(run_dir: Path) -> Dict[str, str]:
         return env
 
     raise RuntimeError("Maven executable could not be resolved. Install Maven or load a module so 'mvn' is available.")
+
+@task
+def gen_owl2bench(ctx: Context, args=""):
+    """
+    Runs the OWL2Bench OWL 2 RL pipeline:
+    ABox generation -> Apache Jena materialization -> CSV export.
+    """
+    print("\nRunning OWL2Bench OWL 2 RL generation pipeline.")
+    run_dir = _make_run_archive("owl2bench", "generate", label="default")
+    owl2bench_env = _resolve_owl2bench_env(run_dir)
+    cmd = _build_uv_command(
+        "owl2bench",
+        "owl2bench.pipeline",
+        env=owl2bench_env,
+        args=args,
+    )
+    _write_json(run_dir / "manifest.json", {"task": "generate", "args": args, "command": cmd})
+    _run_logged_command(cmd, run_dir / "run.log")
+
+
+@task
+def udm_visual_verification(ctx: Context, n_samples=3, args=""):
+    """
+    Generates UDM baseline samples and renders comparable PDF graph visuals
+    for side-by-side inspection against synthology-visual-verification outputs.
+
+    Output is written to visual-verification/udm_baseline/.
+    """
+
+    print("\nRunning UDM visual verification generator.")
+    run_dir = _make_run_archive("udm_baseline", "visual_verification", label="inspection")
+
+    output_root = Path("visual-verification") / "udm_baseline"
+    dataset_output_dir = output_root
+    # Match Synthology visual output location while keeping UDM filenames explicit.
+    graphs_output_dir = Path("visual-verification") / "graphs"
+
+    try:
+        n_samples_int = max(1, int(n_samples))
+    except (TypeError, ValueError):
+        raise ValueError(f"n_samples must be an integer >= 1, got: {n_samples}")
+
+    n_train_for_render = max(1, n_samples_int)
+
+    cmd = _build_uv_command(
+        "udm_baseline",
+        "udm_baseline.create_data",
+        overrides=(
+            f"dataset.n_train={n_train_for_render}",
+            "dataset.n_val=0",
+            "dataset.n_test=0",
+            f"dataset.output_dir={dataset_output_dir.as_posix()}",
+            "generator.min_individuals=8",
+            "generator.max_individuals=18",
+            "generator.min_base_relations=8",
+            "generator.max_base_relations=24",
+            "neg_sampling.ratio=0.5",
+            "materialization.reasoner=jena",
+            "materialization.jena_profile=owl_mini",
+            "materialization.iterative=false",
+        ),
+        args=args,
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    _run_logged_command(cmd, run_dir / "run.log")
+
+    targets_csv = dataset_output_dir / "train" / "targets.csv"
+    facts_csv = dataset_output_dir / "train" / "facts.csv"
+
+    if not targets_csv.exists():
+        raise RuntimeError(f"Expected targets CSV not found at {targets_csv}")
+    if not facts_csv.exists():
+        raise RuntimeError(f"Expected facts CSV not found at {facts_csv}")
+
+    per_sample: Dict[str, Dict[str, Any]] = {}
+    with targets_csv.open("r", newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            sample_id = str(row.get("sample_id", "")).strip()
+            if not sample_id:
+                continue
+
+            stats = per_sample.setdefault(
+                sample_id,
+                {
+                    "sample_id": sample_id,
+                    "total": 0,
+                    "base": 0,
+                    "inferred": 0,
+                    "negative": 0,
+                },
+            )
+            stats["total"] += 1
+
+            row_type = str(row.get("type", "")).strip().lower()
+            if row_type == "base_fact":
+                stats["base"] += 1
+            elif row_type.startswith("inf") or row_type == "inferred":
+                stats["inferred"] += 1
+
+            if _is_negative_row(row):
+                stats["negative"] += 1
+
+    def _numeric_sample_key(sample_id: str) -> int:
+        try:
+            return int(sample_id)
+        except ValueError:
+            return -1
+
+    ranked_samples = sorted(
+        per_sample.values(),
+        key=lambda s: (
+            min(int(s["base"]), int(s["inferred"])),
+            int(s["base"]),
+            int(s["inferred"]),
+            int(s["total"]),
+            int(s["negative"]),
+            _numeric_sample_key(str(s["sample_id"])),
+        ),
+        reverse=True,
+    )
+
+    if not ranked_samples:
+        raise RuntimeError(f"No sample_id values found in {targets_csv}")
+
+    selected_sample_ids = [str(stats["sample_id"]) for stats in ranked_samples[:n_samples_int]]
+    graphs_output_dir.mkdir(parents=True, exist_ok=True)
+
+    visualization_commands = []
+    for sample_id in selected_sample_ids:
+        output_stem = f"udm_baseline_sample_{sample_id}"
+        viz_cmd = _build_uv_command(
+            "kgvisualiser",
+            "kgvisualiser.visualize",
+            overrides=(
+                f"io.input_csv={facts_csv.as_posix()}",
+                f"io.targets_csv={targets_csv.as_posix()}",
+                f"io.sample_id={sample_id}",
+                f"output.dir={graphs_output_dir.as_posix()}",
+                f"output.name_template={output_stem}",
+                "output.format=pdf",
+                "filters.include_negatives=false",
+                "filters.max_edges=75",
+                "render.engine=dot",
+                "render.overlap=false",
+                "render.splines=curved",
+                "render.class_nodes=false",
+                "render.show_edge_labels=true",
+            ),
+            env={"LOGURU_COLORIZE": "1"},
+        )
+        _run_logged_command(viz_cmd, run_dir / f"visualize_{sample_id}.log")
+
+        expected_pdf = graphs_output_dir / f"{output_stem}.pdf"
+        if not expected_pdf.exists():
+            source_graph = graphs_output_dir / output_stem
+            if source_graph.exists():
+                fallback_cmd = f"dot -Tpdf {shlex.quote(str(source_graph))} -o {shlex.quote(str(expected_pdf))}"
+                _run_logged_command(fallback_cmd, run_dir / f"render_fallback_{sample_id}.log")
+
+            if not expected_pdf.exists():
+                raise RuntimeError(
+                    f"Expected PDF not generated for sample {sample_id}: {expected_pdf}. "
+                    f"Ensure Graphviz is installed and available on PATH."
+                )
+
+        visualization_commands.append(viz_cmd)
+
+    _write_json(
+        run_dir / "manifest.json",
+        {
+            "experiment": "udm_baseline",
+            "task": "visual_verification",
+            "args": args,
+            "n_samples": n_samples_int,
+            "selected_sample_ids": selected_sample_ids,
+            "generation_command": cmd,
+            "visualization_commands": visualization_commands,
+            "outputs": {
+                "dataset_output_dir": dataset_output_dir.as_posix(),
+                "graphs_output_dir": graphs_output_dir.as_posix(),
+            },
+        },
+    )
+
+    print(
+        f"Rendered {len(selected_sample_ids)} UDM visual verification PDF(s) to {graphs_output_dir.as_posix()}",
+        flush=True,
+    )
+
+
+@task
+def gen_ft_fc(ctx: Context, args=""):
+    """
+    Generates family tree datasets with random base facts + owlrl
+    forward-chaining materialization baseline.
+    Uses configs/udm_baseline/config.yaml by default.
+    """
+
+    print("\nRunning family tree FC baseline generator.")
+    run_dir = _make_run_archive("udm_baseline", "gen_ft_fc", label="family_tree")
+    cmd = _build_uv_command(
+        "udm_baseline",
+        "udm_baseline.create_data",
+        env={"LOGURU_COLORIZE": "1"},
+        args=args,
+    )
+    _write_json(
+        run_dir / "manifest.json", {"experiment": "udm_baseline", "task": "gen_ft_fc", "args": args, "command": cmd}
+    )
+    _run_logged_command(cmd, run_dir / "run.log")
+
+
+@task
+def gen_ft_ont(ctx: Context, args=""):
+    """
+    Generates family tree datasets with Ontology-based 'Synthology' Generator
+    using default configurations in configs/ont_generator/config.yaml
+    """
+
+    print("\nRunning family tree Ontology-based generator.")
+    run_dir = _make_run_archive("ont_generator", "gen_ft_ont", label="family_tree")
+    cmd = _build_uv_command(
+        "ont_generator",
+        "ont_generator.create_data",
+        env={"LOGURU_COLORIZE": "1"},
+        args=args,
+    )
+    _write_json(
+        run_dir / "manifest.json", {"experiment": "ont_generator", "task": "gen_ft_ont", "args": args, "command": cmd}
+    )
+    _run_logged_command(cmd, run_dir / "run.log")
+
+
+@task
+def paper_export_tables(
+    ctx: Context,
+    out_dir="paper/generated",
+    exp2_summary="",
+    exp3_summary="",
+    exp2_timing_summary="",
+    exp3_timing_summary="",
+    model_metrics="paper/metrics/model_results.json",
+    args="",
+):
+    """Exports LaTeX table row snippets for the paper from latest run artifacts."""
+    print("\nExporting paper table rows.")
+    run_dir = _make_run_archive("paper", "export_tables", label="tables")
+    cmd = _build_uv_command(
+        "data_reporter",
+        "data_reporter.paper_tables",
+        overrides=(
+            f"--repo-root {shlex.quote(str(REPO_ROOT))}",
+            f"--out-dir {out_dir}",
+            f"--model-metrics {model_metrics}",
+        ),
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    if exp2_summary:
+        cmd += f" --exp2-summary {exp2_summary}"
+    if exp3_summary:
+        cmd += f" --exp3-summary {exp3_summary}"
+    if exp2_timing_summary:
+        cmd += f" --exp2-timing-summary {exp2_timing_summary}"
+    if exp3_timing_summary:
+        cmd += f" --exp3-timing-summary {exp3_timing_summary}"
+    if args:
+        cmd += f" {args}"
+
+    _write_json(
+        run_dir / "manifest.json",
+        {
+            "experiment": "paper",
+            "task": "export_tables",
+            "out_dir": out_dir,
+            "exp2_summary": exp2_summary,
+            "exp3_summary": exp3_summary,
+            "exp2_timing_summary": exp2_timing_summary,
+            "exp3_timing_summary": exp3_timing_summary,
+            "model_metrics": model_metrics,
+            "args": args,
+            "command": cmd,
+        },
+    )
+    _run_logged_command(cmd, run_dir / "run.log")
+    _archive_path(Path(out_dir), run_dir / "artifacts")
+
+
+
+# ------------------------------------------------------------ #
+# Helper commands to verify correctness.
+# ------------------------------------------------------------ #
+
+
+@task
+def synthology_visual_verification(ctx: Context, args=""):
+    """
+    Generates a few decently sized knowledge graphs that contain both
+    positive, negative, base and inferred samples and visualizes them.
+    Uses configs/ont_generator/config_visual_inspection.yaml.
+    Output saved to visual-verification/ folder.
+    """
+
+    print("\nRunning Visual Inspection Generator.")
+    run_dir = _make_run_archive("ont_generator", "visual_verification", label="inspection")
+    cmd = _build_uv_command(
+        "ont_generator",
+        "ont_generator.create_data",
+        config_name="config_visual_inspection",
+        args=args,
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    _write_json(
+        run_dir / "manifest.json",
+        {"experiment": "ont_generator", "task": "visual_verification", "args": args, "command": cmd},
+    )
+    _run_logged_command(cmd, run_dir / "run.log")
+
+
+@task
+def udm_visual_verification(ctx: Context, n_samples=3, args=""):
+    """
+    Generates UDM baseline samples and renders comparable PDF graph visuals
+    for side-by-side inspection against synthology-visual-verification outputs.
+
+    Output is written to visual-verification/udm_baseline/.
+    """
+
+    print("\nRunning UDM visual verification generator.")
+    run_dir = _make_run_archive("udm_baseline", "visual_verification", label="inspection")
+
+    output_root = Path("visual-verification") / "udm_baseline"
+    dataset_output_dir = output_root
+    # Match Synthology visual output location while keeping UDM filenames explicit.
+    graphs_output_dir = Path("visual-verification") / "graphs"
+
+    try:
+        n_samples_int = max(1, int(n_samples))
+    except (TypeError, ValueError):
+        raise ValueError(f"n_samples must be an integer >= 1, got: {n_samples}")
+
+    n_train_for_render = max(1, n_samples_int)
+
+    cmd = _build_uv_command(
+        "udm_baseline",
+        "udm_baseline.create_data",
+        overrides=(
+            f"dataset.n_train={n_train_for_render}",
+            "dataset.n_val=0",
+            "dataset.n_test=0",
+            f"dataset.output_dir={dataset_output_dir.as_posix()}",
+            "generator.min_individuals=8",
+            "generator.max_individuals=18",
+            "generator.min_base_relations=8",
+            "generator.max_base_relations=24",
+            "neg_sampling.ratio=0.5",
+            "materialization.reasoner=jena",
+            "materialization.jena_profile=owl_mini",
+            "materialization.iterative=false",
+        ),
+        args=args,
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    _run_logged_command(cmd, run_dir / "run.log")
+
+    targets_csv = dataset_output_dir / "train" / "targets.csv"
+    facts_csv = dataset_output_dir / "train" / "facts.csv"
+
+    if not targets_csv.exists():
+        raise RuntimeError(f"Expected targets CSV not found at {targets_csv}")
+    if not facts_csv.exists():
+        raise RuntimeError(f"Expected facts CSV not found at {facts_csv}")
+
+    per_sample: Dict[str, Dict[str, Any]] = {}
+    with targets_csv.open("r", newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        for row in reader:
+            sample_id = str(row.get("sample_id", "")).strip()
+            if not sample_id:
+                continue
+
+            stats = per_sample.setdefault(
+                sample_id,
+                {
+                    "sample_id": sample_id,
+                    "total": 0,
+                    "base": 0,
+                    "inferred": 0,
+                    "negative": 0,
+                },
+            )
+            stats["total"] += 1
+
+            row_type = str(row.get("type", "")).strip().lower()
+            if row_type == "base_fact":
+                stats["base"] += 1
+            elif row_type.startswith("inf") or row_type == "inferred":
+                stats["inferred"] += 1
+
+            if _is_negative_row(row):
+                stats["negative"] += 1
+
+    def _numeric_sample_key(sample_id: str) -> int:
+        try:
+            return int(sample_id)
+        except ValueError:
+            return -1
+
+    ranked_samples = sorted(
+        per_sample.values(),
+        key=lambda s: (
+            min(int(s["base"]), int(s["inferred"])),
+            int(s["base"]),
+            int(s["inferred"]),
+            int(s["total"]),
+            int(s["negative"]),
+            _numeric_sample_key(str(s["sample_id"])),
+        ),
+        reverse=True,
+    )
+
+    if not ranked_samples:
+        raise RuntimeError(f"No sample_id values found in {targets_csv}")
+
+    selected_sample_ids = [str(stats["sample_id"]) for stats in ranked_samples[:n_samples_int]]
+    graphs_output_dir.mkdir(parents=True, exist_ok=True)
+
+    visualization_commands = []
+    for sample_id in selected_sample_ids:
+        output_stem = f"udm_baseline_sample_{sample_id}"
+        viz_cmd = _build_uv_command(
+            "kgvisualiser",
+            "kgvisualiser.visualize",
+            overrides=(
+                f"io.input_csv={facts_csv.as_posix()}",
+                f"io.targets_csv={targets_csv.as_posix()}",
+                f"io.sample_id={sample_id}",
+                f"output.dir={graphs_output_dir.as_posix()}",
+                f"output.name_template={output_stem}",
+                "output.format=pdf",
+                "filters.include_negatives=false",
+                "filters.max_edges=75",
+                "render.engine=dot",
+                "render.overlap=false",
+                "render.splines=curved",
+                "render.class_nodes=false",
+                "render.show_edge_labels=true",
+            ),
+            env={"LOGURU_COLORIZE": "1"},
+        )
+        _run_logged_command(viz_cmd, run_dir / f"visualize_{sample_id}.log")
+
+        expected_pdf = graphs_output_dir / f"{output_stem}.pdf"
+        if not expected_pdf.exists():
+            source_graph = graphs_output_dir / output_stem
+            if source_graph.exists():
+                fallback_cmd = f"dot -Tpdf {shlex.quote(str(source_graph))} -o {shlex.quote(str(expected_pdf))}"
+                _run_logged_command(fallback_cmd, run_dir / f"render_fallback_{sample_id}.log")
+
+            if not expected_pdf.exists():
+                raise RuntimeError(
+                    f"Expected PDF not generated for sample {sample_id}: {expected_pdf}. "
+                    f"Ensure Graphviz is installed and available on PATH."
+                )
+
+        visualization_commands.append(viz_cmd)
+
+    _write_json(
+        run_dir / "manifest.json",
+        {
+            "experiment": "udm_baseline",
+            "task": "visual_verification",
+            "args": args,
+            "n_samples": n_samples_int,
+            "selected_sample_ids": selected_sample_ids,
+            "generation_command": cmd,
+            "visualization_commands": visualization_commands,
+            "outputs": {
+                "dataset_output_dir": dataset_output_dir.as_posix(),
+                "graphs_output_dir": graphs_output_dir.as_posix(),
+            },
+        },
+    )
+
+    print(
+        f"Rendered {len(selected_sample_ids)} UDM visual verification PDF(s) to {graphs_output_dir.as_posix()}",
+        flush=True,
+    )

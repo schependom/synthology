@@ -1,6 +1,3 @@
-# See config.yaml for full documentation of all options.
-# Only overrides from config.yaml defaults are listed here.
-
 defaults:
   - config
   - override dataset: owl2bench
@@ -9,12 +6,11 @@ defaults:
 ontology:
   path: "ontologies/UNIV-BENCH-OWL2RL.owl"
 
-# Generate more samples than the baseline so exp3-balance-data has room to downsample.
 dataset:
-  n_train: 600
+  n_train: 160
   n_val: 0
   n_test: 0
-  output_dir: "data/exp3/synthology/owl2bench"  # final path set by tasks.py override; kept in sync here
+  output_dir: "data/exp3/synthology/owl2bench"  # overridden per-run by the task
 
 hydra:
   run:
@@ -42,4 +38,5 @@ generator:
     hard: 50
   individual_pool_size: 400
   individual_reuse_prob: 0.65
-  proof_roots_per_rule: 12
+  # Halved from 12 → 6 to keep smoke runtime short.
+  proof_roots_per_rule: 6

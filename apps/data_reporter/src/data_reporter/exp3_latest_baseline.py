@@ -176,15 +176,24 @@ def _analyze_materialization_timing(timing_csv: Path) -> dict[str, Any]:
         return {"events": 0}
 
     latest = rows[-1]
+    # Timing CSV columns: run_tag, working_triples, closure_triples, newly_inferred,
+    # iteration_wall_seconds; detailed Jena timing is in details_json.
+    details: dict[str, Any] = {}
+    try:
+        details = json.loads(latest.get("details_json") or "{}")
+    except (json.JSONDecodeError, TypeError):
+        pass
+    jena_timing = details.get("jena_last_run_timing", {})
+
     return {
         "events": len(rows),
         "latest_event": {
-            "run_id": latest.get("run_id"),
-            "base_triples": _safe_int(latest.get("base_triples", 0), 0),
+            "run_id": latest.get("run_tag"),
+            "base_triples": _safe_int(latest.get("working_triples", 0), 0),
             "closure_triples": _safe_int(latest.get("closure_triples", 0), 0),
-            "inferred_triples": _safe_int(latest.get("inferred_triples", 0), 0),
-            "reasoning_seconds": _safe_float(latest.get("reasoning_seconds", 0.0), 0.0),
-            "run_total_seconds": _safe_float(latest.get("run_total_seconds", 0.0), 0.0),
+            "inferred_triples": _safe_int(latest.get("newly_inferred", 0), 0),
+            "reasoning_seconds": _safe_float(jena_timing.get("java_seconds", 0.0), 0.0),
+            "run_total_seconds": _safe_float(latest.get("iteration_wall_seconds", 0.0), 0.0),
         },
     }
 
@@ -314,7 +323,7 @@ def main() -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
 
     universities = int(manifest.get("universities", 1) or 1)
-    live_dataset_dir = repo_root / "data" / "owl2bench" / "output" / f"owl2bench_{universities}"
+    live_dataset_dir = repo_root / "data" / "owl2bench" / "output" / "owl2bench"
     dataset_dir = Path(args.dataset_dir).resolve() if args.dataset_dir else live_dataset_dir
     if not dataset_dir.exists():
         raise FileNotFoundError(f"Dataset directory not found: {dataset_dir}")
@@ -322,7 +331,7 @@ def main() -> None:
     timing_csv = (
         Path(args.timing_csv).resolve()
         if args.timing_csv
-        else archive_dir / "materialization" / "timings" / "exp3_materialize_abox_jena_events.csv"
+        else archive_dir / "abox_generation" / "timings" / f"exp3_owl2bench_abox_{universities}_jena_events.csv"
     )
     if not timing_csv.exists():
         raise FileNotFoundError(f"Timing CSV not found: {timing_csv}")
@@ -339,7 +348,19 @@ def main() -> None:
     diagnostics_summary, diagnostics_summary_path = _load_diagnostics_summary_for_archive(repo_root, archive_dir, universities)
 
     train_hops_positive = dataset_summary.get("train", {}).get("hops_positive", {})
-    _plot_train_hops(train_hops_positive, out_dir / "train_hop_distribution")
+    all_hops_values = set(train_hops_positive.keys())
+    derivation_logging_was_on = all_hops_values - {"0", "1"} or (
+        len(all_hops_values) > 1
+    )
+    if derivation_logging_was_on:
+        _plot_train_hops(train_hops_positive, out_dir / "train_hop_distribution")
+    else:
+        print(
+            "NOTE: Skipping hop distribution plot — all targets have hops<=1, indicating "
+            "derivation logging was disabled. Use the smoke run (config_smoke) for the "
+            "representative hop distribution figure.",
+            file=__import__("sys").stderr,
+        )
     _plot_train_labels(dataset_summary.get("train", {}).get("rows", {}), out_dir / "train_label_distribution")
 
     summary = {

@@ -2,6 +2,7 @@ dataset:
   name: "owl2bench"
   universities: [20]
   output_dir: "data/owl2bench/output"
+  output_name: "owl2bench"
 
   split:
     train: 0.8
@@ -14,7 +15,10 @@ dataset:
   # bfs_subgraphs: paper-aligned many small graphs; university_prefix: one graph per university; chunk: legacy.
   partition_mode: "bfs_subgraphs"
   bfs:
-    sample_count: 1800
+    # 1260 samples at u=14 maintains ~90-subgraph/university density (~72 unique train
+    # contexts/university after split), giving 14×72=1008 unique train contexts to
+    # match Synthology's n_train=1000.  Formula: sample_count = universities × 90.
+    sample_count: 1260
     max_individuals_per_sample: 120
     # Include the full materialized closure (base + inferred) as context in facts.csv.
     # Makes context density comparable to Synthology (~500 facts/sample vs 1-9 without).
@@ -43,6 +47,10 @@ dataset:
       # Enforce single-pass Jena for OWL2Bench to prevent massive iteration overhead.
       iterative: false
       max_iterations: 1
+      # Derivation logging stores full proof trees per inferred triple — too memory-intensive
+      # at full 20-university scale (~32M closure triples). Hop distribution is measured
+      # from the smoke run (u=2) instead, which is representative of the ontology structure.
+      derivation_logging: false
       timing:
         enabled: true
         output_dir: "data/exp3/timings"

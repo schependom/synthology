@@ -179,6 +179,7 @@ def compute_inferred_triples(
     reasoner = str(materialization_cfg.get("reasoner", "jena")).lower()
     iterative = bool(materialization_cfg.get("iterative", False))
     jena_profile = str(materialization_cfg.get("jena_profile", "owl_mini"))
+    derivation_logging = bool(materialization_cfg.get("derivation_logging", True))
 
     if reasoner != "jena":
         raise ValueError(f"Unsupported reasoner '{reasoner}' for OWL2Bench pipeline. Only 'jena' is supported.")
@@ -200,9 +201,12 @@ def compute_inferred_triples(
     if timing_enabled:
         timing_output_dir.mkdir(parents=True, exist_ok=True)
 
-    logger.info("Jena materialization one-shot | base_triples={} | profile={}", len(base_uri_triples), jena_profile)
+    logger.info(
+        "Jena materialization one-shot | base_triples={} | profile={} | derivation_logging={}",
+        len(base_uri_triples), jena_profile, derivation_logging,
+    )
     iter_start = time.perf_counter()
-    materialized = jena.materialize(str(tbox_path), base_uri_triples, jena_profile=jena_profile)
+    materialized = jena.materialize(str(tbox_path), base_uri_triples, jena_profile=jena_profile, derivation_logging=derivation_logging)
     iter_elapsed = time.perf_counter() - iter_start
     if isinstance(materialized, tuple):
         closure_final, native_hop_depths = materialized
@@ -669,6 +673,7 @@ def _write_split(
                 facts_rows.append(fact)
                 targets_rows.append(target)
                 sample_positive_keys.add(_target_key(target))
+                positive_targets.append(target)  # generate negatives for base facts too
             else:
                 positive_targets.append(target)
                 targets_rows.append(target)
@@ -701,7 +706,16 @@ def _write_split(
         all_classes = list(all_classes)
         eligible_positive_targets_total += len(positive_targets)
 
+        # OWL2Bench asserts differentFrom/sameAs between every pair of distinct
+        # individuals, so any random corruption of such a triple immediately hits
+        # an existing positive — all attempts fail.  Exclude them from corruption
+        # (same policy as the udm_baseline pipeline).
+        _SKIP_CORRUPTION = {"differentFrom", "sameAs"}
+
         for pos_tgt in positive_targets:
+            if pos_tgt["predicate"] in _SKIP_CORRUPTION:
+                ineligible_positive_targets_total += 1
+                continue
             needed = max(0, negatives_per_positive)
             candidate_map: Dict[tuple[str, str, str, str], Dict[str, Any]] = {}
 
@@ -725,7 +739,7 @@ def _write_split(
                         "object": corrupted_entity if corrupt_object else pos_tgt["object"],
                         "label": 0,
                         "truth_value": "False",
-                        "type": "inferred",
+                        "type": f"neg_{pos_tgt['type']}",
                         "hops": pos_tgt.get("hops", 0),
                         "corruption_method": "random",
                     }
@@ -905,6 +919,20 @@ def _parse_generated_to_csv(
         if p_clean == "type":
             p_clean = "rdf:type"
         inferred_clean.append((s_clean, p_clean, o_clean, hops))
+
+    # Filter out predicates that can never yield valid negatives (OWL2Bench asserts
+    # differentFrom/sameAs pairwise over all individuals, so any random corruption
+    # of such a triple immediately hits an existing positive).  This ensures the
+    # inferred_target_limit budget is spent exclusively on corruptible triples.
+    _UNCORRUPTIBLE = {"differentFrom", "sameAs"}
+    before_filter = len(inferred_clean)
+    inferred_clean = [(s, p, o, h) for (s, p, o, h) in inferred_clean if p not in _UNCORRUPTIBLE]
+    if len(inferred_clean) < before_filter:
+        logger.info(
+            "Filtered out uncorruptible inferred predicates (differentFrom/sameAs) | removed={} | remaining={}",
+            before_filter - len(inferred_clean),
+            len(inferred_clean),
+        )
 
     if inferred_target_limit > 0 and len(inferred_clean) > inferred_target_limit:
         inferred_clean = random.sample(inferred_clean, inferred_target_limit)
@@ -1160,7 +1188,7 @@ def main(cfg: DictConfig) -> None:
 
     for universities in cfg.dataset.universities:
         universities = int(universities)
-        size_label = f"owl2bench_{universities}"
+        size_label = str(cfg.dataset.get("output_name", None) or f"owl2bench_{universities}")
 
         generated_owl = run_owl2bench_generator(
             vendor_dir=vendor_dir,

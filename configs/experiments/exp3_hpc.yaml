@@ -1,10 +1,14 @@
-universities: 20
+universities: 14
 
 baseline:
-  reasoning_input_triple_cap: 1200
-  abox_jena_heap_mb: 8192
-  final_reasoning_input_triple_cap: 15000
-  final_jena_profile: owl_mini
+  # 14 universities (~679K base triples) matches Synthology's n_train=1000 budget.
+  # Each university yields ~72 unique BFS train sample_ids (at bfs.sample_count=1260,
+  # density 90/university), giving 14×72=1008 unique training contexts.
+  # Memory model: process_GB ≈ 58.9 × (u×48495/969891)^0.55 → u=14: ~48 GB process,
+  # fits in 51 GB heap / 64 GB node.  u=20 was tried but Jena LP tabling OOM'd at
+  # 51 GB heap (970K-triple ABox); u=19 is the estimated safe ceiling (~50 GB process).
+  reasoning_input_triple_cap: 0
+  abox_jena_heap_mb: 51200
   # All canonical paper settings are already set in configs/owl2bench/config.yaml.
   # Only add genuine per-run overrides here; leave empty for paper runs.
   args: ""
@@ -20,7 +24,7 @@ report:
   synthology_path: ""
   use_balanced_synthology: true
   args: ""
-  run_baseline_analysis: true
+  run_baseline_analysis: false
 
 balance:
   baseline_dir: ""
@@ -31,12 +35,3 @@ balance:
 gold_test:
   source_test_dir: ""
   output_test_dir: ""
-
-paper_visual_report:
-  exp2_synth_targets: data/exp2/synthology/family_tree/train/targets.csv
-  exp2_parity_summary: data/exp2/baseline/parity_runs/parity_loop_summary.json
-  exp3_targets: data/owl2bench/output/owl2bench_20/train/targets.csv
-  exp3_abox: data/owl2bench/output/raw/owl2bench_20/OWL2RL-5.owl
-  exp3_inferred: data/exp3/baseline/owl2bench_20/inferred.nt
-  out_dir: reports/paper
-  args: ""

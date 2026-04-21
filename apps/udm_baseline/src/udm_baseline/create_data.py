@@ -86,7 +86,7 @@ class JenaMaterializer:
         }
 
     def materialize(
-        self, ontology_path: str, base_triples: Set[Triple], jena_profile: str = "owl_mini"
+        self, ontology_path: str, base_triples: Set[Triple], jena_profile: str = "owl_mini", derivation_logging: bool = True
     ) -> Tuple[Set[Triple], Dict[Triple, int]]:
         """Materialize closure with Jena and return all URI-only closure triples and hop depths."""
         run_start = time.perf_counter()
@@ -150,6 +150,7 @@ class JenaMaterializer:
                 str(base_path),
                 str(out_path),
                 jena_profile,
+                "true" if derivation_logging else "false",
             ]
 
             try:

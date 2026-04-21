@@ -1,0 +1,60 @@
+dataset:
+  name: "owl2bench"
+  universities: [20]  # always overridden by the task (dataset.universities=[N])
+  output_dir: "data/owl2bench/output"
+
+  split:
+    train: 0.8
+    val: 0.1
+    test: 0.1
+
+  target_ratio: 0.0
+  mask_base_facts: false
+  num_samples: 1
+  partition_mode: "bfs_subgraphs"
+  bfs:
+    sample_count: 200
+    max_individuals_per_sample: 80
+    use_closure_context: false
+  require_multiple_graphs_per_csv: true
+  # Keep inferred positives small so budget is comparable to the synthology side.
+  inferred_target_limit: 2000
+  negatives_per_positive: 1
+  # Jena's LP backward chainer (used by both owl_mini and owl_full) exhausts an
+  # 8 GB heap on the full 2-university ABox (≈70 K triples).  Capping the input
+  # to 15 K triples keeps memory well under 8 GB while still giving a
+  # representative OWL2Bench sample.  The original HPC run used cap=1200 which
+  # was far too small — that is why it produced almost no inferred facts.
+  reasoning_input_triple_cap: 15000
+  diagnostics:
+    enabled: true
+    output_dir: "data/owl2bench/output/diagnostics"
+    max_rows_per_file: 200000
+
+  reasoning:
+    tbox_path: "ontologies/UNIV-BENCH-OWL2RL.owl"
+    namespace_map:
+      "http://swat.cse.lehigh.edu/onto/univ-bench.owl#": "https://kracr.iiitd.edu.in/OWL2Bench#"
+    materialization:
+      reasoner: "jena"
+      # owl_full was attempted but crashed with OOM (Java heap) even on this
+      # 2-university toy ABox (see logs/exp3_smoke_28241977.out).  owl_mini is
+      # the practical upper bound; its incomplete materialization is documented
+      # as a known limitation in the paper (Threats to Validity).
+      jena_profile: "owl_mini"
+      iterative: false
+      max_iterations: 1
+      # Enable derivation logging on the smoke run so we can measure the per-triple
+      # hop distribution, which is representative of the ontology's reasoning structure
+      # regardless of university count (universities are independent ABox fragments).
+      derivation_logging: true
+      timing:
+        enabled: true
+        output_dir: "data/owl2bench/output/diagnostics"
+        run_tag: "exp3_owl2bench_smoke"
+
+generator:
+  vendor_dir: "vendor/OWL2Bench"
+  profile: "RL"
+  seed: 1
+  maven_executable: "${oc.env:MAVEN_EXECUTABLE,mvn}"

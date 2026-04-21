@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 #BSUB -q hpc
-#BSUB -J exp3-balance-data
+#BSUB -J exp1-generate-trainval-sets
 #BSUB -n 8
-#BSUB -W 04:00
+#BSUB -W 24:00
 #BSUB -R "rusage[mem=8GB]"
-#BSUB -o logs/exp3_balance_data_%J.out
-#BSUB -e logs/exp3_balance_data_%J.err
+#BSUB -o logs/exp1_generate_trainval_sets_%J.out
+#BSUB -e logs/exp1_generate_trainval_sets_%J.err
 
 set -euo pipefail
 
@@ -26,15 +26,13 @@ synthology_enter_repo
 synthology_setup_runtime_storage
 mkdir -p logs
 
-synthology_load_modules python3/3.9.19
+synthology_load_modules python3/3.9.19 openjdk/21
+
 synthology_activate_python_env 0
 synthology_sync_deps
 
-CONFIG_PATH="${1:-configs/experiments/exp3_hpc.yaml}"
-synthology_require_file "${CONFIG_PATH}" "Exp3 HPC config"
+echo "Generating all train/val sets for exp1 for all negative sampling strategies."
+uv run invoke exp1-generate-trainval-sets
 
-echo "Starting Exp3 balance-data with config: ${CONFIG_PATH}"
-uv run invoke exp3-balance-data-hpc --config-path="${CONFIG_PATH}"
-
-echo "Finished Exp3 balance-data at:"
+echo "Finished Exp1 train/val set generation at:"
 date
