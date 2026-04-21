@@ -170,11 +170,11 @@ def exp1_generate_trainval_sets(ctx: Context):
         {
             "experiment": "exp1",
             "task": "generate_trainval_sets",
-            "strategies": ["random", "constrained", "proof_based"],
+            "strategies": ["random", "constrained", "proof_based", "mixed"],
         },
     )
     summary_lines = ["Exp1 train/val set generation summary"]
-    for strategy in ("random", "constrained", "proof_based"):
+    for strategy in ("random", "constrained", "proof_based", "mixed"):
         exp1_generate_trainval(ctx, strategy=strategy)
         summary_lines.append(f"- generated strategy={strategy}")
     _write_text(run_dir / "run.log", "\n".join(summary_lines) + "\n")

@@ -1,0 +1,23 @@
+defaults:
+  - config
+  - override data/dataset: exp1_mixed
+  - _self_
+
+model:
+  embedding_size: 200
+  num_hidden_layers: 2
+  positive_oversampling_factor: 2.0
+
+hyperparams:
+  learning_rate: 0.0001
+
+callbacks:
+  early_stopping:
+    patience: 200
+  model_checkpoint:
+    filename: "best-checkpoint-mixed"
+
+logger:
+  name: "exp1_mixed_hpc"
+  group: "exp1_negative_sampling"
+  tags: [exp1, mixed, hpc]

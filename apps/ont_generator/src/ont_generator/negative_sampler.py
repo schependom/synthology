@@ -733,16 +733,28 @@ class NegativeSampler:
         if triples_with_proofs:
             strategies.append("proof_based")
 
-        fractional_ratio = ratio / len(strategies)
+        weights = {}
+        if hasattr(self.cfg, "neg_sampling") and "mixed_weights" in self.cfg.neg_sampling:
+            weights_cfg = self.cfg.neg_sampling.mixed_weights
+            weights = {k: float(v) for k, v in weights_cfg.items() if k in strategies}
+            
+        if not weights:
+            # Default to equal weights if none provided
+            weights = {k: 1.0 for k in strategies}
+            
+        total_weight = sum(weights.values())
+        if total_weight == 0:
+            weights = {k: 1.0 for k in strategies}
+            total_weight = sum(weights.values())
 
-        if "random" in strategies:
-            kg = self._random_corruption(kg, fractional_ratio)
-        if "constrained" in strategies:
-            kg = self._constrained_corruption(kg, fractional_ratio)
-        if "type_aware" in strategies:
-            kg = self._type_aware_corruption(kg, fractional_ratio)
-        if "proof_based" in strategies:
-            kg = self._proof_based_corruption(kg, fractional_ratio, corrupt_base_facts, export_proofs, output_dir)
+        if "random" in strategies and weights.get("random", 0) > 0:
+            kg = self._random_corruption(kg, ratio * (weights["random"] / total_weight))
+        if "constrained" in strategies and weights.get("constrained", 0) > 0:
+            kg = self._constrained_corruption(kg, ratio * (weights["constrained"] / total_weight))
+        if "type_aware" in strategies and weights.get("type_aware", 0) > 0:
+            kg = self._type_aware_corruption(kg, ratio * (weights["type_aware"] / total_weight))
+        if "proof_based" in strategies and weights.get("proof_based", 0) > 0:
+            kg = self._proof_based_corruption(kg, ratio * (weights["proof_based"] / total_weight), corrupt_base_facts, export_proofs, output_dir)
 
 
         # For memberships, we just use random corruption for now as it's less critical

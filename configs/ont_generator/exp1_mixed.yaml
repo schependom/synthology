@@ -1,0 +1,12 @@
+# Configuration for Experiment 1: Mixed Negative Sampling
+# The README file also contains further details.
+
+defaults:
+  - exp1_base # override default config options
+  - _self_
+
+dataset:
+  output_dir: "data/exp1/mixed"
+
+neg_sampling:
+  strategy: "mixed"
