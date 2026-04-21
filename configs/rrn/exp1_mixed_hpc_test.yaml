@@ -1,0 +1,11 @@
+defaults:
+  - exp1_mixed_hpc
+  - _self_
+
+test:
+  checkpoint_glob: "${log_dir}/checkpoints/best-checkpoint-mixed*.ckpt"
+
+logger:
+  log_model: false
+  name: "exp1_mixed_hpc_test"
+  tags: [exp1, mixed, hpc, test]
