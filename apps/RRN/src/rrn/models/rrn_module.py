@@ -606,6 +606,11 @@ class RRNSystem(pl.LightningModule):
         if num_pos > 0 and num_neg > 0:
             ratio = num_neg.float() / num_pos.float()
             ratio = torch.clamp(ratio, max=10.0)
+            
+            # Apply additional positive oversampling to force the model to predict 1 on hard datasets
+            oversample_factor = self.cfg.model.get("positive_oversampling_factor", 1.0)
+            ratio = ratio * oversample_factor
+            
             all_weights[(cls_targets == 1.0) & (mask == 1.0)] = ratio
 
         # Compute un-reduced loss PER SAMPLE
@@ -667,6 +672,10 @@ class RRNSystem(pl.LightningModule):
                 ratio = num_neg.float() / num_pos.float()
                 # Clamp ratio to prevent extreme gradient explosions on imbalanced graphs
                 ratio = torch.clamp(ratio, max=10.0)
+                
+                oversample_factor = self.cfg.model.get("positive_oversampling_factor", 1.0)
+                ratio = ratio * oversample_factor
+                
                 all_weights[rel_targets == 1.0] = ratio
 
             # Compute weighted loss

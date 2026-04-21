@@ -6,6 +6,22 @@ dataset:
 
 generator:
   min_lcc_ratio: 0.6
+  rule_sampling_mode: "balanced"
+  enforce_goal_predicate_coverage: true
+  target_min_proofs_rule: 10
+  max_recursion: 5
+  global_max_depth: 12
+  max_proofs_per_atom: 5
+  proof_selection_strategy: "stratified"
+  proof_selection_weights:
+    easy: 2
+    medium: 55
+    hard: 43
+  individual_pool_size: 5000
+  individual_reuse_prob: 0.5
+  min_proof_roots: 10
+  max_proof_roots: 30
+  proof_roots_per_rule: 12
 
 hydra:
   run:
