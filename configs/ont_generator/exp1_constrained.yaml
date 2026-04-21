@@ -2,19 +2,11 @@
 # The README file also contains further details.
 
 defaults:
-  - config # override default config options
+  - exp1_base # override default config options
   - _self_
 
 dataset:
   output_dir: "data/exp1/constrained"
-  n_test: 0
-
-hydra:
-  run:
-    dir: "${dataset.output_dir}/hydra"
 
 neg_sampling:
   strategy: "constrained"
-
-generator:
-  min_lcc_ratio: 0.6

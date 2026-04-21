@@ -1,0 +1,12 @@
+defaults:
+  - config # override default config options
+
+dataset:
+  n_test: 0
+
+generator:
+  min_lcc_ratio: 0.6
+
+hydra:
+  run:
+    dir: "${dataset.output_dir}/hydra"
