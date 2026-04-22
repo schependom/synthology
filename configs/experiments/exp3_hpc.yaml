@@ -8,7 +8,7 @@ baseline:
   # fits in 51 GB heap / 64 GB node.  u=20 was tried but Jena LP tabling OOM'd at
   # 51 GB heap (970K-triple ABox); u=19 is the estimated safe ceiling (~50 GB process).
   reasoning_input_triple_cap: 0
-  abox_jena_heap_mb: 51200
+  abox_jena_heap_mb: 100000
   # All canonical paper settings are already set in configs/owl2bench/config.yaml.
   # Only add genuine per-run overrides here; leave empty for paper runs.
   args: ""

@@ -1188,7 +1188,7 @@ def main(cfg: DictConfig) -> None:
 
     for universities in cfg.dataset.universities:
         universities = int(universities)
-        size_label = str(cfg.dataset.get("output_name", None) or f"owl2bench_{universities}")
+        size_label = str(cfg.dataset.get("output_name", "owl2bench"))
 
         generated_owl = run_owl2bench_generator(
             vendor_dir=vendor_dir,

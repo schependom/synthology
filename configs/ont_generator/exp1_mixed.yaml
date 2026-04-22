@@ -10,3 +10,4 @@ dataset:
 
 neg_sampling:
   strategy: "mixed"
+  corrupt_base_facts: true

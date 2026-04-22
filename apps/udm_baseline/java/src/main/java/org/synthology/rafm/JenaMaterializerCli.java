@@ -50,27 +50,28 @@ public final class JenaMaterializerCli {
         InfModel infModel = ModelFactory.createInfModel(reasoner, baseModel);
         infModel.prepare();
 
-        Model closure = ModelFactory.createDefaultModel();
-        closure.add(infModel);
-
         File outDir = new File(outputPath).getParentFile();
         String hopsOutputPath = outDir == null ? "hops.csv" : new File(outDir, "hops.csv").getPath();
 
         try (OutputStream output = new FileOutputStream(outputPath);
              PrintWriter hopsOut = new PrintWriter(new FileOutputStream(hopsOutputPath))) {
-             
-            RDFDataMgr.write(output, closure, Lang.NTRIPLES);
-            
+
+            // Write directly from infModel to avoid creating a redundant in-memory copy.
+            RDFDataMgr.write(output, infModel, Lang.NTRIPLES);
+
             hopsOut.println("subject,predicate,object,depth");
-            for (Statement stmt : closure.listStatements().toList()) {
-                int depth = calculateDepth(infModel, stmt);
-                if (depth > 0) {
-                    hopsOut.println(String.format("%s,%s,%s,%d", 
-                        stmt.getSubject().toString(),
-                        stmt.getPredicate().toString(),
-                        stmt.getObject().toString(),
-                        depth
-                    ));
+            // Depth traversal requires derivation traces; skip entirely when logging is off.
+            if (derivationLogging) {
+                for (Statement stmt : infModel.listStatements().toList()) {
+                    int depth = calculateDepth(infModel, stmt);
+                    if (depth > 0) {
+                        hopsOut.println(String.format("%s,%s,%s,%d",
+                            stmt.getSubject().toString(),
+                            stmt.getPredicate().toString(),
+                            stmt.getObject().toString(),
+                            depth
+                        ));
+                    }
                 }
             }
         } catch (Exception exception) {
