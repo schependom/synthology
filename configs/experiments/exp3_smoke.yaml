@@ -20,7 +20,7 @@
 #   uv run invoke exp3-balance-data-hpc        --config-path=configs/experiments/exp3_smoke.yaml
 #   uv run invoke exp3-report-and-analyze-hpc  --config-path=configs/experiments/exp3_smoke.yaml
 
-universities: 2
+universities: 3
 
 baseline:
   # Selects configs/owl2bench/config_smoke.yaml (owl_mini, 200 BFS subgraphs,

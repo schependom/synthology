@@ -13,12 +13,12 @@ dataset:
   num_samples: 1
   partition_mode: "bfs_subgraphs"
   bfs:
-    sample_count: 200
+    sample_count: 270
     max_individuals_per_sample: 80
     use_closure_context: false
   require_multiple_graphs_per_csv: true
   # Keep inferred positives small so budget is comparable to the synthology side.
-  inferred_target_limit: 2000
+  inferred_target_limit: 70000
   negatives_per_positive: 1
   # Jena's LP backward chainer (used by both owl_mini and owl_full) exhausts an
   # 8 GB heap on the full 2-university ABox (≈70 K triples).  Capping the input

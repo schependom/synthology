@@ -13,21 +13,13 @@ relative = false;  % Set to true for density (sum to 1), false for absolute coun
 % ---------------------
 
 EXP2_REPORT_DIR = '/dtu/blackhole/16/221590/synthology/reports/experiment_runs/2026-04-18/exp2/report_data/185853_compare/report';
-EXP3_REPORT_DIR = '/dtu/blackhole/16/221590/synthology/reports/experiment_runs/2026-04-20/exp3/report_data/102558_compare/report';
+EXP3_REPORT_DIR = '/dtu/blackhole/16/221590/synthology/reports/experiment_runs/2026-04-22/exp3/report_data/185842_compare/report';
 
 % ---------------------------------------------------------------------------
 
-C = kulcolors();
-
-% Global LaTeX defaults
-set(groot, 'defaultTextInterpreter',          'latex');
-set(groot, 'defaultAxesTickLabelInterpreter', 'latex');
-set(groot, 'defaultLegendInterpreter',        'latex');
-
-% Apply font size to global defaults
-set(groot, 'defaultAxesFontSize',   FS);
-set(groot, 'defaultLegendFontSize', FS - 2);
-set(groot, 'defaultTextFontSize',   FS - 2);
+% Apply common styling and retrieve the color palette
+style = common(FS);
+C = style.C;
 
 repoRoot = fileparts(fileparts(mfilename('fullpath')));
 outDir   = fullfile(repoRoot, 'paper', 'figures');

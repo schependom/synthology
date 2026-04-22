@@ -1093,8 +1093,9 @@ def exp3_balance_data(
         target_pos = min(len(baseline_pos), len(synth_pos))
         target_neg = min(len(baseline_neg), len(synth_neg))
 
-        # Synthology: keep all positives; cap negatives only if baseline can't cover them.
-        selected_synth_pos = synth_pos
+        # Synthology: downsample positives to match baseline if baseline has fewer.
+        # Cap negatives only if baseline can't cover them.
+        selected_synth_pos = _random_sample(synth_pos, target_pos)
         selected_synth_neg = _random_sample(synth_neg, target_neg)
         selected_synth_rows = selected_synth_pos + selected_synth_neg
         rng.shuffle(selected_synth_rows)
