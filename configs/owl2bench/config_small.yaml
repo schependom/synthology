@@ -1,7 +1,7 @@
 dataset:
-  name: "owl2bench"
+  name: "owl2bench_small"
   universities: [20]  # always overridden by the task (dataset.universities=[N])
-  output_dir: "data/owl2bench/output"
+  output_dir: "data/exp3_small/owl2bench_output"
 
   split:
     train: 0.8
@@ -28,7 +28,7 @@ dataset:
   reasoning_input_triple_cap: 15000
   diagnostics:
     enabled: true
-    output_dir: "data/owl2bench/output/diagnostics"
+    output_dir: "data/exp3_small/owl2bench_output/diagnostics"
     max_rows_per_file: 200000
 
   reasoning:
@@ -50,8 +50,8 @@ dataset:
       derivation_logging: true
       timing:
         enabled: true
-        output_dir: "data/owl2bench/output/diagnostics"
-        run_tag: "exp3_owl2bench_smoke"
+        output_dir: "data/exp3_small/owl2bench_output/diagnostics"
+        run_tag: "exp3_owl2bench_small"
 
 generator:
   vendor_dir: "vendor/OWL2Bench"

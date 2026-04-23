@@ -23,6 +23,25 @@ function render_barchart(floatData, xTicks, xLabelText, yLabelText, titleText, o
     b.FaceColor = C.KULcorporate;
     b.FaceAlpha = 0.88;
 
+    % ---- ADD VALUES ----
+    % Get the coordinates for the top center of each bar
+    xLocs = b.XEndPoints;
+    yLocs = b.YEndPoints;
+
+    % Loop through each bar and add the text
+    for i = 1:length(floatData)
+        % Format the text (e.g., '12.3 s'). Change %.1f to %.2f for two decimals
+        labelStr = sprintf('%.1f s', floatData(i)); 
+        
+        % Place the text slightly above the bar
+        text(xLocs(i), yLocs(i), labelStr, ...
+            'HorizontalAlignment', 'center', ...
+            'VerticalAlignment', 'bottom', ...
+            'FontSize', FS - 2, ...         % Slightly smaller than axis font
+            'Color', 'k');                  % Black text
+    end
+    % -----------------------------------
+
     % 4. Format axes and text
     set(gca, 'XTick', 1:length(floatData), 'XTickLabel', xTicks, 'FontSize', FS);
 

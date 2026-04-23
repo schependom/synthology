@@ -7,7 +7,7 @@ defaults:
 
 dataset:
   n_train: 2000
-  n_val: 0
+  n_val: 500
   n_test: 0
   train_fact_cap: 400000
   output_dir: "data/exp2/synthology/family_tree"

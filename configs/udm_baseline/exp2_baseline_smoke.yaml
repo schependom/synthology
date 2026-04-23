@@ -1,0 +1,13 @@
+defaults:
+  - exp2_baseline
+  - _self_
+
+dataset:
+  n_train: 8
+  n_val: 2
+  n_test: 2
+
+materialization:
+  iterative: false
+  timing:
+    enabled: false

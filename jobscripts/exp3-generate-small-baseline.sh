@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 #BSUB -q hpc
-#BSUB -J exp3-gen-smk
+#BSUB -J exp3-gen-smk-base
 #BSUB -n 8
 #BSUB -W 24:00
 #BSUB -R "rusage[mem=14GB] span[hosts=1]"
-#BSUB -o logs/exp3_generate_smoke_%J.out
-#BSUB -e logs/exp3_generate_smoke_%J.err
+#BSUB -o logs/exp3_generate_smoke_baseline_%J.out
+#BSUB -e logs/exp3_generate_smoke_baseline_%J.err
 
 set -euo pipefail
 

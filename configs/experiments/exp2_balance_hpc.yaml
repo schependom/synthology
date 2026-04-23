@@ -25,5 +25,6 @@ target_cap: null
 #   configs/ont_generator/exp2_synthology.yaml and configs/udm_baseline/exp2_baseline.yaml
 # Only minimal CLI overrides should be used here if absolutely necessary.
 
-baseline_args: "materialization.timing.run_tag=exp2_balance"
+args: ""
+baseline_args: ""
 synthology_args: ""

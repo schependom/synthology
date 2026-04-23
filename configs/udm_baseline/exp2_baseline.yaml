@@ -7,7 +7,7 @@ ontology:
 
 dataset:
   n_train: 1200
-  n_val: 0
+  n_val: 500
   n_test: 0
   train_fact_cap: null
   val_fact_cap: null

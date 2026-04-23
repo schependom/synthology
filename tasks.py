@@ -301,7 +301,7 @@ def exp2_generate_gold_test(ctx: Context, args=""):
 
 
 @task
-def exp2_generate_baseline(ctx: Context, fact_cap=None, target_cap=None, base_facts_per_sample=None, args=""):
+def exp2_generate_baseline(ctx: Context, fact_cap=None, target_cap=None, base_facts_per_sample=None, args="", config_name="exp2_baseline"):
     """
     Generates Exp 2 forward-chaining baseline data.
 
@@ -321,7 +321,7 @@ def exp2_generate_baseline(ctx: Context, fact_cap=None, target_cap=None, base_fa
     cmd = _build_uv_command(
         "udm_baseline",
         "udm_baseline.create_data",
-        config_name="exp2_baseline",
+        config_name=config_name,
         overrides=overrides,
         args=args,
         env={"LOGURU_COLORIZE": "1"},
@@ -346,7 +346,7 @@ def exp2_generate_baseline(ctx: Context, fact_cap=None, target_cap=None, base_fa
 
 
 @task
-def exp2_generate_synthology(ctx: Context, fact_cap=None, target_cap=None, proof_roots_per_rule=None, args=""):
+def exp2_generate_synthology(ctx: Context, fact_cap=None, target_cap=None, proof_roots_per_rule=None, args="", config_name="exp2_synthology"):
     """
     Generates Exp 2 Synthology backward-chaining data.
 
@@ -366,7 +366,7 @@ def exp2_generate_synthology(ctx: Context, fact_cap=None, target_cap=None, proof
     cmd = _build_uv_command(
         "ont_generator",
         "ont_generator.create_data",
-        config_name="exp2_synthology",
+        config_name=config_name,
         overrides=overrides,
         args=args,
         env={"LOGURU_COLORIZE": "1"},
@@ -607,6 +607,8 @@ def exp2_generate_both(
     args="",
     baseline_args="",
     synthology_args="",
+    baseline_config_name="exp2_baseline",
+    synthology_config_name="exp2_synthology",
 ):
     """Convenience command to generate both Exp 2 methods with a shared cap."""
     run_dir = _make_run_archive("exp2", "generate_both", label="matched")
@@ -634,6 +636,7 @@ def exp2_generate_both(
         target_cap=target_cap,
         base_facts_per_sample=baseline_base_facts,
         args=baseline_args_combined,
+        config_name=baseline_config_name,
     )
     exp2_generate_synthology(
         ctx,
@@ -641,6 +644,7 @@ def exp2_generate_both(
         target_cap=target_cap,
         proof_roots_per_rule=synthology_proof_roots,
         args=synthology_args_combined,
+        config_name=synthology_config_name,
     )
     _write_text(
         run_dir / "run.log",
@@ -676,6 +680,8 @@ def exp2_balance_datasets(ctx: Context, config_path="configs/experiments/exp2_ba
         args=str(cfg.get("args", "")),
         baseline_args=str(cfg.get("baseline_args", "")),
         synthology_args=str(cfg.get("synthology_args", "")),
+        baseline_config_name=str(cfg.get("baseline_config_name", "exp2_baseline")),
+        synthology_config_name=str(cfg.get("synthology_config_name", "exp2_synthology")),
     )
     baseline_root = REPO_ROOT / "data" / "exp2" / "baseline" / "family_tree"
     synthology_root = REPO_ROOT / "data" / "exp2" / "synthology" / "family_tree"
@@ -717,6 +723,8 @@ def exp2_balance_smoke(
         args=args,
         baseline_args=baseline_args,
         synthology_args=synthology_args,
+        baseline_config_name=str(cfg.get("baseline_config_name", "exp2_baseline")),
+        synthology_config_name=str(cfg.get("synthology_config_name", "exp2_synthology")),
     )
 
     if _to_bool(run_report):
@@ -967,9 +975,9 @@ def exp3_generate_baseline(
 
 
 @task
-def exp3_generate_synthology(ctx: Context, universities=5, args="", config_name="exp3_synthology"):
+def exp3_generate_synthology(ctx: Context, universities=5, args="", config_name="exp3_synthology", output_dir="data/exp3/synthology/owl2bench"):
     """Generates Exp 3 Synthology backward-chaining dataset on the OWL2Bench TBox."""
-    print(f"\nGenerating Exp 3 synthology dataset (universities={universities}, config={config_name}).")
+    print(f"\nGenerating Exp 3 synthology dataset (universities={universities}, config={config_name}, output_dir={output_dir}).")
     run_dir = _make_run_archive("exp3", "generate_synthology", label=str(universities))
     config_file = f"configs/ont_generator/{config_name}.yaml"
     _snapshot_configs(
@@ -980,7 +988,6 @@ def exp3_generate_synthology(ctx: Context, universities=5, args="", config_name=
         ],
     )
 
-    output_dir = "data/exp3/synthology/owl2bench"
     cmd = _build_uv_command(
         "ont_generator",
         "ont_generator.create_data",
@@ -1015,6 +1022,7 @@ def exp3_balance_data(
     baseline_dir="",
     synthology_dir="",
     output_dir="",
+    baseline_output_dir="",
     seed=23,
 ):
     """Balances Exp 3 datasets: keeps ALL Synthology data, downsamples baseline to match.
@@ -1043,7 +1051,11 @@ def exp3_balance_data(
     output_root = (
         Path(output_dir) if output_dir else REPO_ROOT / "data" / "exp3" / "balanced" / "owl2bench"
     )
-    baseline_output_root = REPO_ROOT / "data" / "exp3" / "balanced_baseline" / "owl2bench"
+    baseline_output_root = (
+        Path(baseline_output_dir)
+        if baseline_output_dir
+        else REPO_ROOT / "data" / "exp3" / "balanced_baseline" / "owl2bench"
+    )
 
     if not baseline_root.exists():
         raise FileNotFoundError(f"Baseline dataset directory not found: {baseline_root}")
@@ -1354,11 +1366,13 @@ def exp3_generate_synthology_hpc(ctx: Context, config_path="configs/experiments/
     """Runs Exp3 synthology generation using centralized YAML preset."""
     cfg = _load_yaml_config(config_path)
     synthology = dict(cfg.get("synthology", {}))
+    output_dir = str(synthology.get("output_dir", "data/exp3/synthology/owl2bench"))
     exp3_generate_synthology(
         ctx,
         universities=int(cfg["universities"]),
         args=str(synthology.get("args", "")),
         config_name=str(synthology.get("config_name", "exp3_synthology")),
+        output_dir=output_dir,
     )
 
 
@@ -1373,6 +1387,7 @@ def exp3_balance_data_hpc(ctx: Context, config_path="configs/experiments/exp3_hp
         baseline_dir=str(balance.get("baseline_dir", "")),
         synthology_dir=str(balance.get("synthology_dir", "")),
         output_dir=str(balance.get("output_dir", "")),
+        baseline_output_dir=str(balance.get("baseline_output_dir", "")),
         seed=int(balance.get("seed", 23)),
     )
 

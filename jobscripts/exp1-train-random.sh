@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 ### General options
-#BSUB -q gpua100
 #BSUB -J exp1-rrn-random
+#BSUB -q gpuv100
 #BSUB -n 4
 #BSUB -gpu "num=1:mode=exclusive_process"
-#BSUB -W 24:00
-#BSUB -R "rusage[mem=32GB]"
+#BSUB -W 14:00
+#BSUB -R "rusage[mem=10GB]"
 #BSUB -o logs/exp1_random_%J.out
 #BSUB -e logs/exp1_random_%J.err
 #BSUB -u vincent.vanschependom@student.kuleuven.be

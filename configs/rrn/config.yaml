@@ -26,6 +26,9 @@ num_nodes: 1 # Number of GPU nodes to use for training
 verbose: true
 log_dir: "${hydra:runtime.output_dir}"
 max_epochs: 2000
+log_every_n_steps: 10
+gradient_clip_val: 1.0
+gradient_clip_algorithm: "norm"
 do_test: true
 test_base_facts: false # Whether to test on base facts (i.e., facts seen during training) or only on novel facts
 loss_function:
@@ -38,7 +41,7 @@ callbacks:
   early_stopping:
     _target_: pytorch_lightning.callbacks.EarlyStopping
     monitor: "val_loss"
-    patience: 50
+    patience: 200
   model_checkpoint:
     _target_: pytorch_lightning.callbacks.ModelCheckpoint
     dirpath: "${log_dir}/checkpoints"

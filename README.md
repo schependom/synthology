@@ -552,8 +552,8 @@ Experiment 1 (all metrics):
 
 ```bash
 uv run python scripts/plot_wandb_to_latex.py \
-  --runs "exp1_random_hpc" "exp1_constrained_hpc" "exp1_proof_based_hpc" \
-  --labels "Random" "Constrained" "Proof-Based" \
+  --runs "exp1_mixed_hpc" "exp1_constrained_hpc" "exp1_proof_based_hpc" \
+  --labels "Mixed" "Constrained" "Proof-Based" \
   --section "val" \
   --metric "all" \
   --smooth 0.6
@@ -562,6 +562,16 @@ uv run python scripts/plot_wandb_to_latex.py \
 The above command handles the directory structure automatically and will output the graphs to:
 ```
 wandb/graphs/<date>/<section>/<metric>.pdf
+```
+
+To export to CSV, run:
+
+```bash
+uv run python scripts/export_wandb_to_csv.py \
+  --runs "exp1_mixed_hpc" "exp1_constrained_hpc" "exp1_proof_based_hpc" \
+  --labels "Mixed Negative Sampling" "Constrained Negative Sampling" "Proof-Based Negative Sampling" \
+  --section "val" \
+  --metric "all"
 ```
 
 ## Known issues

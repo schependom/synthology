@@ -3,12 +3,7 @@ defaults:
   - override data/dataset: exp1_constrained
   - _self_
 
-hyperparams:
-  learning_rate: 0.0001
-
 callbacks:
-  early_stopping:
-    patience: 200
   model_checkpoint:
     filename: "best-checkpoint-constrained"
 

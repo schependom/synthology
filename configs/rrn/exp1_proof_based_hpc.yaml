@@ -3,17 +3,7 @@ defaults:
   - override data/dataset: exp1_proof_based
   - _self_
 
-model:
-  embedding_size: 200
-  num_hidden_layers: 2
-  positive_oversampling_factor: 2.0
-
-hyperparams:
-  learning_rate: 0.0001
-
 callbacks:
-  early_stopping:
-    patience: 200
   model_checkpoint:
     filename: "best-checkpoint-proof_based"
 

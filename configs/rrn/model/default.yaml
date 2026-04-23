@@ -4,4 +4,3 @@ hidden_size: 1  # auto: avg(input_size, output_size) as in the paper
 num_hidden_layers: 1
 activation: relu
 positive_oversampling_factor: 1.0
-

@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
-# Full Exp3 smoke run in a single job: generate → balance → report.
-# Uses configs/experiments/exp3_smoke.yaml (2 universities, owl_full, small caps).
+# Full Exp3 small run in a single job: generate → balance → report.
+# Uses configs/experiments/exp3_small.yaml (2 universities, owl_full, small caps).
 # Expected wall time: ~30-90 min depending on Jena owl_full materialisation.
 #
 # Memory: owl_full on 2-university ABox (≈70 K triples) needs ~8-12 GB JVM heap.
 # abox_jena_heap_mb=8192 → request 12 GB/slot × 8 slots = 96 GB headroom total.
 
 #BSUB -q hpc
-#BSUB -J exp3-smoke
+#BSUB -J exp3-small
 #BSUB -n 8
 #BSUB -W 03:00
 #BSUB -R "rusage[mem=12GB]"
-#BSUB -o logs/exp3_smoke_%J.out
-#BSUB -e logs/exp3_smoke_%J.err
+#BSUB -o logs/exp3_small_%J.out
+#BSUB -e logs/exp3_small_%J.err
 
 set -euo pipefail
 
@@ -42,20 +42,20 @@ mkdir -p "${MAVEN_REPO_LOCAL}"
 synthology_activate_python_env 0
 synthology_sync_deps
 
-CONFIG_PATH="${1:-configs/experiments/exp3_smoke.yaml}"
-synthology_require_file "${CONFIG_PATH}" "Exp3 smoke config"
+CONFIG_PATH="${1:-configs/experiments/exp3_small.yaml}"
+synthology_require_file "${CONFIG_PATH}" "Exp3 small config"
 
-echo "=== Exp3 smoke: baseline generation ==="
+echo "=== Exp3 small: baseline generation ==="
 uv run invoke exp3-generate-baseline-hpc --config-path="${CONFIG_PATH}"
 
-echo "=== Exp3 smoke: synthology generation ==="
+echo "=== Exp3 small: synthology generation ==="
 uv run invoke exp3-generate-synthology-hpc --config-path="${CONFIG_PATH}"
 
-echo "=== Exp3 smoke: balance data ==="
+echo "=== Exp3 small: balance data ==="
 uv run invoke exp3-balance-data-hpc --config-path="${CONFIG_PATH}"
 
-echo "=== Exp3 smoke: report and analyze ==="
+echo "=== Exp3 small: report and analyze ==="
 uv run invoke exp3-report-and-analyze-hpc --config-path="${CONFIG_PATH}"
 
-echo "Finished Exp3 smoke at:"
+echo "Finished Exp3 small at:"
 date

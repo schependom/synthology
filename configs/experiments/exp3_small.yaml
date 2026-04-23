@@ -1,0 +1,45 @@
+# Smoke preset for fast Exp3 iteration
+#
+# Run order:
+#   uv run invoke exp3-generate-baseline-hpc   --config-path=configs/experiments/exp3_smoke.yaml
+#   uv run invoke exp3-generate-synthology-hpc --config-path=configs/experiments/exp3_smoke.yaml
+#   uv run invoke exp3-balance-data-hpc        --config-path=configs/experiments/exp3_smoke.yaml
+#   uv run invoke exp3-report-and-analyze-hpc  --config-path=configs/experiments/exp3_smoke.yaml
+
+universities: 3
+
+baseline:
+  # Selects configs/owl2bench/config_smoke.yaml (owl_mini, 200 BFS subgraphs,
+  # reasoning_input_triple_cap=15000, inferred_target_limit=2000).
+  owl2bench_config_name: config_small
+  args: ""
+  reasoning_input_triple_cap: 0
+  abox_jena_heap_mb: 8192
+
+synthology:
+  # Selects configs/ont_generator/exp3_synthology_smoke.yaml (n_train=60,
+  # proof_roots_per_rule=6).  Balance step will downsample to match baseline.
+  config_name: exp3_synthology_small
+  output_dir: "data/exp3_small/synthology"
+  args: ""
+
+training:
+  args: ""
+
+report:
+  baseline_path: "data/exp3_small/balanced_baseline"
+  synthology_path: "data/exp3_small/balanced"
+  use_balanced_synthology: true
+  args: ""
+  run_baseline_analysis: false
+
+balance:
+  baseline_dir: "data/exp3_small/owl2bench_output/owl2bench"
+  synthology_dir: "data/exp3_small/synthology"
+  output_dir: "data/exp3_small/balanced"
+  baseline_output_dir: "data/exp3_small/balanced_baseline"
+  seed: 23
+
+gold_test:
+  source_test_dir: ""
+  output_test_dir: ""

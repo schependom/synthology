@@ -1,0 +1,15 @@
+defaults:
+  - exp2_synthology
+  - _self_
+
+dataset:
+  n_train: 8
+  n_val: 2
+  n_test: 2
+
+generator:
+  rule_sampling_mode: "balanced"
+  enforce_goal_predicate_coverage: true
+  min_rules: 2
+  max_rules: 5
+  target_min_proofs_rule: 2
