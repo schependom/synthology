@@ -1,17 +1,17 @@
-# See config.yaml for more details about all configuration options.
-# The README file also contains further details.
+# Validation Set Configuration for Experiment 1
+# Generated using 'mixed' negative sampling for an unbiased baseline.
 
 defaults:
   - config # override default config options
   - _self_
 
-seed: 46 # distinct from training seed
+seed: 45 # distinct from training (42) and testing (46)
 
 dataset:
-  output_dir: "data/exp1/test_set"
+  output_dir: "data/exp1/val_set"
   n_train: 0
-  n_val: 0
-  n_test: 500
+  n_val: 500
+  n_test: 0
 
 hydra:
   run:

@@ -755,25 +755,6 @@ class NegativeSampler:
             kg = self._type_aware_corruption(kg, ratio * (weights["type_aware"] / total_weight))
         if "proof_based" in strategies and weights.get("proof_based", 0) > 0:
             kg = self._proof_based_corruption(kg, ratio * (weights["proof_based"] / total_weight), corrupt_base_facts, export_proofs, output_dir)
-
-
-        # For memberships, we just use random corruption for now as it's less critical
-        # TODO
-        positive_memberships = [m for m in kg.memberships if m.is_member]
-        n_neg_memberships = int(len(positive_memberships) * ratio)
-        negative_memberships = []
-
-        for _ in range(n_neg_memberships):
-            if not positive_memberships:
-                break
-            pos_mem = random.choice(positive_memberships)
-            neg_mem = self._corrupt_membership_random(
-                pos_mem, list(self.schema_classes.values()), original_membership=pos_mem
-            )
-            if neg_mem and not self._is_positive_membership(neg_mem, kg):
-                negative_memberships.append(neg_mem)
-
-        kg.memberships.extend(negative_memberships)
         return kg
 
     # ==================== HELPER METHODS ==================== #

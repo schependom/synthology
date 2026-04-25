@@ -1,5 +1,5 @@
 name: "Experiment 2 Synthology Dataset"
 
 train_path: "data/exp2/synthology/family_tree/train"
-val_path: "data/exp2/synthology/family_tree/val"
+val_path: "data/exp2/frozen_test"
 test_path: "data/exp2/frozen_test"

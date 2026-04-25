@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 
 #BSUB -q hpc
-#BSUB -J exp1-generate-train-sets
+#BSUB -J exp1-generate-val-set
 #BSUB -n 8
-#BSUB -W 24:00
+#BSUB -W 04:00
 #BSUB -R "rusage[mem=8GB]"
-#BSUB -o logs/exp1_generate_train_sets_%J.out
-#BSUB -e logs/exp1_generate_train_sets_%J.err
+#BSUB -o logs/exp1_generate_val_set_%J.out
+#BSUB -e logs/exp1_generate_val_set_%J.err
 
 set -euo pipefail
 
@@ -31,8 +31,8 @@ synthology_load_modules python3/3.9.19 openjdk/21
 synthology_activate_python_env 0
 synthology_sync_deps
 
-echo "Generating all train sets for exp1 for all negative sampling strategies."
-uv run invoke exp1-generate-trainval-sets
+echo "Generating unbiased mixed validation set for Experiment 1..."
+uv run invoke exp1-generate-val-set
 
-echo "Finished Exp1 train set generation at:"
+echo "Finished Exp1 validation set generation at:"
 date

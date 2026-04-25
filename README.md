@@ -552,7 +552,7 @@ Experiment 1 (all metrics):
 
 ```bash
 uv run python scripts/plot_wandb_to_latex.py \
-  --runs "exp1_mixed_hpc" "exp1_constrained_hpc" "exp1_proof_based_hpc" \
+  --runs "avj2zcvr" "exp1_constrained_hpc" "exp1_proof_based_hpc" \
   --labels "Mixed" "Constrained" "Proof-Based" \
   --section "val" \
   --metric "all" \

@@ -119,18 +119,6 @@ Default notes for `exp2-balance-datasets`:
 - `synthology_proof_roots` overrides `generator.proof_roots_per_rule` for Synthology.
 - Current generator defaults differ, so explicitly setting both caps is recommended for fair comparisons.
 
-### 5. Run parity loop (time-to-parity + structural parity)
-
-```bash
-uv run invoke exp2-parity-loop
-```
-
-### 6. Build parity summary report
-
-```bash
-uv run invoke exp2-parity-report
-```
-
 ### 7. Build Exp2 distribution/comparison report
 
 ```bash

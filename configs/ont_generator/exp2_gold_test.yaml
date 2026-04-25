@@ -2,31 +2,24 @@
 # Only overrides from config.yaml defaults are listed here.
 
 defaults:
-  - config
+  - exp1_base # override default config options
   - _self_
 
-# Keep gold-test reproducible across reruns.
+seed: 42 # different from train seed
+
 dataset:
   n_train: 0
   n_val: 0
   n_test: 350
   output_dir: "data/exp2/frozen_test"
 
-hydra:
-  run:
-    dir: "${dataset.output_dir}/hydra"
-
-generator:
-  min_individuals: 6
-  max_individuals: 300
-  min_rules: 2
-  max_rules: 6
-  target_min_proofs_rule: 8
-  max_recursion: 4
-  global_max_depth: 9
-  max_proofs_per_atom: 5
-  min_proof_roots: 8
-  max_proof_roots: 16
+  # favor deep proofs for test set
+  proof_selection_strategy: "stratified"
+  proof_selection_weights:
+    easy: 2
+    medium: 40
+    hard: 60
 
 neg_sampling:
-  strategy: "proof_based"
+  strategy: "proof_based" # not mixed
+  corrupt_base_facts: true

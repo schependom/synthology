@@ -5,7 +5,7 @@
 #BSUB -q gpuv100
 #BSUB -n 4
 #BSUB -gpu "num=1:mode=exclusive_process"
-#BSUB -W 14:00
+#BSUB -W 24:00
 #BSUB -R "rusage[mem=10GB]"
 #BSUB -o logs/exp1_proof_based_%J.out
 #BSUB -e logs/exp1_proof_based_%J.err

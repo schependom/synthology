@@ -1,5 +1,5 @@
 name: "Exp1 Mixed Negative Sampling"
 
 train_path: "data/exp1/mixed/train"
-val_path: "data/exp1/mixed/val"
+val_path: "data/exp1/val_set/val"
 test_path: "data/exp1/test_set/test"

@@ -237,6 +237,32 @@ def exp1_generate_test_set(ctx: Context, args=""):
         )
     )
 
+@task
+def exp1_generate_val_set(ctx: Context, args=""):
+    """Generates the unbiased mixed validation set for Exp 1."""
+    print("\nGenerating Exp 1 unbiased mixed validation set")
+    cmd = _build_uv_command(
+        "ont_generator",
+        "ont_generator.create_data",
+        config_name="exp1_val",
+        args=args,
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    _run_experiment_spec(
+        ExperimentRunSpec(
+            experiment="exp1",
+            task_name="generate_val_set",
+            label="val_set",
+            command=cmd,
+            config_paths=("configs/ont_generator/exp1_val.yaml", "configs/ont_generator/config.yaml"),
+            manifest={
+                "args": args,
+                "config_files": ["configs/ont_generator/exp1_val.yaml", "configs/ont_generator/config.yaml"],
+            },
+            artifact_paths=(str(REPO_ROOT / "data" / "exp1" / "val_set"),),
+        )
+    )
+
 
 @task
 def exp1_train_rrn(ctx: Context, strategy="random", args=""):
