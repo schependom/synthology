@@ -560,7 +560,7 @@ class NegativeSampler:
                         )
                         exported_corrupted_count += 1
 
-            if not appended_negative and corrupt_base_facts and neg_triple and self.is_valid_negative(neg_triple):
+            if corrupt_base_facts and neg_triple and self.is_valid_negative(neg_triple):
                 negative_triples.append(neg_triple)
                 self.strategy_usage["proof_based"] += 1
 

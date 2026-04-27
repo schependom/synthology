@@ -1,5 +1,5 @@
 name: "Experiment 2 Baseline Dataset"
 
 train_path: "data/exp2/baseline/family_tree/train"
-val_path: "data/exp2/frozen_test"
-test_path: "data/exp2/frozen_test"
+val_path: "data/exp2/frozen_val/val"
+test_path: "data/exp2/frozen_test/test"

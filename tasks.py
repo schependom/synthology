@@ -325,6 +325,32 @@ def exp2_generate_gold_test(ctx: Context, args=""):
         )
     )
 
+@task
+def exp2_generate_gold_val(ctx: Context, args=""):
+    """Generates the frozen shared validation set for Exp 2."""
+    print("\nGenerating Exp 2 frozen validation set.")
+    cmd = _build_uv_command(
+        "ont_generator",
+        "ont_generator.create_data",
+        config_name="exp2_val",
+        args=args,
+        env={"LOGURU_COLORIZE": "1"},
+    )
+    _run_experiment_spec(
+        ExperimentRunSpec(
+            experiment="exp2",
+            task_name="generate_gold_val",
+            label="gold_val",
+            command=cmd,
+            config_paths=("configs/ont_generator/exp2_val.yaml", "configs/ont_generator/config.yaml"),
+            manifest={
+                "args": args,
+                "config_files": ["configs/ont_generator/exp2_val.yaml", "configs/ont_generator/config.yaml"],
+            },
+            artifact_paths=(str(REPO_ROOT / "data" / "exp2" / "frozen_val"),),
+        )
+    )
+
 
 @task
 def exp2_generate_baseline(ctx: Context, fact_cap=None, target_cap=None, base_facts_per_sample=None, args="", config_name="exp2_baseline"):

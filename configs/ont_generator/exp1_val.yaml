@@ -20,6 +20,11 @@ hydra:
 neg_sampling:
   strategy: "mixed"
   corrupt_base_facts: true
+  mixed_weights:
+    proof_based: 0.5
+    constrained: 0.5
+    random: 0.0
+    type_aware: 0.0
 
 generator:
   min_lcc_ratio: 0.6

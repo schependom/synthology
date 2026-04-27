@@ -15,6 +15,7 @@ class LogGraphArtifacts(pl.Callback):
     def __init__(self, log_every_n_epochs: int = 5, num_samples: int = 1):
         self.log_every_n_epochs = log_every_n_epochs
         self.num_samples = num_samples
+        self._cached_batches = None
 
     def on_validation_epoch_start(self, trainer: pl.Trainer, pl_module: pl.LightningModule) -> None:
         if trainer.sanity_checking:
@@ -27,17 +28,26 @@ class LogGraphArtifacts(pl.Callback):
         if not isinstance(trainer.logger, WandbLogger):
             return
 
-        # Get validation dataloader from datamodule
-        # Note: trainer.datamodule might not be available if not used, but RRN uses it.
-        if not trainer.datamodule:
-            logger.warning("LogGraphArtifacts: No DataModule found in trainer.")
-            return
+        # Cache the batches on first run to avoid recreating the dataloader (and its multiprocessing workers)
+        if self._cached_batches is None:
+            if not trainer.datamodule:
+                logger.warning("LogGraphArtifacts: No DataModule found in trainer.")
+                return
 
-        val_loader = trainer.datamodule.val_dataloader()
-        if not val_loader:
-            return
+            val_loader = trainer.datamodule.val_dataloader()
+            if not val_loader:
+                return
 
-        logger.info(f"Logging {self.num_samples} validation sample(s) to WandB...")
+            self._cached_batches = []
+            for i, batch in enumerate(val_loader):
+                if i >= self.num_samples:
+                    break
+                self._cached_batches.append(batch)
+            
+            # Explicit cleanup to ensure workers are terminated cleanly once
+            del val_loader
+
+        logger.info(f"Logging {len(self._cached_batches)} validation sample(s) to WandB...")
 
         # Iterate and log
         columns = [
@@ -55,11 +65,7 @@ class LogGraphArtifacts(pl.Callback):
         ]
         data = []
 
-        # We need to manually iterate since dataloader is likely infinite or complex
-        # Just grab the first N batches
-        for i, batch in enumerate(val_loader):
-            if i >= self.num_samples:
-                break
+        for i, batch in enumerate(self._cached_batches):
 
             # Extract data
             individuals = batch.get("individuals", [])

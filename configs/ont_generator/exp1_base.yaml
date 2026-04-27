@@ -2,7 +2,7 @@ defaults:
   - config # override default config options
 
 dataset:
-  n_val: 500
+  n_val: 0
   n_test: 0
 
 generator:

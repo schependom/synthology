@@ -1,0 +1,25 @@
+# See config.yaml for full documentation of all options.
+# Only overrides from config.yaml defaults are listed here.
+
+defaults:
+  - exp1_base # override default config options
+  - _self_
+
+seed: 45 # different from train and test seeds
+
+dataset:
+  n_train: 0
+  n_val: 350
+  n_test: 0
+  output_dir: "data/exp2/frozen_val"
+
+  # favor deep proofs for validation set to match test set distribution
+  proof_selection_strategy: "stratified"
+  proof_selection_weights:
+    easy: 2
+    medium: 40
+    hard: 60
+
+neg_sampling:
+  strategy: "proof_based" # not mixed
+  corrupt_base_facts: true
