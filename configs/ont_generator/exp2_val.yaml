@@ -21,5 +21,10 @@ dataset:
     hard: 60
 
 neg_sampling:
-  strategy: "proof_based" # not mixed
+  strategy: "mixed"
   corrupt_base_facts: true
+  mixed_weights:
+    proof_based: 0.5
+    constrained: 0.5
+    random: 0.0
+    type_aware: 0.0
