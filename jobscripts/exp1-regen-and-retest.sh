@@ -2,12 +2,12 @@
 
 ### General options
 #BSUB -q hpc
-#BSUB -J exp1-test-all
+#BSUB -J exp1-regen-and-retest
 #BSUB -n 4
-#BSUB -W 24:00
+#BSUB -W 12:00
 #BSUB -R "rusage[mem=16GB]"
-#BSUB -o logs/exp1_test_all_%J.out
-#BSUB -e logs/exp1_test_all_%J.err
+#BSUB -o logs/exp1_regen_and_retest_%J.out
+#BSUB -e logs/exp1_regen_and_retest_%J.err
 #BSUB -u vincent.vanschependom@student.kuleuven.be
 ### -- send notification at start --
 #BSUB -B
@@ -35,8 +35,22 @@ synthology_load_modules python3/3.9.19
 synthology_activate_python_env 1
 synthology_sync_deps
 
-RESULTS_DIR="${REPO_ROOT}/results/exp1_test_$(date +%Y%m%d_%H%M%S)"
-mkdir -p "${RESULTS_DIR}"
+# ── Phase 1: regenerate the proof-based test set ───────────────────────────
+echo "================================================================"
+echo "  Phase 1: Regenerating Exp1 test set (proof-based negatives)"
+echo "================================================================"
+
+# Remove stale mixed test set so the generator starts clean
+rm -rf "${REPO_ROOT}/data/exp1/test_set/test"
+
+uv run invoke exp1-generate-test-set
+
+echo ""
+
+# ── Phase 2: locate latest checkpoint per variant ─────────────────────────
+echo "================================================================"
+echo "  Phase 2: Locating latest checkpoints"
+echo "================================================================"
 
 VARIANTS=(random constrained proof_based mixed)
 CONFIG_NAMES=(exp1_random_hpc_test exp1_constrained_hpc_test exp1_proof_based_hpc_test exp1_mixed_hpc_test)
@@ -44,10 +58,6 @@ CONFIG_NAMES=(exp1_random_hpc_test exp1_constrained_hpc_test exp1_proof_based_hp
 declare -A CKPT_PATH
 declare -A TEST_STATUS
 
-# ── Phase 1: locate latest checkpoint per variant ──────────────────────────
-echo "================================================================"
-echo "  Locating latest checkpoints"
-echo "================================================================"
 for variant in "${VARIANTS[@]}"; do
 	ckpt=$(find "${REPO_ROOT}/outputs" -name "best-checkpoint-${variant}.ckpt" \
 		-printf "%T@ %p\n" 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2-)
@@ -62,7 +72,14 @@ for variant in "${VARIANTS[@]}"; do
 done
 echo ""
 
-# ── Phase 2: run each test sequentially ───────────────────────────────────
+# ── Phase 3: run each test sequentially ───────────────────────────────────
+echo "================================================================"
+echo "  Phase 3: Running RRN tests on proof-based test set"
+echo "================================================================"
+
+RESULTS_DIR="${REPO_ROOT}/results/exp1_pb_test_$(date +%Y%m%d_%H%M%S)"
+mkdir -p "${RESULTS_DIR}"
+
 for i in "${!VARIANTS[@]}"; do
 	variant="${VARIANTS[$i]}"
 	config="${CONFIG_NAMES[$i]}"
@@ -72,24 +89,21 @@ for i in "${!VARIANTS[@]}"; do
 		continue
 	fi
 
-	echo "================================================================"
-	echo "  Testing: ${variant}"
+	echo "  Testing: ${variant} | config: ${config}"
 	echo "  Checkpoint: ${ckpt}"
-	echo "  Config: ${config}"
-	echo "================================================================"
 
 	log_file="${RESULTS_DIR}/${variant}.log"
 
 	set +e
 	uv run --package rrn python -m rrn.test_checkpoint \
 		--config-name="${config}" \
-		"test.checkpoint_path=${ckpt}" \
+		"+test.checkpoint_path=${ckpt}" \
 		2>&1 | tee "${log_file}"
 	rc="${PIPESTATUS[0]}"
 	set -e
 
 	if [ "${rc}" -ne 0 ]; then
-		echo "FAILED: ${variant} (exit code ${rc})"
+		echo "  FAILED: ${variant} (exit ${rc})"
 		TEST_STATUS[$variant]="FAILED (exit ${rc})"
 	else
 		TEST_STATUS[$variant]="OK"
@@ -97,7 +111,7 @@ for i in "${!VARIANTS[@]}"; do
 	echo ""
 done
 
-# ── Phase 3: parse metrics and print paper-ready report ───────────────────
+# ── Phase 4: parse metrics and print paper-ready report ───────────────────
 REPORT="${RESULTS_DIR}/report.txt"
 {
 python3 - "${RESULTS_DIR}" "${VARIANTS[@]}" << 'PYEOF'
@@ -107,13 +121,13 @@ results_dir = sys.argv[1]
 variants    = sys.argv[2:]
 
 METRICS = [
-    ("test/triple_pr_auc",  "PR-AUC ↑"),
-    ("test/triple_auc_roc", "AUC-ROC ↑"),
-    ("test/triple_fpr",     "FPR ↓"),
+    ("test/triple_pr_auc",  "PR-AUC"),
+    ("test/triple_auc_roc", "AUC-ROC"),
+    ("test/triple_fpr",     "FPR"),
+    ("test/triple_f1",      "F1"),
 ]
 
 def extract_metric(text, metric_name):
-    # PL rich table uses Unicode │ (U+2502); fall back to plain |
     for sep in ["│", "|"]:
         pat = (
             rf"{re.escape(sep)}\s*{re.escape(metric_name)}\s*"
@@ -135,30 +149,37 @@ for variant in variants:
     else:
         data[variant] = {key: "N/A" for key, _ in METRICS}
 
-print("=" * 72)
-print("  Exp1 Test Report — tab:overall_performance")
-print("=" * 72)
+print("=" * 82)
+print("  Exp1 Results — proof-based test set")
+print("=" * 82)
 print()
-print(f"  {'Method':<22} {'PR-AUC ↑':<16} {'AUC-ROC ↑':<16} {'FPR ↓'}")
-print("  " + "-" * 66)
+print(f"  {'Method':<22} {'PR-AUC ↑':<12} {'AUC-ROC ↑':<12} {'FPR ↓':<12} {'F1 ↑'}")
+print("  " + "-" * 68)
 for variant in variants:
     d   = data.get(variant, {})
     pr  = d.get("test/triple_pr_auc",  "N/A")
     roc = d.get("test/triple_auc_roc", "N/A")
     fpr = d.get("test/triple_fpr",     "N/A")
-    print(f"  {variant:<22} {pr:<16} {roc:<16} {fpr}")
+    f1  = d.get("test/triple_f1",      "N/A")
+    print(f"  {variant:<22} {pr:<12} {roc:<12} {fpr:<12} {f1}")
 print()
-print("  LaTeX rows (paste into tabular):")
+print("  LaTeX rows for tab:exp1-rrn-performance:")
 print()
 for variant in variants:
     d   = data.get(variant, {})
-    pr  = d.get("test/triple_pr_auc",  "N/A")
-    roc = d.get("test/triple_auc_roc", "N/A")
-    fpr = d.get("test/triple_fpr",     "N/A")
-    label = variant.replace("_", r"\_")
-    print(f"  {label} & {pr} & {roc} & {fpr} \\\\")
+    pr  = d.get("test/triple_pr_auc",  r"\todo{...}")
+    roc = d.get("test/triple_auc_roc", r"\todo{...}")
+    fpr = d.get("test/triple_fpr",     r"\todo{...}")
+    f1  = d.get("test/triple_f1",      r"\todo{...}")
+    def fmt(v):
+        try:
+            return f"{float(v):.3f}" if v != r"\todo{...}" else v
+        except ValueError:
+            return v
+    label = variant.replace("_", " ").title()
+    print(f"  & {label:<28} & {fmt(pr):<12} & {fmt(roc):<8} & {fmt(fpr):<8} & {fmt(f1)} \\\\")
 print()
-print("=" * 72)
+print("=" * 82)
 PYEOF
 } | tee "${REPORT}"
 

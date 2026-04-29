@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 
 ### General options
-#BSUB -q gpua100
+#BSUB -q hpc
 #BSUB -J exp1-test-random
 #BSUB -n 4
-#BSUB -gpu "num=1:mode=exclusive_process"
-#BSUB -W 08:00
-#BSUB -R "rusage[mem=24GB]"
+#BSUB -W 12:00
+#BSUB -R "rusage[mem=16GB]"
 #BSUB -o logs/exp1_test_random_%J.out
 #BSUB -e logs/exp1_test_random_%J.err
 #BSUB -u vincent.vanschependom@student.kuleuven.be
@@ -33,7 +32,7 @@ mkdir -p logs
 synthology_setup_runtime_storage
 
 echo "Activating environment"
-synthology_load_modules python3/3.9.19 cuda/11.7
+synthology_load_modules python3/3.9.19
 synthology_activate_python_env 1
 
 echo "Syncing dependencies"

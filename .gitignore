@@ -237,3 +237,4 @@ apache-maven*/*
 *.err
 
 wandb/*
+results/

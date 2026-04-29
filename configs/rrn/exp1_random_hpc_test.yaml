@@ -3,7 +3,7 @@ defaults:
   - _self_
 
 test:
-  checkpoint_glob: "${log_dir}/checkpoints/best-checkpoint-random*.ckpt"
+  checkpoint_glob: "${oc.env:REPO_ROOT}/outputs/*/*/checkpoints/best-checkpoint-random*.ckpt"
 
 logger:
   log_model: false

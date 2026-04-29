@@ -21,11 +21,11 @@ hydra:
     dir: "${dataset.output_dir}/hydra"
 
 neg_sampling:
-  strategy: "mixed"
+  strategy: "proof_based"
   corrupt_base_facts: true
   mixed_weights:
-    proof_based: 0.5
-    constrained: 0.5
+    proof_based: 1.0
+    constrained: 0.0
     random: 0.0
     type_aware: 0.0
 generator:

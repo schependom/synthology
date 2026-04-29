@@ -3,7 +3,7 @@
 % Reads the pre-computed hops_by_method.csv produced by the data reporter
 % and renders semilogy grouped bar charts for Exp2 and Exp3.
 %
-% Hops are binned: 1-3 (easy), 4, 5, 6, 7, 8+ (hard).
+% Hops are binned: 1-2, 3, 4, 5, 6, 7+ (hard).
 
 disp('IMPORTANT: delete the existing PDF files before running this script!!\n');
 
@@ -12,8 +12,8 @@ FS = 24;           % Font size scale
 relative = false;  % Set to true for density (sum to 1), false for absolute counts
 % ---------------------
 
-EXP2_REPORT_DIR = '/dtu/blackhole/16/221590/synthology/reports/experiment_runs/2026-04-22/exp2/report_data/164332_compare/report';
-EXP3_REPORT_DIR = '/dtu/blackhole/16/221590/synthology/reports/experiment_runs/2026-04-22/exp3/report_data/185842_compare/report';
+EXP2_REPORT_DIR = '/dtu/blackhole/16/221590/synthology/reports/experiment_runs/2026-04-27/exp2/report_data/143006_compare/report';
+EXP3_REPORT_DIR = '/dtu/blackhole/16/221590/synthology/reports/experiment_runs/2026-04-27/exp3/report_data/124035_compare/report';
 
 % ---------------------------------------------------------------------------
 
@@ -69,12 +69,12 @@ function render_hop_chart(csvPath, titleText, outFile, C, FS, relative)
 
     % Binning logic
     binned = zeros(6, 2);
-    binned(1, :) = sum(raw(1:3, :), 1);    
-    binned(2, :) = raw(4, :);              
-    binned(3, :) = raw(5, :);              
-    binned(4, :) = raw(6, :);              
-    binned(5, :) = raw(7, :);              
-    binned(6, :) = sum(raw(8:end, :), 1);  
+    binned(1, :) = sum(raw(1:2, :), 1);
+    binned(2, :) = raw(3, :);
+    binned(3, :) = raw(4, :);
+    binned(4, :) = raw(5, :);
+    binned(5, :) = raw(6, :);
+    binned(6, :) = sum(raw(7:end, :), 1);
 
     % --- RELATIVE DENSITY LOGIC ---
     yLab = 'Positive inferred facts (log)';
@@ -87,7 +87,7 @@ function render_hop_chart(csvPath, titleText, outFile, C, FS, relative)
     end
     % ------------------------------
 
-    tickLabels = {'1--3', '4', '5', '6', '7', '8+'};
+    tickLabels = {'1--2', '3', '4', '5', '6', '$\geq 7$'};
     binned(binned == 0) = NaN;
 
     % Create figure
@@ -100,7 +100,7 @@ function render_hop_chart(csvPath, titleText, outFile, C, FS, relative)
     b(2).FaceAlpha = 0.88;
 
     set(gca, 'YScale', 'log');
-    set(gca, 'XTick', 1:6, 'XTickLabel', tickLabels, 'FontSize', FS);
+    set(gca, 'XTick', 1:6, 'XTickLabel', tickLabels, 'FontSize', FS, 'TickLabelInterpreter', 'latex');
 
     xlabel('Proof depth (hops)', 'FontSize', FS, 'FontWeight', 'bold');
     ylabel(yLab,                 'FontSize', FS, 'FontWeight', 'bold');

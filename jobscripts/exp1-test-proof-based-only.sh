@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 
 ### General options
-#BSUB -q hpc
-#BSUB -J exp1-test-all
+#BSUB -q gpua100
+#BSUB -J exp1-test-proof-based-only
 #BSUB -n 4
-#BSUB -W 24:00
-#BSUB -R "rusage[mem=16GB]"
-#BSUB -o logs/exp1_test_all_%J.out
-#BSUB -e logs/exp1_test_all_%J.err
+#BSUB -gpu "num=1:mode=exclusive_process"
+#BSUB -W 08:00
+#BSUB -R "rusage[mem=24GB]"
+#BSUB -o logs/exp1_test_pb_only_%J.out
+#BSUB -e logs/exp1_test_pb_only_%J.err
 #BSUB -u vincent.vanschependom@student.kuleuven.be
 ### -- send notification at start --
 #BSUB -B
@@ -31,25 +32,32 @@ synthology_enter_repo
 mkdir -p logs
 synthology_setup_runtime_storage
 
-synthology_load_modules python3/3.9.19
+synthology_load_modules python3/3.9.19 cuda/11.7
 synthology_activate_python_env 1
 synthology_sync_deps
 
-RESULTS_DIR="${REPO_ROOT}/results/exp1_test_$(date +%Y%m%d_%H%M%S)"
+echo "================================================================"
+echo "  Phase 1: Generating Pure Proof-Based Test Set"
+echo "================================================================"
+uv run --package ont_generator python -m ont_generator.create_data --config-name=exp1_test_proof_based
+
+RESULTS_DIR="${REPO_ROOT}/results/exp1_test_pb_only_$(date +%Y%m%d_%H%M%S)"
 mkdir -p "${RESULTS_DIR}"
 
 VARIANTS=(random constrained proof_based mixed)
+# Use existing test configs, but override the test_path to point to the new pure proof_based test set
 CONFIG_NAMES=(exp1_random_hpc_test exp1_constrained_hpc_test exp1_proof_based_hpc_test exp1_mixed_hpc_test)
+TEST_PATH_OVERRIDE="data.dataset.test_path=data/exp1/test_set_proof_based/test"
 
 declare -A CKPT_PATH
 declare -A TEST_STATUS
 
-# ── Phase 1: locate latest checkpoint per variant ──────────────────────────
+# ── Phase 2: locate latest checkpoint per variant ──────────────────────────
 echo "================================================================"
-echo "  Locating latest checkpoints"
+echo "  Phase 2: Locating latest checkpoints"
 echo "================================================================"
 for variant in "${VARIANTS[@]}"; do
-	ckpt=$(find "${REPO_ROOT}/outputs" -name "best-checkpoint-${variant}.ckpt" \
+	ckpt=$(find "${REPO_ROOT}/outputs" -name "best-checkpoint-${variant}*" \
 		-printf "%T@ %p\n" 2>/dev/null | sort -n | tail -1 | cut -d' ' -f2-)
 	CKPT_PATH[$variant]="${ckpt:-}"
 	if [ -z "${ckpt}" ]; then
@@ -62,7 +70,7 @@ for variant in "${VARIANTS[@]}"; do
 done
 echo ""
 
-# ── Phase 2: run each test sequentially ───────────────────────────────────
+# ── Phase 3: run each test sequentially ───────────────────────────────────
 for i in "${!VARIANTS[@]}"; do
 	variant="${VARIANTS[$i]}"
 	config="${CONFIG_NAMES[$i]}"
@@ -73,7 +81,7 @@ for i in "${!VARIANTS[@]}"; do
 	fi
 
 	echo "================================================================"
-	echo "  Testing: ${variant}"
+	echo "  Testing: ${variant} on Pure Proof-Based Test Set"
 	echo "  Checkpoint: ${ckpt}"
 	echo "  Config: ${config}"
 	echo "================================================================"
@@ -84,6 +92,7 @@ for i in "${!VARIANTS[@]}"; do
 	uv run --package rrn python -m rrn.test_checkpoint \
 		--config-name="${config}" \
 		"test.checkpoint_path=${ckpt}" \
+		"${TEST_PATH_OVERRIDE}" \
 		2>&1 | tee "${log_file}"
 	rc="${PIPESTATUS[0]}"
 	set -e
@@ -97,7 +106,7 @@ for i in "${!VARIANTS[@]}"; do
 	echo ""
 done
 
-# ── Phase 3: parse metrics and print paper-ready report ───────────────────
+# ── Phase 4: parse metrics and print report ───────────────────────────────
 REPORT="${RESULTS_DIR}/report.txt"
 {
 python3 - "${RESULTS_DIR}" "${VARIANTS[@]}" << 'PYEOF'
@@ -107,13 +116,12 @@ results_dir = sys.argv[1]
 variants    = sys.argv[2:]
 
 METRICS = [
+    ("test/triple_acc_type_neg_inf_root", "Neg. Inf. Root Acc ↑"),
     ("test/triple_pr_auc",  "PR-AUC ↑"),
     ("test/triple_auc_roc", "AUC-ROC ↑"),
-    ("test/triple_fpr",     "FPR ↓"),
 ]
 
 def extract_metric(text, metric_name):
-    # PL rich table uses Unicode │ (U+2502); fall back to plain |
     for sep in ["│", "|"]:
         pat = (
             rf"{re.escape(sep)}\s*{re.escape(metric_name)}\s*"
@@ -135,30 +143,20 @@ for variant in variants:
     else:
         data[variant] = {key: "N/A" for key, _ in METRICS}
 
-print("=" * 72)
-print("  Exp1 Test Report — tab:overall_performance")
-print("=" * 72)
+print("=" * 85)
+print("  Exp1 Pure Proof-Based Test Report (Proof of Reasoning)")
+print("=" * 85)
 print()
-print(f"  {'Method':<22} {'PR-AUC ↑':<16} {'AUC-ROC ↑':<16} {'FPR ↓'}")
-print("  " + "-" * 66)
+print(f"  {'Method':<22} {'Neg Inf Root Acc ↑':<20} {'PR-AUC ↑':<16} {'AUC-ROC ↑'}")
+print("  " + "-" * 78)
 for variant in variants:
     d   = data.get(variant, {})
+    inf = d.get("test/triple_acc_type_neg_inf_root", "N/A")
     pr  = d.get("test/triple_pr_auc",  "N/A")
     roc = d.get("test/triple_auc_roc", "N/A")
-    fpr = d.get("test/triple_fpr",     "N/A")
-    print(f"  {variant:<22} {pr:<16} {roc:<16} {fpr}")
+    print(f"  {variant:<22} {inf:<20} {pr:<16} {roc}")
 print()
-print("  LaTeX rows (paste into tabular):")
-print()
-for variant in variants:
-    d   = data.get(variant, {})
-    pr  = d.get("test/triple_pr_auc",  "N/A")
-    roc = d.get("test/triple_auc_roc", "N/A")
-    fpr = d.get("test/triple_fpr",     "N/A")
-    label = variant.replace("_", r"\_")
-    print(f"  {label} & {pr} & {roc} & {fpr} \\\\")
-print()
-print("=" * 72)
+print("=" * 85)
 PYEOF
 } | tee "${REPORT}"
 

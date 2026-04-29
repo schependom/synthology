@@ -59,6 +59,10 @@ class SplitStats:
     targets_count: int = 0
     positives: int = 0
     negatives: int = 0
+    positives_base: int = 0
+    negatives_base: int = 0
+    positives_inferred: int = 0
+    negatives_inferred: int = 0
     unique_predicates: int = 0
     unique_entities: int = 0
     unique_sample_ids: int = 0
@@ -103,6 +107,16 @@ def _positive_fact_group(type_value: str, label: int) -> Optional[str]:
     if t == "inf_intermediate":
         return "intermediate"
     if t in {"inf_root", "inferred"}:
+        return "inferred"
+    return None
+
+
+def _target_fact_class(type_value: str) -> Optional[str]:
+    """Returns 'base' or 'inferred' for a target row regardless of label."""
+    t = (type_value or "").strip().lower()
+    if t in {"base_fact", "neg_base_fact"}:
+        return "base"
+    if t in {"inf_root", "inferred", "inf_intermediate", "neg_inf_root", "neg_inf_intermediate", "neg_inferred"}:
         return "inferred"
     return None
 
@@ -153,6 +167,17 @@ def _collect_split_stats(method_name: str, method_path: Path, split: str) -> Spl
         st.predicate_counts_targets[p] += 1
         row_type = r.get("type", "unknown")
         st.type_counts[row_type] += 1
+        fact_class = _target_fact_class(row_type)
+        if fact_class == "base":
+            if label == 1:
+                st.positives_base += 1
+            else:
+                st.negatives_base += 1
+        elif fact_class == "inferred":
+            if label == 1:
+                st.positives_inferred += 1
+            else:
+                st.negatives_inferred += 1
         st.corruption_counts[r.get("corruption_method", "unknown")] += 1
         st.hops_counts[str(_safe_int(r.get("hops", "0"), 0))] += 1
 
@@ -200,6 +225,10 @@ def _method_summary(method: MethodStats) -> Dict:
     targets_total = sum(s.targets_count for s in split_values)
     positives_total = sum(s.positives for s in split_values)
     negatives_total = sum(s.negatives for s in split_values)
+    positives_base_total = sum(s.positives_base for s in split_values)
+    negatives_base_total = sum(s.negatives_base for s in split_values)
+    positives_inferred_total = sum(s.positives_inferred for s in split_values)
+    negatives_inferred_total = sum(s.negatives_inferred for s in split_values)
 
     type_counts = _sum_counters(split_values, "type_counts")
     corruption_counts = _sum_counters(split_values, "corruption_counts")
@@ -221,6 +250,10 @@ def _method_summary(method: MethodStats) -> Dict:
         "targets_total": targets_total,
         "positives_total": positives_total,
         "negatives_total": negatives_total,
+        "positives_base_total": positives_base_total,
+        "negatives_base_total": negatives_base_total,
+        "positives_inferred_total": positives_inferred_total,
+        "negatives_inferred_total": negatives_inferred_total,
         "positive_negative_ratio": pos_neg_ratio,
         "avg_targets_per_sample": mean(
             s.targets_count / s.unique_sample_ids for s in split_values if s.unique_sample_ids
@@ -238,6 +271,10 @@ def _method_summary(method: MethodStats) -> Dict:
                 "targets_count": s.targets_count,
                 "positives": s.positives,
                 "negatives": s.negatives,
+                "positives_base": s.positives_base,
+                "negatives_base": s.negatives_base,
+                "positives_inferred": s.positives_inferred,
+                "negatives_inferred": s.negatives_inferred,
                 "unique_entities": s.unique_entities,
                 "unique_predicates": s.unique_predicates,
                 "unique_sample_ids": s.unique_sample_ids,
@@ -256,6 +293,10 @@ def _write_csv_summary(summary: List[Dict], out_dir: Path) -> None:
         "targets_total",
         "positives_total",
         "negatives_total",
+        "positives_base_total",
+        "negatives_base_total",
+        "positives_inferred_total",
+        "negatives_inferred_total",
         "positive_negative_ratio",
         "avg_facts_per_sample",
         "avg_targets_per_sample",
@@ -842,16 +883,18 @@ def _write_markdown_report(summary: List[Dict], out_dir: Path, ignore_predicates
         "",
         "## Method Summary",
         "",
-        "| Method | Facts Total | Targets Total | Positives | Negatives | Pos/Neg Ratio | Avg Facts/Sample | Avg Targets/Sample |",
-        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+        "| Method | Facts Total | Targets Total | Pos (Base) | Neg (Base) | Pos (Inferred) | Neg (Inferred) | Pos/Neg Ratio | Avg Facts/Sample | Avg Targets/Sample |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
 
     for m in summary:
         ratio = m["positive_negative_ratio"]
         ratio_str = f"{ratio:.3f}" if ratio is not None else "n/a"
         lines.append(
-            f"| {m['method']} | {m['facts_total']} | {m['targets_total']} | {m['positives_total']} | "
-            f"{m['negatives_total']} | {ratio_str} | {m['avg_facts_per_sample']:.2f} | {m['avg_targets_per_sample']:.2f} |"
+            f"| {m['method']} | {m['facts_total']} | {m['targets_total']} | "
+            f"{m['positives_base_total']} | {m['negatives_base_total']} | "
+            f"{m['positives_inferred_total']} | {m['negatives_inferred_total']} | "
+            f"{ratio_str} | {m['avg_facts_per_sample']:.2f} | {m['avg_targets_per_sample']:.2f} |"
         )
 
     lines.append("")
@@ -876,13 +919,15 @@ def _write_markdown_report(summary: List[Dict], out_dir: Path, ignore_predicates
         lines.append(f"### {m['method']}")
         lines.append("")
         lines.append(
-            "| Split | Facts | Targets | Positives | Negatives | Unique Entities | Unique Predicates | Samples |"
+            "| Split | Facts | Targets | Pos (Base) | Neg (Base) | Pos (Inferred) | Neg (Inferred) | Unique Entities | Unique Predicates | Samples |"
         )
-        lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
+        lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
         for split_name, split in m["splits"].items():
             lines.append(
-                f"| {split_name} | {split['facts_count']} | {split['targets_count']} | {split['positives']} | "
-                f"{split['negatives']} | {split['unique_entities']} | {split['unique_predicates']} | {split['unique_sample_ids']} |"
+                f"| {split_name} | {split['facts_count']} | {split['targets_count']} | "
+                f"{split['positives_base']} | {split['negatives_base']} | "
+                f"{split['positives_inferred']} | {split['negatives_inferred']} | "
+                f"{split['unique_entities']} | {split['unique_predicates']} | {split['unique_sample_ids']} |"
             )
         lines.append("")
 

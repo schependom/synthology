@@ -79,7 +79,7 @@ def test_checkpoint(cfg: DictConfig) -> None:
     checkpoint_path = _resolve_checkpoint_path(cfg)
     logger.info(f"Loading checkpoint: {checkpoint_path}")
 
-    checkpoint = torch.load(checkpoint_path, map_location="cpu")
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
     state_dict = checkpoint.get("state_dict", checkpoint)
     model.load_state_dict(state_dict, strict=True)
 
