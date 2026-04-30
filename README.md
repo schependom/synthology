@@ -67,10 +67,7 @@ As a supporting deliverable, we release an open-source **PyTorch Lightning reimp
 - [OWL2 RL Profile Coverage and Appendix Tables](#owl2-rl-profile-coverage-and-appendix-tables)
     - [Implemented OWL2 RL Subset](#implemented-owl2-rl-subset)
     - [Currently Missing or Partial Constructs](#currently-missing-or-partial-constructs)
-- [Appendix](#appendix)
-    - [Appendix Table A: Configuration Parameters (1/2)](#appendix-table-a-configuration-parameters-12)
-    - [Appendix Table B: Configuration Parameters (2/2)](#appendix-table-b-configuration-parameters-22)
-    - [Appendix Table C: Algorithm Terminology](#appendix-table-c-algorithm-terminology)
+- [Configuration Parameters](#configuration-parameters)
 - [Development](#development)
     - [`uv`](#uv)
 - [Known issues](#known-issues)
@@ -442,8 +439,8 @@ Design note: this is an implementation scope choice, not an architectural limita
 
 ## Configuration Parameters
 
-| YAML Parameter           | Symbol               | Type        | Default | Description                                                                                                                                                                      |
-| ------------------------ | -------------------- | ----------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------------------------------------------------------------------------------------------------- |
+| YAML Parameter           | Symbol               | Type        | Default | Description        |
+| ------------------------ | -------------------- | ----------- | ------- | --------------------|
 | `min_individuals`        | $I_{\min}$           | int         | 1       | Lower acceptance bound on sample size: graphs with fewer individuals are rejected.                                                                                               |
 | `max_individuals`        | $I_{\max}$           | int         | 1000    | Upper acceptance bound on sample size: graphs with more individuals are rejected.                                                                                                |
 | `min_rules`              | $R_{\min}$           | int         | 1       | Minimum number of ontology rules selected per generated sample before proof generation.                                                                                          |
