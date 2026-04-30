@@ -1,6 +1,6 @@
 # Synthology <!-- omit in toc -->
 
-**Ontology-Based Data Generation for Neuro-Symbolic Knowledge Graph Reasoning**.
+**Ontology-Based Data Generation for Neuro-Symbolic Reasoning**.
 
 _**Vincent Van Schependom**, Cas Proost, Pieter Bonte_\
 _Department of Computer Science, KU Leuven campus Kulak Kortrijk_
@@ -11,31 +11,30 @@ _Department of Computer Science, KU Leuven campus Kulak Kortrijk_
 
 ### Context & Problem Statement
 
-**Neuro-Symbolic AI** aims to bridge the gap between two paradigms: the robustness and pattern-matching capabilities of **Neural AI** (like KG embeddings and GNNs) and the interpretable, rigorous reasoning of **Symbolic AI** (e.g. formal logic and ontologies). A key application domain is **Knowledge Graph Reasoning (KGR)**, which involves predicting missing links in a Knowledge Graph (KG) by performing multi-hop logical reasoning.
+**Knowledge Graph Reasoning (KGR)** involves deriving new, implicit knowledge from a Knowledge Graph (KG) and its accompanying ontology. Traditionally this is done by **symbolic reasoners**, which execute ontology rules with perfect soundness and completeness — but are sensitive to noise and computationally expensive on real-world KGs.
 
-However, training effective Neuro-Symbolic models requires large datasets that specifically necessitate complex reasoning. Existing data generation methods - such as standard benchmarks, forward-chaining reasoners, or Answer Set Programming (ASP) - often produce datasets that are:
+**Neuro-symbolic reasoners** have emerged as a scalable alternative: instead of executing rules at inference time, a neural model is trained to _imitate_ them (a paradigm known as **approximate reasoning**). This shift comes with a critical prerequisite — the model must be trained on a dataset that faithfully reflects the target ontology. Real-world KGs (e.g. DBpedia, Freebase) are too noisy and incomplete for this, and existing synthetic data pipelines - which we refer to as **Unguided Deductive Materialization (UDM)** - fall short in two ways:
 
-1.  **Biased towards "easy" logic**, allowing models to succeed via shallow heuristics (pattern recognition) rather than learning the underlying logical rules.
-2.  **Limited in rule coverage**, failing to represent the full complexity of the ontology.
+1. **Structurally shallow data.** UDM generates base facts without ontology guidance, then materializes targets via a forward-chaining reasoner. The resulting graphs are dominated by shallow inferences; the deep, multi-hop derivations a model is actually meant to learn occur only by accident.
+2. **Trivial negatives.** UDM relies on random or constrained corruption, which produces negatives that are easy to reject from surface features alone — collapsing the training signal to pattern matching rather than genuine reasoning.
 
-### Hypothesis and Approach
+A further practical issue is **scalability**: forward-chaining materializers must hold the entire deductive closure in memory, causing them to fail on large ontologies — a ceiling we call the **Reasoning Wall**.
 
-This project investigates the following research question:
+### Approach & Contributions
 
-> _How to generate high-quality data that enables a model to perform multi-hop logical reasoning rather than just pattern recognition?_
+**Synthology** addresses all of the above via **backward-chaining proof construction**: given any OWL 2 RL ontology, it purposefully engineers training samples by constructing proof trees for target triples, guaranteeing multi-hop derivations by design. The three main contributions are:
 
-The core hypothesis is that **backward-chaining data generation** - applying deductive reasoning on ontologies (TBox) to generate synthetic data (ABox) - can create high-quality training datasets. By constructing proof trees for derived facts, we can:
+1. **Synthology** — the first ontology-agnostic, backward-chaining synthetic data generator for OWL 2 RL. Any supported ontology can now be used to train a neuro-symbolic reasoner without expensive data gathering.
+2. **Proof-based negative sampling** — hard negatives are constructed directly from proof trees, producing near-miss facts that require genuine multi-hop reasoning to correctly classify.
+3. **Empirical evaluation** — a comparative study across two ontologies (Family Tree, OWL2Bench) demonstrating significant advantages in hop distribution, predicate coverage, negative-sample quality, and scalability over UDM baselines. Synthology also avoids the Reasoning Wall that UDM hits at scale.
 
-1.  Ensure **multi-hop data** that requires chaining multiple reasoning steps.
-2.  Generate **"hard" negative samples** via proof-based corruption (breaking specific links in a valid proof chain), forcing the model to distinguish between valid and invalid reasoning paths.
-
-This repository implements this generator and evaluates the quality of the generated data by training a **Recursive Reasoning Network (RRN)**, a Neuro-Symbolic link prediction model, as well as other baseline models to benchmark performance.
+As a supporting deliverable, we release an open-source **PyTorch Lightning reimplementation of the Recursive Reasoning Network (RRN)**~— a neuro-symbolic link-prediction model — used as the evaluation architecture throughout.
 
 ## Table of Contents <!-- omit in toc -->
 
 - [Introduction](#introduction)
     - [Context \& Problem Statement](#context--problem-statement)
-    - [Hypothesis and Approach](#hypothesis-and-approach)
+    - [Approach \& Contributions](#approach--contributions)
 - [Features](#features)
 - [Installation](#installation)
     - [macOS/Linux](#macoslinux)
@@ -48,7 +47,7 @@ This repository implements this generator and evaluates the quality of the gener
         - [Development tools](#development-tools)
     - [High Performance Cluster (HPC)](#high-performance-cluster-hpc)
         - [Dependencies](#dependencies)
-- [Reproducability](#reproducability)
+- [Reproducibility](#reproducibility)
 - [Training RRN model](#training-rrn-model)
 - [Data generation](#data-generation)
     - [Ontologies](#ontologies)
@@ -87,7 +86,7 @@ I value **reproducibility** of scientific experiments very highly, so:
 
 The _subprojects_ (located in `apps/`) are:
 
-[TODO]
+The _subprojects_ (located in `apps/`) include the core Synthology generator, the UDM/Jena baseline pipeline, the RRN training harness, the ASP-based Family Tree generator, and supporting scripts for visualization and hyperparameter optimization.
 
 The `uv` nature of this repo makes it possible to easily manage **dependencies** between these subprojects. Furthermore, it provides a **task runner** (`invoke`) to run common tasks (e.g., generating datasets, training models, running experiments) from the project root. Use the following command to see all available tasks:
 
@@ -187,12 +186,6 @@ mkdir -p ontologies
 cp vendor/OWL2Bench/UNIV-BENCH-OWL2RL.owl ontologies/
 ```
 
-Can you commit `vendor/OWL2Bench` into your repo?
-
-- Technically yes, if the upstream OWL2Bench license permits redistribution and you keep proper attribution.
-- Practically, it is usually better to keep it out of git and document a setup command (or use a git submodule) so your repo stays lightweight and easier to maintain.
-- Do not commit generated artifacts like `vendor/OWL2Bench/target/` or generated `.owl` outputs.
-
 ### Windows
 
 For the easiest use, you should open the **devcontainer**, which I included in `.devcontainer/`, for example using VS Code:
@@ -225,7 +218,7 @@ See the [Development](#development) section for instructions on setting up devel
 
 ### High Performance Cluster (HPC)
 
-If you want to run the experiments on an LSF cluster, you can use the provided job scripts in `jobscripts/` as templates. Make sure to adjust the resource requests and module loads according to your cluster's specifications.
+I only ran experiments on an LSF cluster. You can use the provided job scripts in `jobscripts/` as templates. Make sure to adjust the resource requests and module loads according to your cluster's specifications.
 
 #### Dependencies
 
@@ -247,13 +240,13 @@ which java && java -version
 which mvn && mvn -v
 ```
 
-## Reproducability
+## Reproducibility
 
 The exact sequence of `invoke` commands needed to reproduce our results are located in the 3 experiment-specific `README.md` files:
 
 - `experiments/exp1_negative_sampling/`
 - `experiments/exp2_multihop_quality/`
-  `experiments/exp3_scaling_bench/`
+- `experiments/exp3_scaling_bench/`
 
 ## Training RRN model
 
@@ -400,17 +393,6 @@ uv run --package rrn python -m rrn.train \
     data/dataset=asp
 ```
 
-## Experiment Protocols
-
-The detailed, command-by-command experiment protocols now live in the experiment-specific READMEs:
-
-- [Experiment 1: Negative Sampling Ablation](experiments/exp1_negative_sampling/README.md)
-- [Experiment 2: Multi-Hop Reasoning Quality](experiments/exp2_multihop_quality/README.md)
-- [Experiment 3: Scaling Benchmark](experiments/exp3_scaling_bench/README.md)
-- [Paper runbook](experiments/PAPER_RUNBOOK.md)
-
-The main README keeps the repository overview and setup instructions; the experiment folders are the canonical source for execution order, metrics, and artifact expectations.
-
 ## OWL2 RL Profile Coverage and Appendix Tables
 
 This section documents what is currently implemented in the ontology parser/chainer and what is not yet implemented.
@@ -460,11 +442,7 @@ Important OWL2 RL constructs that are not yet fully supported include:
 
 Design note: this is an implementation scope choice, not an architectural limitation. New support can be added incrementally through parser handlers and rule templates.
 
-## Appendix
-
-This section contains tables with detailed descriptions of configuration parameters and algorithm terminology, supplementing the [main paper](paper/preprint.pdf) for readers who want to understand the implementation details or customize the generator.
-
-### Appendix Table A: Configuration Parameters (1/2)
+## Configuration Parameters
 
 | YAML Parameter           | Symbol               | Type        | Default | Description                                                                                                                                                                      |
 | ------------------------ | -------------------- | ----------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------------------------------------------------------------------------------------------------- |
@@ -482,40 +460,11 @@ This section contains tables with detailed descriptions of configuration paramet
 | `use_signature_sampling` |                      | bool        | true    | If enabled, generated proofs are grouped by structural signature and one representative per group is sampled, improving diversity and reducing redundant Cartesian combinations. |
 | `min_proof_roots`        | $U_{\min}$           | int         | 5       | Minimum number of independent root-generation cycles attempted per selected rule.                                                                                                |
 | `max_proof_roots`        | $U_{\max}$           | int         | 20      | Maximum number of independent root-generation cycles attempted per selected rule.                                                                                                |
-
-### Appendix Table B: Configuration Parameters (2/2)
-
-| YAML Parameter         | Symbol              | Type  | Default       | Description                                                                                                                                              |
-| ---------------------- | ------------------- | ----- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `always_generate_base` |                     | bool  | false         | If true, emits a base proof even when derivation rules apply; if false, base proofs are mainly used when no matching rule exists.                        |
 | `min_lcc_ratio`        | $\rho_{\text{lcc}}$ | float | 0.8           | Validation threshold for graph connectivity: the largest connected component must cover at least this fraction of individuals.                           |
 | `strategy`             | $s_{\text{neg}}$    | enum  | `proof_based` | Negative sampling mode used in the thesis experiments: `random`, `constrained`, `proof_based`.                                                           |
 | `ratio`                | $\rho_{\pm}$        | float | 1.0           | Target negative-to-positive ratio for generated examples; $\rho_{\pm}=1$ gives approximately balanced counts.                                            |
 | `corrupt_base_facts`   |                     | bool  | false         | Enables corruption of proof-leaf base facts in proof-based logic; this controls whether propagated counterfactual negatives are produced in that branch. |
-
-### Appendix Table C: Algorithm Terminology
-
-| Algorithm Term                      | Symbol                                          | Meaning                                                                                                                      |
-| ----------------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Ontology                            | $\mathcal{O}$                                   | Input ontology (TBox) containing classes, properties, constraints, and executable rules.                                     |
-| Split identifier                    | $S \in \{\text{train},\text{val},\text{test}\}$ | Current split being generated.                                                                                               |
-| Requested split size                | $N_S$                                           | Target number of graph samples for split $S$.                                                                                |
-| Accepted split dataset              | $\mathcal{D}_S$                                 | Collection of accepted generated KG samples for split $S$.                                                                   |
-| Proof map                           | $\mathcal{P}$                                   | Atom-to-proofs map built during one generation attempt.                                                                      |
-| Selected rule                       | $r$                                             | One ontology rule selected for backward-chaining in the current attempt.                                                     |
-| Proof root attempt                  |                                                 | One independent restart of proof generation for a selected rule.                                                             |
-| Base facts                          | $\mathcal{B}$                                   | Leaf atoms in proof trees; support facts not derived from deeper rule applications in the current proof instance.            |
-| Inferred facts                      | $\mathcal{I}$                                   | Non-leaf atoms entailed by applying rules over base and/or previously inferred facts.                                        |
-| Candidate graph                     | $\mathcal{G}$                                   | One candidate knowledge graph (KG) sample assembled from $(\mathcal{B},\mathcal{I})$ before final acceptance.                |
-| Generated negatives                 | $\mathcal{N}$                                   | Negative facts created for $\mathcal{G}$ by the selected corruption strategy and ratio.                                      |
-| KG sample                           |                                                 | One self-contained graph instance containing labeled positives and negatives.                                                |
-| Fact-type metadata                  |                                                 | Provenance tag indicating whether a positive fact is base or inferred, and for negatives, which corruption path produced it. |
-| CSV type: base fact                 | `base_fact`                                     | Positive base support fact (leaf-level fact used as observed evidence).                                                      |
-| CSV type: inferred                  | `inf_root`                                      | Positive inferred fact classified as a proof root (i.e., not used as an intermediate sub-goal in another proof).             |
-| CSV type: inferred intermediate     | `inf_intermediate`                              | Positive inferred fact that appears as an intermediate/sub-goal node in a deeper proof chain.                                |
-| CSV type: neg from base             | `neg_base_fact`                                 | Negative generated from corruption of a base fact (proof-leaf corruption provenance).                                        |
-| CSV type: neg inferred              | `neg_inf_root`                                  | Negative inferred/goal-level sample (including propagated proof-based negatives and other non-base negatives).               |
-| CSV type: neg inferred intermediate | `neg_inf_intermediate`                          | Negative sample derived from corruption of inferred (non-base) support facts rather than directly from base leaves.          |
 
 ## Development
 
@@ -532,46 +481,6 @@ Adding new dependencies only to a specific subproject:
 
 ```bash
 uv add <dependency> --package my-new-app
-```
-
-### WandB LaTeX plot export
-
-Experiment 1 (single metric):
-
-```bash
-uv run python scripts/plot_wandb_to_latex.py \
-  --runs "exp1_random_hpc" "exp1_constrained_hpc" "exp1_proof_based_hpc" \
-  --labels "Random Negative Sampling" "Constrained Negative Sampling" "Proof-Based Negative Sampling" \
-  --section "val" \
-  --metric "triple_pr_auc" \
-  --smooth 0.6 \
-  --output "paper/figures/exp1_validation_auc.pdf"
-```
-
-Experiment 1 (all metrics):
-
-```bash
-uv run python scripts/plot_wandb_to_latex.py \
-  --runs "avj2zcvr" "exp1_constrained_hpc" "exp1_proof_based_hpc" \
-  --labels "Mixed" "Constrained" "Proof-Based" \
-  --section "val" \
-  --metric "all" \
-  --smooth 0.6
-```
-
-The above command handles the directory structure automatically and will output the graphs to:
-```
-wandb/graphs/<date>/<section>/<metric>.pdf
-```
-
-To export to CSV, run:
-
-```bash
-uv run python scripts/export_wandb_to_csv.py \
-  --runs "exp1_mixed_hpc" "exp1_constrained_hpc" "exp1_proof_based_hpc" \
-  --labels "Mixed Negative Sampling" "Constrained Negative Sampling" "Proof-Based Negative Sampling" \
-  --section "val" \
-  --metric "all"
 ```
 
 ## Known issues
