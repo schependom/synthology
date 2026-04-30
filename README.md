@@ -242,11 +242,11 @@ which mvn && mvn -v
 
 ## Reproducibility
 
-The exact sequence of `invoke` commands needed to reproduce our results are located in the 3 experiment-specific `README.md` files:
+The exact sequence of `invoke` commands needed to reproduce our results are located in the 3 experiment-specific markdown files:
 
-- `experiments/exp1_negative_sampling/`
-- `experiments/exp2_multihop_quality/`
-- `experiments/exp3_scaling_bench/`
+- `experiments/exp1.md`
+- `experiments/exp2.md`
+- `experiments/exp3.md`
 
 ## Training RRN model
 
@@ -494,3 +494,24 @@ export PYTHONUNBUFFERED=1
 ```
 
 This forces Python to flush its output buffer immediately.
+
+### 2. Maven path missing
+
+If you encounter an error related to `mvn` not being found, make sure you have Apache Maven installed and that the `mvn` command is available in your system's PATH. You can verify this by running:
+
+```bash
+which mvn
+```
+
+To add Maven to your PATH, you can follow these steps:
+
+1. Download and install Apache Maven from the official website: https://maven.apache.org/download.cgi
+2. Extract the downloaded archive to a directory of your choice
+3. Add the `bin` directory of the extracted Maven folder to your system's PATH environment variable.
+
+E.g.
+
+```bash
+export MAVEN_EXECUTABLE="$PWD/apache-maven-3.9.13/bin/mvn"
+export PATH="$PWD/apache-maven-3.9.13/bin:$PATH"
+```
