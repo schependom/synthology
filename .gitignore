@@ -220,7 +220,7 @@ vendor/OWL2Bench/*
 data/OWL2Bench/output/*
 data/OWL2Bench/diagnostics/*
 
-paper/
+paper/*
 !paper/preprint.pdf
 visual-verification/
 

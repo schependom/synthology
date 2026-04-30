@@ -904,13 +904,14 @@ def _write_markdown_report(summary: List[Dict], out_dir: Path, ignore_predicates
     lines.append("## Budget + Hop Diagnostics")
     lines.append("")
     lines.append(
-        "| Method | Facts Total | Positives | Negatives | Hop d=1 | Hop d=2 | Hop d>=3 |"
+        "| Method | Facts Total | Pos (Base) | Neg (Base) | Pos (Inferred) | Neg (Inferred) | Hop d=1 | Hop d=2 | Hop d>=3 |"
     )
-    lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: |")
+    lines.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
     for m in summary:
         hop_buckets = m.get("hop_buckets", {})
         lines.append(
-            f"| {m['method']} | {m['facts_total']} | {m['positives_total']} | {m['negatives_total']} | "
+            f"| {m['method']} | {m['facts_total']} | {m['positives_base_total']} | {m['negatives_base_total']} | "
+            f"{m['positives_inferred_total']} | {m['negatives_inferred_total']} | "
             f"{int(hop_buckets.get('d1', 0))} | {int(hop_buckets.get('d2', 0))} | {int(hop_buckets.get('d3p', 0))} |"
         )
     lines.append("")

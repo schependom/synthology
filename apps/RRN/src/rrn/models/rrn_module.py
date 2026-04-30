@@ -296,8 +296,10 @@ class RRNSystem(pl.LightningModule):
         scores = (cls_pred == cls_targets).float()
 
         # New: Hops Bucketing
-        hops_hits = defaultdict(list)
-        type_hits = defaultdict(list)
+        hops_hits: defaultdict = defaultdict(list)
+        hops_probs: defaultdict = defaultdict(list)
+        hops_tgts: defaultdict = defaultdict(list)
+        type_hits: defaultdict = defaultdict(list)
 
         if individuals:
             # We need to map (ind_idx, cls_idx) to hops
@@ -315,6 +317,8 @@ class RRNSystem(pl.LightningModule):
                         bucket = min(hops, 3)
                         hit = scores[i, cls_idx].item()
                         hops_hits[bucket].append(hit)
+                        hops_probs[bucket].append(cls_probs[i, cls_idx].item())
+                        hops_tgts[bucket].append(cls_targets[i, cls_idx].item())
 
                         fact_type = "base_fact"
                         if hasattr(mem, "metadata"):
@@ -343,12 +347,27 @@ class RRNSystem(pl.LightningModule):
         for k in range(4):
             hop_acc.setdefault(f"acc_hops_{k}", float("nan"))
 
+        hop_binary: Dict[str, float] = {}
+        for k in range(4):
+            p_list = hops_probs.get(k, [])
+            t_list = hops_tgts.get(k, [])
+            if p_list and t_list:
+                p_t = torch.tensor(p_list, dtype=torch.float32, device=device)
+                t_t = torch.tensor(t_list, dtype=torch.float32, device=device)
+                bm = self._compute_binary_metrics(p_t, t_t)
+                hop_binary[f"f1_hops_{k}"] = bm["f1"]
+                hop_binary[f"fpr_hops_{k}"] = bm["fpr"]
+            else:
+                hop_binary[f"f1_hops_{k}"] = float("nan")
+                hop_binary[f"fpr_hops_{k}"] = float("nan")
+
         return {
             "acc_all": all_known_scores.mean().item() if all_known_scores.numel() > 0 else float("nan"),
             "acc_pos": positive_scores.mean().item() if positive_scores.numel() > 0 else float("nan"),
             "acc_neg": negative_scores.mean().item() if negative_scores.numel() > 0 else float("nan"),
             **binary_metrics,
             **hop_acc,
+            **hop_binary,
             **{f"acc_type_{k}": (sum(v) / len(v) if len(v) > 0 else float("nan")) for k, v in type_hits.items()},
         }
 
@@ -363,8 +382,10 @@ class RRNSystem(pl.LightningModule):
         device = self.device
 
         # for buckets
-        hops_hits = defaultdict(list)
-        type_hits = defaultdict(list)
+        hops_hits: defaultdict = defaultdict(list)
+        hops_probs_buck: defaultdict = defaultdict(list)
+        hops_tgts_buck: defaultdict = defaultdict(list)
+        type_hits: defaultdict = defaultdict(list)
 
         # Group triples by predicate
         grouped_triples = defaultdict(list)
@@ -424,6 +445,8 @@ class RRNSystem(pl.LightningModule):
                 # Treat hops >= 3 as bucket 3
                 bucket = min(hops, 3)
                 hops_hits[bucket].append(hits[i].item())
+                hops_probs_buck[bucket].append(probs[i].item())
+                hops_tgts_buck[bucket].append(targets_1d[i].item())
 
                 fact_type = "base_fact"
                 if hasattr(t, "metadata"):
@@ -431,9 +454,6 @@ class RRNSystem(pl.LightningModule):
                 type_hits[fact_type].append(hits[i].item())
 
         # Aggregate results
-        all_hits_t = torch.cat(all_hits) if all_hits else torch.tensor([], device=device)
-        pos_hits_t = torch.cat(pos_hits) if pos_hits else torch.tensor([], device=device)
-        neg_hits_t = torch.cat(neg_hits) if neg_hits else torch.tensor([], device=device)
         probs_t = torch.cat(all_probs) if all_probs else torch.tensor([], device=device)
         targets_t = torch.cat(all_targets) if all_targets else torch.tensor([], device=device)
         binary_metrics = self._compute_binary_metrics(probs_t, targets_t)
@@ -442,12 +462,27 @@ class RRNSystem(pl.LightningModule):
         for k in range(4):
             hop_acc.setdefault(f"acc_hops_{k}", float("nan"))
 
+        hop_binary: Dict[str, float] = {}
+        for k in range(4):
+            p_list = hops_probs_buck.get(k, [])
+            t_list = hops_tgts_buck.get(k, [])
+            if p_list and t_list:
+                p_t = torch.tensor(p_list, dtype=torch.float32, device=device)
+                t_t = torch.tensor(t_list, dtype=torch.float32, device=device)
+                bm = self._compute_binary_metrics(p_t, t_t)
+                hop_binary[f"f1_hops_{k}"] = bm["f1"]
+                hop_binary[f"fpr_hops_{k}"] = bm["fpr"]
+            else:
+                hop_binary[f"f1_hops_{k}"] = float("nan")
+                hop_binary[f"fpr_hops_{k}"] = float("nan")
+
         return {
             "acc_all": torch.cat(all_hits).mean().item() if all_hits else float("nan"),
             "acc_pos": torch.cat(pos_hits).mean().item() if pos_hits else float("nan"),
             "acc_neg": torch.cat(neg_hits).mean().item() if neg_hits else float("nan"),
             **binary_metrics,
             **hop_acc,
+            **hop_binary,
             **{f"acc_type_{k}": (sum(v) / len(v) if len(v) > 0 else float("nan")) for k, v in type_hits.items()},
         }
 

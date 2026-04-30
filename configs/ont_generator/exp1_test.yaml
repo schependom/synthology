@@ -23,3 +23,8 @@ neg_sampling:
 
 generator:
   min_lcc_ratio: 0.6
+  proof_selection_strategy: "stratified"
+  proof_selection_weights:
+    easy: 0
+    medium: 0
+    hard: 100

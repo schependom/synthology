@@ -449,6 +449,8 @@ class KGEDatasetGenerator:
                 break
 
             weights = [group_weights[g] for g in active_groups]
+            if sum(weights) <= 0:
+                weights = [1.0] * len(active_groups)
             chosen_group = random.choices(active_groups, weights=weights, k=1)[0]
             candidates = [p for p in buckets[chosen_group] if id(p) not in selected_ids]
             if not candidates:

@@ -121,10 +121,13 @@ results_dir = sys.argv[1]
 variants    = sys.argv[2:]
 
 METRICS = [
-    ("test/triple_pr_auc",  "PR-AUC"),
-    ("test/triple_auc_roc", "AUC-ROC"),
-    ("test/triple_fpr",     "FPR"),
-    ("test/triple_f1",      "F1"),
+    ("test/triple_pr_auc",  "PR-AUC ↑"),
+    ("test/triple_auc_roc", "AUC-ROC ↑"),
+    ("test/triple_fpr",     "FPR ↓"),
+    ("test/triple_f1",      "F1 ↑"),
+    ("test/triple_acc_pos", "Pos Acc ↑"),
+    ("test/triple_acc_neg", "Neg Acc ↑"),
+    ("test/triple_recall",  "Recall ↑"),
 ]
 
 def extract_metric(text, metric_name):
@@ -136,8 +139,8 @@ def extract_metric(text, metric_name):
         )
         m = re.search(pat, text)
         if m:
-            return m.group(1)
-    return "N/A"
+            return float(m.group(1))
+    return None
 
 data = {}
 for variant in variants:
@@ -147,39 +150,52 @@ for variant in variants:
             content = fh.read()
         data[variant] = {key: extract_metric(content, key) for key, _ in METRICS}
     else:
-        data[variant] = {key: "N/A" for key, _ in METRICS}
+        data[variant] = {key: None for key, _ in METRICS}
 
-print("=" * 82)
-print("  Exp1 Results — proof-based test set")
-print("=" * 82)
+def fmt_pct(val):
+    return f"{val * 100:.1f}\\%" if val is not None else "N/A"
+
+def fmt_pct_raw(val):
+    return f"{val * 100:.1f}%" if val is not None else "N/A"
+
+def fmt_roc(val):
+    return f"{val:.3f}" if val is not None else "N/A"
+
+print("=" * 110)
+print("  Exp1 Test Report — tab:overall_performance")
+print("=" * 110)
 print()
-print(f"  {'Method':<22} {'PR-AUC ↑':<12} {'AUC-ROC ↑':<12} {'FPR ↓':<12} {'F1 ↑'}")
-print("  " + "-" * 68)
+print(f"  {'Method':<16} {'PR-AUC ↑':<10} {'AUC-ROC ↑':<10} {'FPR ↓':<10} {'F1 ↑':<10} {'Pos Acc ↑':<10} {'Neg Acc ↑':<10} {'Recall ↑'}")
+print("  " + "-" * 104)
 for variant in variants:
     d   = data.get(variant, {})
-    pr  = d.get("test/triple_pr_auc",  "N/A")
-    roc = d.get("test/triple_auc_roc", "N/A")
-    fpr = d.get("test/triple_fpr",     "N/A")
-    f1  = d.get("test/triple_f1",      "N/A")
-    print(f"  {variant:<22} {pr:<12} {roc:<12} {fpr:<12} {f1}")
+    pr  = fmt_pct_raw(d.get("test/triple_pr_auc"))
+    roc = fmt_roc(d.get("test/triple_auc_roc"))
+    fpr = fmt_pct_raw(d.get("test/triple_fpr"))
+    f1  = fmt_roc(d.get("test/triple_f1"))
+    pos = fmt_pct_raw(d.get("test/triple_acc_pos"))
+    neg = fmt_pct_raw(d.get("test/triple_acc_neg"))
+    rec = fmt_pct_raw(d.get("test/triple_recall"))
+    print(f"  {variant:<16} {pr:<10} {roc:<10} {fpr:<10} {f1:<10} {pos:<10} {neg:<10} {rec}")
 print()
-print("  LaTeX rows for tab:exp1-rrn-performance:")
+print("  LaTeX rows (paste into tabular):")
 print()
-for variant in variants:
+LABELS = {"random": "Random", "constrained": "Constrained", "proof_based": "Proof-based", "mixed": "Mixed"}
+n = len(variants)
+for i, variant in enumerate(variants):
     d   = data.get(variant, {})
-    pr  = d.get("test/triple_pr_auc",  r"\todo{...}")
-    roc = d.get("test/triple_auc_roc", r"\todo{...}")
-    fpr = d.get("test/triple_fpr",     r"\todo{...}")
-    f1  = d.get("test/triple_f1",      r"\todo{...}")
-    def fmt(v):
-        try:
-            return f"{float(v):.3f}" if v != r"\todo{...}" else v
-        except ValueError:
-            return v
-    label = variant.replace("_", " ").title()
-    print(f"  & {label:<28} & {fmt(pr):<12} & {fmt(roc):<8} & {fmt(fpr):<8} & {fmt(f1)} \\\\")
+    pr  = fmt_pct(d.get("test/triple_pr_auc"))
+    roc = fmt_roc(d.get("test/triple_auc_roc"))
+    fpr = fmt_pct(d.get("test/triple_fpr"))
+    f1  = fmt_roc(d.get("test/triple_f1"))
+    pos = fmt_pct(d.get("test/triple_acc_pos"))
+    neg = fmt_pct(d.get("test/triple_acc_neg"))
+    rec = fmt_pct(d.get("test/triple_recall"))
+    label = LABELS.get(variant, variant.capitalize())
+    exp_col = f"\\multirow{{{n}}}{{*}}{{1}}" if i == 0 else ""
+    print(f"  {exp_col:<22} & {label:<16} & {pr} & {roc} & {fpr} & {f1} & {pos} & {neg} & {rec} \\\\")
 print()
-print("=" * 82)
+print("=" * 110)
 PYEOF
 } | tee "${REPORT}"
 

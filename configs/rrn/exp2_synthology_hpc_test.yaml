@@ -1,0 +1,11 @@
+defaults:
+  - exp2_synthology_hpc
+  - _self_
+
+test:
+  checkpoint_glob: "${oc.env:REPO_ROOT}/reports/experiment_runs/*/*/train_rrn/*/checkpoints/best-checkpoint-exp2-synthology*.ckpt"
+
+logger:
+  log_model: false
+  name: "exp2_synthology_hpc_test"
+  tags: [exp2, synthology, hpc, test]

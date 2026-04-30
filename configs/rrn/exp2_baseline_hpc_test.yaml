@@ -1,0 +1,11 @@
+defaults:
+  - exp2_baseline_hpc
+  - _self_
+
+test:
+  checkpoint_glob: "${oc.env:REPO_ROOT}/reports/experiment_runs/*/*/train_rrn/*/checkpoints/best-checkpoint-exp2-baseline*.ckpt"
+
+logger:
+  log_model: false
+  name: "exp2_baseline_hpc_test"
+  tags: [exp2, baseline, hpc, test]

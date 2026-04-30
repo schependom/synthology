@@ -8,6 +8,13 @@ from pathlib import Path
 from typing import Any
 
 INFERRED_TYPES = {"inf_root", "inf_intermediate", "inferred"}
+_HOP_BUCKET_DEFAULTS: dict[str, Any] = {
+    "triple_acc": None,
+    "class_acc": None,
+    "f1": None,
+    "fpr": None,
+}
+
 DEFAULT_MODEL_METRICS = {
     "exp1": {
         "random": {"pr_auc": 0.65, "f1": 0.62, "fpr": 0.28},
@@ -22,6 +29,18 @@ DEFAULT_MODEL_METRICS = {
         "exp3": {
             "baseline": {"pr_auc": 0.55, "auc_roc": 0.62, "f1": 0.51},
             "synthology": {"pr_auc": 0.85, "auc_roc": 0.88, "f1": 0.81},
+        },
+    },
+    "per_hop": {
+        "baseline": {
+            "hop_1": dict(_HOP_BUCKET_DEFAULTS),
+            "hop_2": dict(_HOP_BUCKET_DEFAULTS),
+            "hop_3p": dict(_HOP_BUCKET_DEFAULTS),
+        },
+        "synthology": {
+            "hop_1": dict(_HOP_BUCKET_DEFAULTS),
+            "hop_2": dict(_HOP_BUCKET_DEFAULTS),
+            "hop_3p": dict(_HOP_BUCKET_DEFAULTS),
         },
     },
 }
@@ -358,10 +377,32 @@ def main() -> None:
         ]
     )
 
+    per_hop = model_metrics.get("per_hop", {})
+
+    def _per_hop_rows(method: str) -> str:
+        method_hops = per_hop.get(method, {})
+
+        def _hop_row(label: str, bucket_key: str) -> str:
+            b = method_hops.get(bucket_key, {})
+            return (
+                f"\t\t{label} & {_fmt_float(b.get('triple_acc'))} & "
+                f"{_fmt_float(b.get('class_acc'))} & "
+                f"{_fmt_float(b.get('f1'))} & "
+                f"{_fmt_float(b.get('fpr'))} \\\\"
+            )
+
+        return "\n".join([
+            _hop_row("1", "hop_1"),
+            _hop_row("2", "hop_2"),
+            _hop_row("$\\geq 3$", "hop_3p"),
+        ])
+
     _write(out_dir / "exp1_results_rows.tex", exp1_rows + "\n")
     _write(out_dir / "overall_performance_rows.tex", overall_rows + "\n")
     _write(out_dir / "generation_metrics_rows.tex", generation_rows + "\n")
     _write(out_dir / "timing_breakdown_rows.tex", timing_rows + "\n")
+    _write(out_dir / "per_hop_performance_rows_baseline.tex", _per_hop_rows("baseline") + "\n")
+    _write(out_dir / "per_hop_performance_rows_synthology.tex", _per_hop_rows("synthology") + "\n")
 
     meta = {
         "exp2_summary_path": str(exp2_summary_path) if exp2_summary_path else None,

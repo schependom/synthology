@@ -1,6 +1,6 @@
 # Synthology <!-- omit in toc -->
 
-**Ontology-Based Synthetic Data Generation for Neuro-Symbolic Knowledge Graph Reasoning**.
+**Ontology-Based Data Generation for Neuro-Symbolic Knowledge Graph Reasoning**.
 
 _**Vincent Van Schependom**, Cas Proost, Pieter Bonte_\
 _Department of Computer Science, KU Leuven campus Kulak Kortrijk_
