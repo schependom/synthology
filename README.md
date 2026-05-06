@@ -13,22 +13,22 @@ _Department of Computer Science, KU Leuven campus Kulak Kortrijk_
 
 **Knowledge Graph Reasoning (KGR)** involves deriving new, implicit knowledge from a Knowledge Graph (KG) and its accompanying ontology. Traditionally this is done by **symbolic reasoners**, which execute ontology rules with perfect soundness and completeness — but are sensitive to noise and computationally expensive on real-world KGs.
 
-**Neuro-symbolic reasoners** have emerged as a scalable alternative: instead of executing rules at inference time, a neural model is trained to _imitate_ them (a paradigm known as **approximate reasoning**). This shift comes with a critical prerequisite — the model must be trained on a dataset that faithfully reflects the target ontology. Real-world KGs (e.g. DBpedia, Freebase) are too noisy and incomplete for this, and existing synthetic data pipelines - which we refer to as **Unguided Deductive Materialization (UDM)** - fall short in two ways:
+**Neuro-symbolic reasoners** have emerged as a scalable alternative: instead of executing rules at inference time, a neural model is trained to _imitate_ them (a paradigm known as **approximate reasoning**). This shift comes with a critical prerequisite: the model must be trained on a dataset that faithfully reflects the target ontology. Real-world KGs (e.g. DBpedia, Freebase) are too noisy and incomplete for this, and existing synthetic data pipelines - which we refer to as **Unguided Deductive Materialization (UDM)** - fall short in two ways:
 
 1. **Structurally shallow data.** UDM generates base facts without ontology guidance, then materializes targets via a forward-chaining reasoner. The resulting graphs are dominated by shallow inferences; the deep, multi-hop derivations a model is actually meant to learn occur only by accident.
-2. **Trivial negatives.** UDM relies on random or constrained corruption, which produces negatives that are easy to reject from surface features alone — collapsing the training signal to pattern matching rather than genuine reasoning.
+2. **Trivial negatives.** UDM relies on random or constrained corruption, which produces negatives that are easy to reject from surface features alone - collapsing the training signal to pattern matching rather than genuine reasoning.
 
-A further practical issue is **scalability**: forward-chaining materializers must hold the entire deductive closure in memory, causing them to fail on large ontologies — a ceiling we call the **Reasoning Wall**.
+A further practical issue is **scalability**: forward-chaining materializers must hold the entire deductive closure in memory, causing them to fail on large ontologies, a ceiling we call the **Reasoning Wall**.
 
 ### Approach & Contributions
 
 **Synthology** addresses all of the above via **backward-chaining proof construction**: given any OWL 2 RL ontology, it purposefully engineers training samples by constructing proof trees for target triples, guaranteeing multi-hop derivations by design. The three main contributions are:
 
-1. **Synthology** — the first ontology-agnostic, backward-chaining synthetic data generator for OWL 2 RL. Any supported ontology can now be used to train a neuro-symbolic reasoner without expensive data gathering.
-2. **Proof-based negative sampling** — hard negatives are constructed directly from proof trees, producing near-miss facts that require genuine multi-hop reasoning to correctly classify.
-3. **Empirical evaluation** — a comparative study across two ontologies (Family Tree, OWL2Bench) demonstrating significant advantages in hop distribution, predicate coverage, negative-sample quality, and scalability over UDM baselines. Synthology also avoids the Reasoning Wall that UDM hits at scale.
+1. **Synthology**: the first ontology-agnostic, backward-chaining synthetic data generator for OWL 2 RL. Any supported ontology can now be used to train a neuro-symbolic reasoner without expensive data gathering.
+2. **Proof-based negative sampling**: hard negatives are constructed directly from proof trees, producing near-miss facts that require genuine multi-hop reasoning to correctly classify.
+3. **Empirical evaluation**: a comparative study across two ontologies (Family Tree, OWL2Bench) demonstrating significant advantages in hop distribution, predicate coverage, negative-sample quality, and scalability over UDM baselines. Synthology also avoids the Reasoning Wall that UDM hits at scale.
 
-As a supporting deliverable, we release an open-source **PyTorch Lightning reimplementation of the Recursive Reasoning Network (RRN)**~— a neuro-symbolic link-prediction model — used as the evaluation architecture throughout.
+As a supporting deliverable, we release an open-source **PyTorch Lightning reimplementation of the Recursive Reasoning Network (RRN)**, a neuro-symbolic link-prediction model, used as the evaluation architecture throughout.
 
 ## Table of Contents <!-- omit in toc -->
 
@@ -67,10 +67,7 @@ As a supporting deliverable, we release an open-source **PyTorch Lightning reimp
 - [OWL2 RL Profile Coverage and Appendix Tables](#owl2-rl-profile-coverage-and-appendix-tables)
     - [Implemented OWL2 RL Subset](#implemented-owl2-rl-subset)
     - [Currently Missing or Partial Constructs](#currently-missing-or-partial-constructs)
-- [Appendix](#appendix)
-    - [Appendix Table A: Configuration Parameters (1/2)](#appendix-table-a-configuration-parameters-12)
-    - [Appendix Table B: Configuration Parameters (2/2)](#appendix-table-b-configuration-parameters-22)
-    - [Appendix Table C: Algorithm Terminology](#appendix-table-c-algorithm-terminology)
+- [Configuration Parameters](#configuration-parameters)
 - [Development](#development)
     - [`uv`](#uv)
 - [Known issues](#known-issues)
@@ -84,9 +81,7 @@ I value **reproducibility** of scientific experiments very highly, so:
 - I created a sophisticated `uv` **_monorepo_**, i.e. a single repository containing multiple packages as 'subprojects', each with their own dependencies and configurations.
 - I added a **Linux devcontainer** for easy setup on any OS (including Windows, which is not Unix-based like Linux or macOS).
 
-The _subprojects_ (located in `apps/`) are:
-
-The _subprojects_ (located in `apps/`) include the core Synthology generator, the UDM/Jena baseline pipeline, the RRN training harness, the ASP-based Family Tree generator, and supporting scripts for visualization and hyperparameter optimization.
+The _subprojects_ (located in `apps/`) include the core Synthology generator (`ont_generator`), the UDM/Jena baseline pipeline (`udm_baseline`), the RRN code (`RRN`), the ASP-based Family Tree generator (`asp_generator`), and supporting scripts for visualization and hyperparameter optimization.
 
 The `uv` nature of this repo makes it possible to easily manage **dependencies** between these subprojects. Furthermore, it provides a **task runner** (`invoke`) to run common tasks (e.g., generating datasets, training models, running experiments) from the project root. Use the following command to see all available tasks:
 
@@ -444,8 +439,8 @@ Design note: this is an implementation scope choice, not an architectural limita
 
 ## Configuration Parameters
 
-| YAML Parameter           | Symbol               | Type        | Default | Description                                                                                                                                                                      |
-| ------------------------ | -------------------- | ----------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --- | -------------------------------------------------------------------------------------------------------- |
+| YAML Parameter           | Symbol               | Type        | Default | Description        |
+| ------------------------ | -------------------- | ----------- | ------- | --------------------|
 | `min_individuals`        | $I_{\min}$           | int         | 1       | Lower acceptance bound on sample size: graphs with fewer individuals are rejected.                                                                                               |
 | `max_individuals`        | $I_{\max}$           | int         | 1000    | Upper acceptance bound on sample size: graphs with more individuals are rejected.                                                                                                |
 | `min_rules`              | $R_{\min}$           | int         | 1       | Minimum number of ontology rules selected per generated sample before proof generation.                                                                                          |
@@ -455,7 +450,7 @@ Design note: this is an implementation scope choice, not an architectural limita
 | `max_recursion`          | $d_r$                | int         | 3       | Per-sample recursion cap for rule reuse in backward chaining; deeper recursion allows longer inference chains.                                                                   |
 | `global_max_depth`       | $d_{\max}$           | int         | 10      | Absolute depth limit for recursive proof search; branches beyond this depth are pruned.                                                                                          |
 | `max_proofs_per_atom`    | $\kappa$             | int         | 5       | Hard cap on number of proofs emitted for one goal atom, preventing combinatorial explosion.                                                                                      |
-| `individual_pool_size`   | $                    | \mathcal{U} | $       | int                                                                                                                                                                              | 60  | Target size of the reusable individual pool used when instantiating variables during proof construction. |
+| `individual_pool_size`   | $        \mathcal{U} $       | int                                                                                                                                                                              | 60  | Target size of the reusable individual pool used when instantiating variables during proof construction. |
 | `individual_reuse_prob`  | $\pi_{\text{reuse}}$ | float       | 0.7     | Probability of reusing an existing individual from the pool rather than creating a new one.                                                                                      |
 | `use_signature_sampling` |                      | bool        | true    | If enabled, generated proofs are grouped by structural signature and one representative per group is sampled, improving diversity and reducing redundant Cartesian combinations. |
 | `min_proof_roots`        | $U_{\min}$           | int         | 5       | Minimum number of independent root-generation cycles attempted per selected rule.                                                                                                |
