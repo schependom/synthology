@@ -68,8 +68,7 @@ As a supporting deliverable, we release an open-source **PyTorch Lightning reimp
 
 ## Features
 
-Don't worry if the repository looks a bit overwhelming :)
-I value **reproducibility** of scientific experiments very highly, so:
+Don't worry if the repository looks a bit overwhelming. I value **reproducibility** of scientific experiments very highly, so:
 
 - I created a sophisticated `uv` **_monorepo_**, i.e. a single repository containing multiple packages as 'subprojects', each with their own dependencies and configurations.
 - I added a **Linux devcontainer** for easy setup on any OS (including Windows, which is not Unix-based like Linux or macOS).
@@ -113,7 +112,7 @@ Then, install project dependencies:
 uv sync
 ```
 
-As you can see, with `uv`, installing dependencies is as easy as running a single command! No contradictory `requirements.txt` files or anything like that :)
+As you can see, with `uv`, installing dependencies is as easy as running a single command! No contradictory `requirements.txt` files or anything like that.
 
 #### DLV
 
@@ -170,7 +169,6 @@ After cloning OWL2Bench, ensure the RL ontology path exists at:
 If needed, copy it from the cloned vendor folder:
 
 ```bash
-mkdir -p ontologies
 cp vendor/OWL2Bench/UNIV-BENCH-OWL2RL.owl ontologies/
 ```
 
