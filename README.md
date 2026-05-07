@@ -5,8 +5,6 @@
 _**Vincent Van Schependom**, Cas Proost, Pieter Bonte_\
 _Department of Computer Science, KU Leuven campus Kulak Kortrijk_
 
-[Read the preprint](paper/preprint.pdf)
-
 ## Introduction
 
 ### Context & Problem Statement
@@ -54,16 +52,10 @@ As a supporting deliverable, we release an open-source **PyTorch Lightning reimp
     - [Standard Data Format](#standard-data-format)
     - [ASP solver (Family Tree)](#asp-solver-family-tree)
     - [Ontology-based generator (Synthology)](#ontology-based-generator-synthology)
-- [Visual verification](#visual-verification)
-    - [Category A: OWL2Bench generator checks](#category-a-owl2bench-generator-checks)
-    - [Category B: UDM baseline checks](#category-b-udm-baseline-checks)
-    - [Category C: Synthology ont_generator checks](#category-c-synthology-ont_generator-checks)
-    - [Category D: Cross-generator paper plots](#category-d-cross-generator-paper-plots)
 - [Hyperparameter Optimization (WandB Sweeps)](#hyperparameter-optimization-wandb-sweeps)
 - [Custom configurations](#custom-configurations)
     - [1. Edit configuration files](#1-edit-configuration-files)
     - [2. Override configurations from command line](#2-override-configurations-from-command-line)
-- [Experiment Protocols](#experiment-protocols)
 - [OWL2 RL Profile Coverage and Appendix Tables](#owl2-rl-profile-coverage-and-appendix-tables)
     - [Implemented OWL2 RL Subset](#implemented-owl2-rl-subset)
     - [Currently Missing or Partial Constructs](#currently-missing-or-partial-constructs)
@@ -72,6 +64,7 @@ As a supporting deliverable, we release an open-source **PyTorch Lightning reimp
     - [`uv`](#uv)
 - [Known issues](#known-issues)
     - [1. Python output buffering](#1-python-output-buffering)
+    - [2. Maven path missing](#2-maven-path-missing)
 
 ## Features
 
@@ -439,27 +432,27 @@ Design note: this is an implementation scope choice, not an architectural limita
 
 ## Configuration Parameters
 
-| YAML Parameter           | Symbol               | Type        | Default | Description        |
-| ------------------------ | -------------------- | ----------- | ------- | --------------------|
-| `min_individuals`        | $I_{\min}$           | int         | 1       | Lower acceptance bound on sample size: graphs with fewer individuals are rejected.                                                                                               |
-| `max_individuals`        | $I_{\max}$           | int         | 1000    | Upper acceptance bound on sample size: graphs with more individuals are rejected.                                                                                                |
-| `min_rules`              | $R_{\min}$           | int         | 1       | Minimum number of ontology rules selected per generated sample before proof generation.                                                                                          |
-| `max_rules`              | $R_{\max}$           | int         | 5       | Maximum number of ontology rules selected per generated sample.                                                                                                                  |
-| `target_min_proofs_rule` | $P_{\min}$           | int         | 5       | Target lower bound on proofs kept per selected rule; effectively bounded by how many valid proofs exist.                                                                         |
-| `seed`                   | $s$                  | int         | 23      | Seed for pseudorandom sampling (rule selection, proof-root counts, and corruption choices), improving reproducibility.                                                           |
-| `max_recursion`          | $d_r$                | int         | 3       | Per-sample recursion cap for rule reuse in backward chaining; deeper recursion allows longer inference chains.                                                                   |
-| `global_max_depth`       | $d_{\max}$           | int         | 10      | Absolute depth limit for recursive proof search; branches beyond this depth are pruned.                                                                                          |
-| `max_proofs_per_atom`    | $\kappa$             | int         | 5       | Hard cap on number of proofs emitted for one goal atom, preventing combinatorial explosion.                                                                                      |
-| `individual_pool_size`   | $        \mathcal{U} $       | int                                                                                                                                                                              | 60  | Target size of the reusable individual pool used when instantiating variables during proof construction. |
-| `individual_reuse_prob`  | $\pi_{\text{reuse}}$ | float       | 0.7     | Probability of reusing an existing individual from the pool rather than creating a new one.                                                                                      |
-| `use_signature_sampling` |                      | bool        | true    | If enabled, generated proofs are grouped by structural signature and one representative per group is sampled, improving diversity and reducing redundant Cartesian combinations. |
-| `min_proof_roots`        | $U_{\min}$           | int         | 5       | Minimum number of independent root-generation cycles attempted per selected rule.                                                                                                |
-| `max_proof_roots`        | $U_{\max}$           | int         | 20      | Maximum number of independent root-generation cycles attempted per selected rule.                                                                                                |
-| `always_generate_base` |                     | bool  | false         | If true, emits a base proof even when derivation rules apply; if false, base proofs are mainly used when no matching rule exists.                        |
-| `min_lcc_ratio`        | $\rho_{\text{lcc}}$ | float | 0.8           | Validation threshold for graph connectivity: the largest connected component must cover at least this fraction of individuals.                           |
-| `strategy`             | $s_{\text{neg}}$    | enum  | `proof_based` | Negative sampling mode used in the thesis experiments: `random`, `constrained`, `proof_based`.                                                           |
-| `ratio`                | $\rho_{\pm}$        | float | 1.0           | Target negative-to-positive ratio for generated examples; $\rho_{\pm}=1$ gives approximately balanced counts.                                            |
-| `corrupt_base_facts`   |                     | bool  | false         | Enables corruption of proof-leaf base facts in proof-based logic; this controls whether propagated counterfactual negatives are produced in that branch. |
+| YAML Parameter           | Symbol               | Type  | Default       | Description                                                                                                                                                                      |
+| ------------------------ | -------------------- | ----- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `min_individuals`        | $I_{\min}$           | int   | 1             | Lower acceptance bound on sample size: graphs with fewer individuals are rejected.                                                                                               |
+| `max_individuals`        | $I_{\max}$           | int   | 1000          | Upper acceptance bound on sample size: graphs with more individuals are rejected.                                                                                                |
+| `min_rules`              | $R_{\min}$           | int   | 1             | Minimum number of ontology rules selected per generated sample before proof generation.                                                                                          |
+| `max_rules`              | $R_{\max}$           | int   | 5             | Maximum number of ontology rules selected per generated sample.                                                                                                                  |
+| `target_min_proofs_rule` | $P_{\min}$           | int   | 5             | Target lower bound on proofs kept per selected rule; effectively bounded by how many valid proofs exist.                                                                         |
+| `seed`                   | $s$                  | int   | 23            | Seed for pseudorandom sampling (rule selection, proof-root counts, and corruption choices), improving reproducibility.                                                           |
+| `max_recursion`          | $d_r$                | int   | 3             | Per-sample recursion cap for rule reuse in backward chaining; deeper recursion allows longer inference chains.                                                                   |
+| `global_max_depth`       | $d_{\max}$           | int   | 10            | Absolute depth limit for recursive proof search; branches beyond this depth are pruned.                                                                                          |
+| `max_proofs_per_atom`    | $\kappa$             | int   | 5             | Hard cap on number of proofs emitted for one goal atom, preventing combinatorial explosion.                                                                                      |
+| `individual_pool_size`   | $ \mathcal{U} $      | int   | 60            | Target size of the reusable individual pool used when instantiating variables during proof construction.                                                                         |
+| `individual_reuse_prob`  | $\pi_{\text{reuse}}$ | float | 0.7           | Probability of reusing an existing individual from the pool rather than creating a new one.                                                                                      |
+| `use_signature_sampling` |                      | bool  | true          | If enabled, generated proofs are grouped by structural signature and one representative per group is sampled, improving diversity and reducing redundant Cartesian combinations. |
+| `min_proof_roots`        | $U_{\min}$           | int   | 5             | Minimum number of independent root-generation cycles attempted per selected rule.                                                                                                |
+| `max_proof_roots`        | $U_{\max}$           | int   | 20            | Maximum number of independent root-generation cycles attempted per selected rule.                                                                                                |
+| `always_generate_base`   |                      | bool  | false         | If true, emits a base proof even when derivation rules apply; if false, base proofs are mainly used when no matching rule exists.                                                |
+| `min_lcc_ratio`          | $\rho_{\text{lcc}}$  | float | 0.8           | Validation threshold for graph connectivity: the largest connected component must cover at least this fraction of individuals.                                                   |
+| `strategy`               | $s_{\text{neg}}$     | enum  | `proof_based` | Negative sampling mode used in the thesis experiments: `random`, `constrained`, `proof_based`.                                                                                   |
+| `ratio`                  | $\rho_{\pm}$         | float | 1.0           | Target negative-to-positive ratio for generated examples; $\rho_{\pm}=1$ gives approximately balanced counts.                                                                    |
+| `corrupt_base_facts`     |                      | bool  | false         | Enables corruption of proof-leaf base facts in proof-based logic; this controls whether propagated counterfactual negatives are produced in that branch.                         |
 
 ## Development
 
