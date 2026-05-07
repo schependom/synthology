@@ -1,6 +1,6 @@
 # Synthology <!-- omit in toc -->
 
-**Ontology-Based Data Generation for Neuro-Symbolic Reasoning**.
+**Ontology-Based Data Generation for Neurosymbolic Reasoning**.
 
 _**Vincent Van Schependom**, Cas Proost, Pieter Bonte_\
 _Department of Computer Science, KU Leuven campus Kulak Kortrijk_
@@ -11,7 +11,7 @@ _Department of Computer Science, KU Leuven campus Kulak Kortrijk_
 
 **Knowledge Graph Reasoning (KGR)** involves deriving new, implicit knowledge from a Knowledge Graph (KG) and its accompanying ontology. Traditionally this is done by **symbolic reasoners**, which execute ontology rules with perfect soundness and completeness — but are sensitive to noise and computationally expensive on real-world KGs.
 
-**Neuro-symbolic reasoners** have emerged as a scalable alternative: instead of executing rules at inference time, a neural model is trained to _imitate_ them (a paradigm known as **approximate reasoning**). This shift comes with a critical prerequisite: the model must be trained on a dataset that faithfully reflects the target ontology. Real-world KGs (e.g. DBpedia, Freebase) are too noisy and incomplete for this, and existing synthetic data pipelines - which we refer to as **Unguided Deductive Materialization (UDM)** - fall short in two ways:
+**Neurosymbolic reasoners** have emerged as a scalable alternative: instead of executing rules at inference time, a neural model is trained to _imitate_ them (a paradigm known as **approximate reasoning**). This shift comes with a critical prerequisite: the model must be trained on a dataset that faithfully reflects the target ontology. Real-world KGs (e.g. DBpedia, Freebase) are too noisy and incomplete for this, and existing synthetic data pipelines - which we refer to as **Unguided Deductive Materialization (UDM)** - fall short in two ways:
 
 1. **Structurally shallow data.** UDM generates base facts without ontology guidance, then materializes targets via a forward-chaining reasoner. The resulting graphs are dominated by shallow inferences; the deep, multi-hop derivations a model is actually meant to learn occur only by accident.
 2. **Trivial negatives.** UDM relies on random or constrained corruption, which produces negatives that are easy to reject from surface features alone - collapsing the training signal to pattern matching rather than genuine reasoning.
@@ -22,11 +22,11 @@ A further practical issue is **scalability**: forward-chaining materializers mus
 
 **Synthology** addresses all of the above via **backward-chaining proof construction**: given any OWL 2 RL ontology, it purposefully engineers training samples by constructing proof trees for target triples, guaranteeing multi-hop derivations by design. The three main contributions are:
 
-1. **Synthology**: the first ontology-agnostic, backward-chaining synthetic data generator for OWL 2 RL. Any supported ontology can now be used to train a neuro-symbolic reasoner without expensive data gathering.
+1. **Synthology**: the first ontology-agnostic, backward-chaining synthetic data generator for OWL 2 RL. Any supported ontology can now be used to train a neurosymbolic reasoner without expensive data gathering.
 2. **Proof-based negative sampling**: hard negatives are constructed directly from proof trees, producing near-miss facts that require genuine multi-hop reasoning to correctly classify.
 3. **Empirical evaluation**: a comparative study across two ontologies (Family Tree, OWL2Bench) demonstrating significant advantages in hop distribution, predicate coverage, negative-sample quality, and scalability over UDM baselines. Synthology also avoids the Reasoning Wall that UDM hits at scale.
 
-As a supporting deliverable, we release an open-source **PyTorch Lightning reimplementation of the Recursive Reasoning Network (RRN)**, a neuro-symbolic link-prediction model, used as the evaluation architecture throughout.
+As a supporting deliverable, we release an open-source **PyTorch Lightning reimplementation of the Recursive Reasoning Network (RRN)**, a neurosymbolic link-prediction model, used as the evaluation architecture throughout.
 
 ## Table of Contents <!-- omit in toc -->
 
