@@ -233,6 +233,8 @@ matlab/out
 apache-maven*/*
 !apache-maven*/NOTE.txt
 
+apache-maven*.tar.gz
+
 *.out
 *.err
 

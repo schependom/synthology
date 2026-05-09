@@ -1,11 +1,9 @@
 # Synthology <!-- omit in toc -->
 
-**Ontology-Based Data Generation for Neuro-Symbolic Reasoning**.
+**Ontology-Based Data Generation for Neurosymbolic Reasoning**.
 
 _**Vincent Van Schependom**, Cas Proost, Pieter Bonte_\
 _Department of Computer Science, KU Leuven campus Kulak Kortrijk_
-
-[Read the preprint](paper/preprint.pdf)
 
 ## Introduction
 
@@ -13,7 +11,7 @@ _Department of Computer Science, KU Leuven campus Kulak Kortrijk_
 
 **Knowledge Graph Reasoning (KGR)** involves deriving new, implicit knowledge from a Knowledge Graph (KG) and its accompanying ontology. Traditionally this is done by **symbolic reasoners**, which execute ontology rules with perfect soundness and completeness — but are sensitive to noise and computationally expensive on real-world KGs.
 
-**Neuro-symbolic reasoners** have emerged as a scalable alternative: instead of executing rules at inference time, a neural model is trained to _imitate_ them (a paradigm known as **approximate reasoning**). This shift comes with a critical prerequisite: the model must be trained on a dataset that faithfully reflects the target ontology. Real-world KGs (e.g. DBpedia, Freebase) are too noisy and incomplete for this, and existing synthetic data pipelines - which we refer to as **Unguided Deductive Materialization (UDM)** - fall short in two ways:
+**Neurosymbolic reasoners** have emerged as a scalable alternative: instead of executing rules at inference time, a neural model is trained to _imitate_ them (a paradigm known as **approximate reasoning**). This shift comes with a critical prerequisite: the model must be trained on a dataset that faithfully reflects the target ontology. Real-world KGs (e.g. DBpedia, Freebase) are too noisy and incomplete for this, and existing synthetic data pipelines - which we refer to as **Unguided Deductive Materialization (UDM)** - fall short in two ways:
 
 1. **Structurally shallow data.** UDM generates base facts without ontology guidance, then materializes targets via a forward-chaining reasoner. The resulting graphs are dominated by shallow inferences; the deep, multi-hop derivations a model is actually meant to learn occur only by accident.
 2. **Trivial negatives.** UDM relies on random or constrained corruption, which produces negatives that are easy to reject from surface features alone - collapsing the training signal to pattern matching rather than genuine reasoning.
@@ -24,11 +22,11 @@ A further practical issue is **scalability**: forward-chaining materializers mus
 
 **Synthology** addresses all of the above via **backward-chaining proof construction**: given any OWL 2 RL ontology, it purposefully engineers training samples by constructing proof trees for target triples, guaranteeing multi-hop derivations by design. The three main contributions are:
 
-1. **Synthology**: the first ontology-agnostic, backward-chaining synthetic data generator for OWL 2 RL. Any supported ontology can now be used to train a neuro-symbolic reasoner without expensive data gathering.
+1. **Synthology**: the first ontology-agnostic, backward-chaining synthetic data generator for OWL 2 RL. Any supported ontology can now be used to train a neurosymbolic reasoner without expensive data gathering.
 2. **Proof-based negative sampling**: hard negatives are constructed directly from proof trees, producing near-miss facts that require genuine multi-hop reasoning to correctly classify.
 3. **Empirical evaluation**: a comparative study across two ontologies (Family Tree, OWL2Bench) demonstrating significant advantages in hop distribution, predicate coverage, negative-sample quality, and scalability over UDM baselines. Synthology also avoids the Reasoning Wall that UDM hits at scale.
 
-As a supporting deliverable, we release an open-source **PyTorch Lightning reimplementation of the Recursive Reasoning Network (RRN)**, a neuro-symbolic link-prediction model, used as the evaluation architecture throughout.
+As a supporting deliverable, we release an open-source **PyTorch Lightning reimplementation of the Recursive Reasoning Network (RRN)**, a neurosymbolic link-prediction model, used as the evaluation architecture throughout.
 
 ## Table of Contents <!-- omit in toc -->
 
@@ -54,16 +52,10 @@ As a supporting deliverable, we release an open-source **PyTorch Lightning reimp
     - [Standard Data Format](#standard-data-format)
     - [ASP solver (Family Tree)](#asp-solver-family-tree)
     - [Ontology-based generator (Synthology)](#ontology-based-generator-synthology)
-- [Visual verification](#visual-verification)
-    - [Category A: OWL2Bench generator checks](#category-a-owl2bench-generator-checks)
-    - [Category B: UDM baseline checks](#category-b-udm-baseline-checks)
-    - [Category C: Synthology ont_generator checks](#category-c-synthology-ont_generator-checks)
-    - [Category D: Cross-generator paper plots](#category-d-cross-generator-paper-plots)
 - [Hyperparameter Optimization (WandB Sweeps)](#hyperparameter-optimization-wandb-sweeps)
 - [Custom configurations](#custom-configurations)
     - [1. Edit configuration files](#1-edit-configuration-files)
     - [2. Override configurations from command line](#2-override-configurations-from-command-line)
-- [Experiment Protocols](#experiment-protocols)
 - [OWL2 RL Profile Coverage and Appendix Tables](#owl2-rl-profile-coverage-and-appendix-tables)
     - [Implemented OWL2 RL Subset](#implemented-owl2-rl-subset)
     - [Currently Missing or Partial Constructs](#currently-missing-or-partial-constructs)
@@ -72,11 +64,11 @@ As a supporting deliverable, we release an open-source **PyTorch Lightning reimp
     - [`uv`](#uv)
 - [Known issues](#known-issues)
     - [1. Python output buffering](#1-python-output-buffering)
+    - [2. Maven path missing](#2-maven-path-missing)
 
 ## Features
 
-Don't worry if the repository looks a bit overwhelming :)
-I value **reproducibility** of scientific experiments very highly, so:
+Don't worry if the repository looks a bit overwhelming. I value **reproducibility** of scientific experiments very highly, so:
 
 - I created a sophisticated `uv` **_monorepo_**, i.e. a single repository containing multiple packages as 'subprojects', each with their own dependencies and configurations.
 - I added a **Linux devcontainer** for easy setup on any OS (including Windows, which is not Unix-based like Linux or macOS).
@@ -120,7 +112,7 @@ Then, install project dependencies:
 uv sync
 ```
 
-As you can see, with `uv`, installing dependencies is as easy as running a single command! No contradictory `requirements.txt` files or anything like that :)
+As you can see, with `uv`, installing dependencies is as easy as running a single command! No contradictory `requirements.txt` files or anything like that.
 
 #### DLV
 
@@ -177,7 +169,6 @@ After cloning OWL2Bench, ensure the RL ontology path exists at:
 If needed, copy it from the cloned vendor folder:
 
 ```bash
-mkdir -p ontologies
 cp vendor/OWL2Bench/UNIV-BENCH-OWL2RL.owl ontologies/
 ```
 
@@ -439,27 +430,27 @@ Design note: this is an implementation scope choice, not an architectural limita
 
 ## Configuration Parameters
 
-| YAML Parameter           | Symbol               | Type        | Default | Description        |
-| ------------------------ | -------------------- | ----------- | ------- | --------------------|
-| `min_individuals`        | $I_{\min}$           | int         | 1       | Lower acceptance bound on sample size: graphs with fewer individuals are rejected.                                                                                               |
-| `max_individuals`        | $I_{\max}$           | int         | 1000    | Upper acceptance bound on sample size: graphs with more individuals are rejected.                                                                                                |
-| `min_rules`              | $R_{\min}$           | int         | 1       | Minimum number of ontology rules selected per generated sample before proof generation.                                                                                          |
-| `max_rules`              | $R_{\max}$           | int         | 5       | Maximum number of ontology rules selected per generated sample.                                                                                                                  |
-| `target_min_proofs_rule` | $P_{\min}$           | int         | 5       | Target lower bound on proofs kept per selected rule; effectively bounded by how many valid proofs exist.                                                                         |
-| `seed`                   | $s$                  | int         | 23      | Seed for pseudorandom sampling (rule selection, proof-root counts, and corruption choices), improving reproducibility.                                                           |
-| `max_recursion`          | $d_r$                | int         | 3       | Per-sample recursion cap for rule reuse in backward chaining; deeper recursion allows longer inference chains.                                                                   |
-| `global_max_depth`       | $d_{\max}$           | int         | 10      | Absolute depth limit for recursive proof search; branches beyond this depth are pruned.                                                                                          |
-| `max_proofs_per_atom`    | $\kappa$             | int         | 5       | Hard cap on number of proofs emitted for one goal atom, preventing combinatorial explosion.                                                                                      |
-| `individual_pool_size`   | $        \mathcal{U} $       | int                                                                                                                                                                              | 60  | Target size of the reusable individual pool used when instantiating variables during proof construction. |
-| `individual_reuse_prob`  | $\pi_{\text{reuse}}$ | float       | 0.7     | Probability of reusing an existing individual from the pool rather than creating a new one.                                                                                      |
-| `use_signature_sampling` |                      | bool        | true    | If enabled, generated proofs are grouped by structural signature and one representative per group is sampled, improving diversity and reducing redundant Cartesian combinations. |
-| `min_proof_roots`        | $U_{\min}$           | int         | 5       | Minimum number of independent root-generation cycles attempted per selected rule.                                                                                                |
-| `max_proof_roots`        | $U_{\max}$           | int         | 20      | Maximum number of independent root-generation cycles attempted per selected rule.                                                                                                |
-| `always_generate_base` |                     | bool  | false         | If true, emits a base proof even when derivation rules apply; if false, base proofs are mainly used when no matching rule exists.                        |
-| `min_lcc_ratio`        | $\rho_{\text{lcc}}$ | float | 0.8           | Validation threshold for graph connectivity: the largest connected component must cover at least this fraction of individuals.                           |
-| `strategy`             | $s_{\text{neg}}$    | enum  | `proof_based` | Negative sampling mode used in the thesis experiments: `random`, `constrained`, `proof_based`.                                                           |
-| `ratio`                | $\rho_{\pm}$        | float | 1.0           | Target negative-to-positive ratio for generated examples; $\rho_{\pm}=1$ gives approximately balanced counts.                                            |
-| `corrupt_base_facts`   |                     | bool  | false         | Enables corruption of proof-leaf base facts in proof-based logic; this controls whether propagated counterfactual negatives are produced in that branch. |
+| YAML Parameter           | Symbol               | Type  | Default       | Description                                                                                                                                                                      |
+| ------------------------ | -------------------- | ----- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `min_individuals`        | $I_{\min}$           | int   | 1             | Lower acceptance bound on sample size: graphs with fewer individuals are rejected.                                                                                               |
+| `max_individuals`        | $I_{\max}$           | int   | 1000          | Upper acceptance bound on sample size: graphs with more individuals are rejected.                                                                                                |
+| `min_rules`              | $R_{\min}$           | int   | 1             | Minimum number of ontology rules selected per generated sample before proof generation.                                                                                          |
+| `max_rules`              | $R_{\max}$           | int   | 5             | Maximum number of ontology rules selected per generated sample.                                                                                                                  |
+| `target_min_proofs_rule` | $P_{\min}$           | int   | 5             | Target lower bound on proofs kept per selected rule; effectively bounded by how many valid proofs exist.                                                                         |
+| `seed`                   | $s$                  | int   | 23            | Seed for pseudorandom sampling (rule selection, proof-root counts, and corruption choices), improving reproducibility.                                                           |
+| `max_recursion`          | $d_r$                | int   | 3             | Per-sample recursion cap for rule reuse in backward chaining; deeper recursion allows longer inference chains.                                                                   |
+| `global_max_depth`       | $d_{\max}$           | int   | 10            | Absolute depth limit for recursive proof search; branches beyond this depth are pruned.                                                                                          |
+| `max_proofs_per_atom`    | $\kappa$             | int   | 5             | Hard cap on number of proofs emitted for one goal atom, preventing combinatorial explosion.                                                                                      |
+| `individual_pool_size`   | $ \mathcal{U} $      | int   | 60            | Target size of the reusable individual pool used when instantiating variables during proof construction.                                                                         |
+| `individual_reuse_prob`  | $\pi_{\text{reuse}}$ | float | 0.7           | Probability of reusing an existing individual from the pool rather than creating a new one.                                                                                      |
+| `use_signature_sampling` |                      | bool  | true          | If enabled, generated proofs are grouped by structural signature and one representative per group is sampled, improving diversity and reducing redundant Cartesian combinations. |
+| `min_proof_roots`        | $U_{\min}$           | int   | 5             | Minimum number of independent root-generation cycles attempted per selected rule.                                                                                                |
+| `max_proof_roots`        | $U_{\max}$           | int   | 20            | Maximum number of independent root-generation cycles attempted per selected rule.                                                                                                |
+| `always_generate_base`   |                      | bool  | false         | If true, emits a base proof even when derivation rules apply; if false, base proofs are mainly used when no matching rule exists.                                                |
+| `min_lcc_ratio`          | $\rho_{\text{lcc}}$  | float | 0.8           | Validation threshold for graph connectivity: the largest connected component must cover at least this fraction of individuals.                                                   |
+| `strategy`               | $s_{\text{neg}}$     | enum  | `proof_based` | Negative sampling mode used in the thesis experiments: `random`, `constrained`, `proof_based`.                                                                                   |
+| `ratio`                  | $\rho_{\pm}$         | float | 1.0           | Target negative-to-positive ratio for generated examples; $\rho_{\pm}=1$ gives approximately balanced counts.                                                                    |
+| `corrupt_base_facts`     |                      | bool  | false         | Enables corruption of proof-leaf base facts in proof-based logic; this controls whether propagated counterfactual negatives are produced in that branch.                         |
 
 ## Development
 

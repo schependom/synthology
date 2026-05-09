@@ -1,6 +1,6 @@
 # Ontology Knowledge Graph Generator (ont_generator)
 
-This application generates synthetic knowledge graphs (KGs) from OWL 2 RL ontologies using backward-chaining reasoning. It is designed to create high-quality training and testing datasets for Neuro-Symbolic Link Prediction.
+This application generates synthetic knowledge graphs (KGs) from OWL 2 RL ontologies using backward-chaining reasoning. It is designed to create high-quality training and testing datasets for Neurosymbolic Link Prediction.
 
 ## Installation
 
