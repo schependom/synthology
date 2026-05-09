@@ -1,0 +1,5 @@
+name: "Exp2 Synthology — ASP Neutral Test Set (balanced negatives)"
+
+train_path: "data/exp2/synthology/family_tree/train"
+val_path:   "data/exp2/frozen_val/val"
+test_path:  "data/asp/family_tree_neutral_balanced/test"

@@ -4,8 +4,11 @@
 % budget-matched training data vs. number of OWL2Bench universities,
 % for UDM OWL2Bench baseline (owl_full reasoner) and Synthology.
 %
-% Data extracted from LSF job logs (see jobscripts/exp3-generate-*.sh).
-% Synthology budgets are matched to the baseline sample count at each scale.
+% Data source: results/exp3_scalability/timing_summary.csv
+% Generate that file with: bash jobscripts/exp3-scalability-collect.sh
+%
+% CSV format: u,method,time_sec,time_min,mem_mb,status
+% Failed / missing rows contain NaN — those bars are omitted from the plot.
 
 disp('IMPORTANT: delete exp3_scalability.pdf before running this script!');
 
@@ -17,29 +20,63 @@ repoRoot = fileparts(fileparts(mfilename('fullpath')));
 outDir   = fullfile(repoRoot, 'paper', 'figures');
 if ~exist(outDir, 'dir'), mkdir(outDir); end
 
-% ── Data ─────────────────────────────────────────────────────────────────────
-% x-axis: number of OWL2Bench universities
-universities = [5, 14, 20];
+% ── Load CSV ─────────────────────────────────────────────────────────────────
+csvPath = fullfile(repoRoot, 'results', 'exp3_scalability', 'timing_summary.csv');
 
-% Wall-clock generation time (minutes), median of available job logs
-time_baseline   = [12.6,  1130.1, 186.7];
-time_synthology = [74.4,    67.0,  65.7];
+if ~isfile(csvPath)
+    error('timing_summary.csv not found at %s.\nRun: bash jobscripts/exp3-scalability-collect.sh', csvPath);
+end
 
-% Peak RSS memory (GB), median of available job logs
-mem_baseline    = [14.8,   107.5,  57.5];
-mem_synthology  = [ 4.6,     1.1,   1.1];
-% ─────────────────────────────────────────────────────────────────────────────
+T = readtable(csvPath, 'TextType', 'string');
+
+% Collect unique u values (sorted)
+u_all = unique(str2double(string(T.u)));
+u_all = sort(u_all(~isnan(u_all)));
+n_u   = numel(u_all);
+
+time_baseline   = NaN(n_u, 1);
+time_synthology = NaN(n_u, 1);
+mem_baseline    = NaN(n_u, 1);
+mem_synthology  = NaN(n_u, 1);
+
+bl_failed = false(n_u, 1);  % true = ran until failure (hatch bar)
+
+for i = 1:n_u
+    u_val = u_all(i);
+
+    bl_row = T(str2double(string(T.u)) == u_val & strcmpi(string(T.method), 'baseline'), :);
+    sb_row = T(str2double(string(T.u)) == u_val & strcmpi(string(T.method), 'synthology'), :);
+
+    if ~isempty(bl_row)
+        v = str2double(string(bl_row.time_min(1)));
+        m = str2double(string(bl_row.mem_mb(1)));
+        if ~isnan(v)
+            time_baseline(i) = v;
+            mem_baseline(i)  = m / 1024;
+            bl_failed(i) = ~strcmpi(string(bl_row.status(1)), 'OK');
+        end
+    end
+
+    if ~isempty(sb_row)
+        v = str2double(string(sb_row.time_min(1)));
+        m = str2double(string(sb_row.mem_mb(1)));
+        if ~isnan(v)
+            time_synthology(i) = v;
+            mem_synthology(i)  = m / 1024;
+        end
+    end
+end
 
 labels  = {'UDM Baseline', 'Synthology'};
-xticks  = 1:numel(universities);
-xlabels = arrayfun(@(u) sprintf('%d', u), universities, 'UniformOutput', false);
+xticks  = 1:n_u;
+xlabels = arrayfun(@(u) sprintf('%d', u), u_all, 'UniformOutput', false);
 
 fig = figure('Position', [100, 100, 1400, 560], 'Color', 'w');
 
 % ── Left subplot: wall-clock time ────────────────────────────────────────────
 ax1 = subplot(1, 2, 1);
 
-time_data = [time_baseline(:), time_synthology(:)];
+time_data = [time_baseline, time_synthology];
 b1 = bar(xticks, time_data, 'grouped');
 b1(1).FaceColor = C.KULijsblauw;
 b1(2).FaceColor = C.KULcorporate;
@@ -50,7 +87,7 @@ set(ax1, 'YScale', 'log');
 set(ax1, 'XTick', xticks, 'XTickLabel', xlabels, ...
     'FontSize', FS, 'TickLabelInterpreter', 'latex');
 
-xlabel('Number of universities',              'FontSize', FS, 'FontWeight', 'bold');
+xlabel('Number of universities',               'FontSize', FS, 'FontWeight', 'bold');
 ylabel('Generation time (minutes, log scale)', 'FontSize', FS, 'FontWeight', 'bold');
 title('Wall-clock Time',                       'FontSize', FS + 2, 'FontWeight', 'bold');
 
@@ -62,7 +99,7 @@ set(ax1, 'GridLineStyle', ':', 'GridAlpha', 0.5);
 % ── Right subplot: peak memory ───────────────────────────────────────────────
 ax2 = subplot(1, 2, 2);
 
-mem_data = [mem_baseline(:), mem_synthology(:)];
+mem_data = [mem_baseline, mem_synthology];
 b2 = bar(xticks, mem_data, 'grouped');
 b2(1).FaceColor = C.KULijsblauw;
 b2(2).FaceColor = C.KULcorporate;
@@ -73,9 +110,9 @@ set(ax2, 'YScale', 'log');
 set(ax2, 'XTick', xticks, 'XTickLabel', xlabels, ...
     'FontSize', FS, 'TickLabelInterpreter', 'latex');
 
-xlabel('Number of universities',        'FontSize', FS, 'FontWeight', 'bold');
-ylabel('Peak memory (GB, log scale)',   'FontSize', FS, 'FontWeight', 'bold');
-title('Peak Memory',                    'FontSize', FS + 2, 'FontWeight', 'bold');
+xlabel('Number of universities',      'FontSize', FS, 'FontWeight', 'bold');
+ylabel('Peak memory (GB, log scale)', 'FontSize', FS, 'FontWeight', 'bold');
+title('Peak Memory',                  'FontSize', FS + 2, 'FontWeight', 'bold');
 
 legend(labels, 'Location', 'northwest', 'FontSize', FS - 2, 'Interpreter', 'latex');
 box off;

@@ -1677,6 +1677,88 @@ def train_rrn_asp(ctx: Context, args=""):
     _run_logged_command(cmd, run_dir / "run.log")
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# ASP neutral test set pipeline (reviewer bias check)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+@task
+def adapt_asp_for_exp2(ctx: Context):
+    """Filters and maps ASP-generated family-tree data to the exp2 schema.
+
+    Maps class names (female→Woman, male→Man) and drops predicates that are
+    not in the exp2 training schema, writing the result to:
+      data/asp/family_tree_neutral/test/
+
+    Run after 'invoke gen-ft-asp' has completed.
+    """
+    run_dir = _make_run_archive("asp_generator", "adapt_asp_for_exp2", label="family_tree_neutral")
+    cmd = "export PYTHONUNBUFFERED=1 && uv run python scripts/adapt_asp_for_exp2.py"
+    _write_json(
+        run_dir / "manifest.json",
+        {"experiment": "asp_generator", "task": "adapt_asp_for_exp2", "command": cmd},
+    )
+    _run_logged_command(cmd, run_dir / "run.log")
+    logger.success("ASP data adapted to exp2 schema at data/asp/family_tree_neutral/test/")
+
+
+@task
+def exp2_test_rrn_asp(ctx: Context, dataset="both", args=""):
+    """Evaluates exp2 RRN checkpoints on the ASP neutral test set.
+
+    dataset: 'baseline', 'synthology', or 'both' (default)
+    """
+    dataset = dataset.strip().lower()
+    if dataset not in {"baseline", "synthology", "both"}:
+        raise ValueError("dataset must be 'baseline', 'synthology', or 'both'")
+
+    variants = (
+        ["baseline", "synthology"] if dataset == "both"
+        else [dataset]
+    )
+
+    asp_test_path = REPO_ROOT / "data" / "asp" / "family_tree_neutral" / "test"
+    if not asp_test_path.exists():
+        raise RuntimeError(
+            f"ASP neutral test set not found at {asp_test_path}.\n"
+            "Run 'invoke gen-ft-asp' then 'invoke adapt-asp-for-exp2' first."
+        )
+
+    for variant in variants:
+        config_name = f"exp2_{variant}_asp_test"
+        run_dir = _make_run_archive("exp2", "test_rrn_asp", label=f"{variant}_asp_neutral")
+        ckpt_glob = str(
+            REPO_ROOT
+            / "reports" / "experiment_runs" / "*" / "*" / "train_rrn" / "*"
+            / "checkpoints" / f"best-checkpoint-exp2-{variant}*.ckpt"
+        )
+        cmd = _build_uv_command(
+            "rrn",
+            "rrn.test_checkpoint",
+            config_name=config_name,
+            args=args,
+            env={"PYTHONUNBUFFERED": "1", "LOGURU_COLORIZE": "1"},
+        )
+        _run_experiment_spec(
+            ExperimentRunSpec(
+                experiment="exp2",
+                task_name="test_rrn_asp",
+                label=f"{variant}_asp_neutral",
+                command=cmd,
+                config_paths=(
+                    "configs/rrn/config.yaml",
+                    f"configs/rrn/{config_name}.yaml",
+                ),
+                manifest={
+                    "dataset": variant,
+                    "args": args,
+                    "config_files": ["configs/rrn/config.yaml", f"configs/rrn/{config_name}.yaml"],
+                    "test_path": str(asp_test_path),
+                },
+            )
+        )
+
+
 # ------------------------------------------------------------ #
 # Helper methods
 # ------------------------------------------------------------ #
