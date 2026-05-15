@@ -5,6 +5,8 @@
 _**Vincent Van Schependom**, Cas Proost, Pieter Bonte_\
 _Department of Computer Science, KU Leuven campus Kulak Kortrijk_
 
+[Read the preprint!](paper/preprint.pdf)
+
 ## Introduction
 
 ### Context & Problem Statement
