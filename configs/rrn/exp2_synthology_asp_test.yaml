@@ -1,0 +1,12 @@
+defaults:
+  - exp2_synthology_hpc
+  - override data/dataset: asp_neutral_test_synthology
+  - _self_
+
+test:
+  checkpoint_glob: "${oc.env:REPO_ROOT}/reports/experiment_runs/*/*/train_rrn/*/checkpoints/best-checkpoint-exp2-synthology*.ckpt"
+
+logger:
+  log_model: false
+  name: "exp2_synthology_asp_test"
+  tags: [exp2, synthology, hpc, asp_neutral_test]
